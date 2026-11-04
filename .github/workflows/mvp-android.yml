@@ -1,0 +1,43 @@
+name: Word Collector MVP Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/word-collector-mvp-20261104
+    paths:
+      - "lib/mvp/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "android/**"
+      - ".github/workflows/mvp-android.yml"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+      - name: Get locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze MVP source
+        run: dart analyze lib/mvp/main.dart
+      - name: Build Android APK
+        env:
+          WC_API_URL: ${{ vars.WC_API_URL }}
+          WC_ANON_KEY: ${{ vars.WC_ANON_KEY }}
+        run: |
+          flutter build apk --release \
+            --target lib/mvp/main.dart \
+            --dart-define=WC_API_URL="$WC_API_URL" \
+            --dart-define=WC_ANON_KEY="$WC_ANON_KEY"
+      - name: Upload APK for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-collector-mvp-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
