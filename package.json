@@ -1,0 +1,20 @@
+{
+  "name": "wordcollector_mobile",
+  "version": "1.0.0",
+  "description": "압축을 풀고 `stitch_ui_ux` 폴더에서 터미널을 연 뒤 로컬 서버를 실행하세요.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  }
+}

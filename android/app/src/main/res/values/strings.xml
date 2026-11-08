@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Word Collector</string>
+    <string name="title_activity_main">Word Collector</string>
+    <string name="package_name">com.yechan.wordcollector</string>
+    <string name="custom_url_scheme">com.yechan.wordcollector</string>
+</resources>

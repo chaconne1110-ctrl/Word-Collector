@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 230">
+<title>와전류 개념도: 화면 안쪽 자속 증가와 반시계 방향 와전류</title>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#00614b"/></marker></defs>
+<rect width="480" height="230" rx="16" fill="#f4fbf8"/>
+<text x="240" y="32" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#17352f">화면 안쪽으로 향하는 자속이 증가할 때</text>
+<rect x="77" y="52" width="326" height="128" rx="14" fill="#def4e9" stroke="#6c9b8c" stroke-width="2"/>
+<g fill="#344c46" font-family="sans-serif" font-size="24" text-anchor="middle">
+<text x="215" y="112">×</text><text x="265" y="112">×</text><text x="215" y="140">×</text><text x="265" y="140">×</text>
+</g>
+<path d="M268 76A79 45 0 1 0 287 83" fill="none" stroke="#00614b" stroke-width="4" marker-end="url(#a)"/>
+<text x="240" y="211" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#17352f">× 자속 방향 · 와전류는 반시계 방향</text>
+</svg>

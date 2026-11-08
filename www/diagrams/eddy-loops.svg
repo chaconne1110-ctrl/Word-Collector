@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 220">
+<title>와전류 개념도: 도체 내부의 닫힌 전류 경로</title>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#1243a3"/></marker></defs>
+<rect width="480" height="220" rx="16" fill="#f5f8ff"/>
+<text x="240" y="33" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#152b58">변하는 자속에 의해 도체 안에 유도되는 와전류</text>
+<rect x="55" y="55" width="370" height="122" rx="18" fill="#dde6ff" stroke="#657db0" stroke-width="2"/>
+<g fill="none" stroke="#1243a3" stroke-width="3" marker-end="url(#a)">
+<path d="M258 86A74 39 0 1 1 232 80"/><path d="M252 102A44 23 0 1 1 232 96"/>
+</g>
+<text x="240" y="203" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#152b58">도체 내부의 닫힌 전류 경로 · 방향은 예시</text>
+</svg>

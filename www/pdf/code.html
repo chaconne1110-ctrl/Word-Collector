@@ -1,0 +1,372 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><title>Academic Lexicon</title>
+<link rel="stylesheet" href="../assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="../assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="../assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="../assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="../assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="../assets/styles/pdf_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate max-w-[200px]">Quick Capture</h1></div><div class="flex items-center gap-space-xs"><button class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">more_vert</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface"><div class="flex flex-col w-full pb-44">
+<div class="px-margin pt-space-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">학술 용어 수집기</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">논문 및 전공 원서 맞춤형 AI 추출 파이프라인</span>
+</div>
+<div class="flex items-center gap-space-xs px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container">
+
+
+</div>
+</div>
+<!-- Segmented Tab Switcher -->
+<div class="w-full bg-surface-container-high p-1 rounded-xl flex items-center shadow-inner">
+<button class="flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1.5 transition-all duration-200" id="tab-direct-btn" onclick="switchMode('direct')">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+<span class="">직접 입력</span>
+</button>
+<button class="flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-primary bg-primary shadow-sm flex items-center justify-center gap-1.5 transition-all duration-200" id="tab-pdf-btn" onclick="switchMode('pdf')">
+<span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+<span class="">PDF 활용</span>
+</button>
+</div>
+<!-- [TAB 1]: Direct Input Form View -->
+<div class="flex flex-col gap-space-md hidden" id="section-direct">
+<!-- Primary Input Card -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<label class="font-label-ui text-label-ui text-on-surface flex items-center gap-1" for="term-input">
+<span class="">전공 영단어 (표제어)</span>
+<span class="text-error">*</span>
+</label>
+<span class="font-label-mono text-label-mono text-on-surface-variant" id="char-counter">0 / 80</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-12 bg-surface-container-low text-on-surface font-headline-sm text-headline-sm px-4 pr-11 rounded-lg placeholder:text-outline placeholder:font-body-md placeholder:text-body-md focus:bg-surface-container-lowest transition-colors" id="term-input" oninput="updateTermState(this.value)" placeholder="예: Magnetic Flux Density" type="text">
+<button class="absolute right-3 text-outline hover:text-on-surface-variant p-1" onclick="clearTermInput()" type="button">
+<span class="material-symbols-outlined text-[20px]">cancel</span>
+</button>
+</div>
+</div>
+<!-- Subject Taxonomy Selection -->
+<div class="flex flex-col gap-space-sm pt-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-label-ui text-on-surface">과목 분류</span>
+<!-- AI Auto Toggle -->
+<label class="flex items-center gap-2 cursor-pointer">
+<span class="font-caption text-caption text-secondary">과목 자동 분류 (AI 추천)</span>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="ai-tax-toggle" onchange="toggleAiTaxonomy(this.checked)" type="checkbox">
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</div>
+</label>
+</div>
+<!-- Suggested / Category Chips -->
+<div class="flex flex-wrap gap-1.5 pt-1" id="subject-chips-container">
+<button class="subject-chip px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container font-label-mono text-label-mono flex items-center gap-1" onclick="selectSubject(this, '전자기학')" type="button">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span class="">전자기학</span>
+</button>
+<button class="subject-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface font-label-mono text-label-mono flex items-center gap-1 hover:bg-surface-container" onclick="selectSubject(this, '회로이론')" type="button">
+<span class="">회로이론</span>
+</button>
+<button class="subject-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface font-label-mono text-label-mono flex items-center gap-1 hover:bg-surface-container" onclick="selectSubject(this, '전기기기')" type="button">
+<span class="">전기기기</span>
+</button>
+<button class="subject-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface font-label-mono text-label-mono flex items-center gap-1 hover:bg-surface-container" onclick="selectSubject(this, '반도체공학')" type="button">
+<span class="">반도체공학</span>
+</button>
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-variant text-on-surface-variant font-label-ui text-label-ui flex items-center gap-1 hover:bg-surface-container-highest" onclick="promptNewSubject()" type="button">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span class="">신규 과목 직접 입력</span>
+</button>
+</div>
+<p class="font-caption text-caption text-secondary flex items-center gap-1 mt-0.5" id="ai-tax-hint">
+<span class="material-symbols-outlined text-[13px]">lightbulb</span>
+<span class="">입력한 영단어와 문맥을 바탕으로 가장 적합한 전공 카테고리를 추론합니다.</span>
+</p>
+</div>
+<!-- Reference Context Textarea -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<div class="flex items-center justify-between">
+<label class="font-label-ui text-label-ui text-on-surface flex items-center gap-1" for="context-area">
+<span class="">참고 문장 / 교재 문맥</span>
+<span class="font-caption text-caption text-on-surface-variant font-normal">(선택)</span>
+</label>
+<span class="font-caption text-caption text-on-tertiary-container flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">auto_fix_high</span>
+<span class="">문맥 분석 활성</span>
+</span>
+</div>
+<div class="relative">
+<textarea class="w-full bg-surface-container-low text-on-surface font-body-sm text-body-sm p-3.5 rounded-lg placeholder:text-outline focus:bg-surface-container-lowest transition-colors resize-none leading-relaxed" id="context-area" placeholder="교재나 논문의 원문 문장을 입력하면 AI가 문맥에 맞게 정확한 정의를 분석합니다.
+예: The magnetic flux density B is related to magnetic field intensity H through the permeability μ." rows="4"></textarea>
+<button class="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded bg-surface-container-highest text-on-surface-variant font-label-ui text-label-ui flex items-center gap-1 shadow-sm" onclick="pasteClipboard()" type="button">
+<span class="material-symbols-outlined text-[13px]">content_paste</span>
+<span class="">붙여넣기</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick AI Preset Visual Card -->
+<div class="bg-surface-container-low p-4 rounded-xl flex items-start gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[22px]">psychology</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-ui text-label-ui text-on-surface">정밀 학술 사전 탑재</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            단어 입력 시 단순 사전적 정의를 넘어 공학 수식 기호, IPA 발음 기호, IEEE 표준 표기 기준을 함께 생성합니다.
+          </p>
+</div>
+</div>
+</div>
+<!-- [TAB 2]: PDF Extraction & Preview View -->
+<div class="flex flex-col gap-space-md" id="section-pdf">
+<!-- Upload Drop Zone Container -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col items-center justify-center text-center gap-space-sm relative overflow-hidden">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[30px]">upload_file</span>
+</div>
+<div class="flex flex-col items-center gap-0.5">
+<span class="font-headline-sm text-headline-sm text-on-surface">PDF 전공 교재 업로드</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">드래그하거나 터치하여 원서 문서를 첨부하세요 (최대 30MB)</span>
+</div>
+<div class="flex items-center gap-2 pt-1">
+<button class="px-4 py-2 rounded-lg bg-surface-container text-primary font-label-ui text-label-ui hover:bg-surface-container-high flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">folder_open</span>
+<span class="">파일 탐색기 열기</span>
+</button>
+<button class="px-3 py-2 rounded-lg bg-surface-variant text-on-surface-variant font-label-ui text-label-ui flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px]">photo_camera</span>
+<span class="">스캔</span>
+</button>
+</div>
+<!-- Embedded Mini Progress Indicator (Simulated active state) -->
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-secondary h-full rounded-full w-full"></div>
+</div>
+<div class="w-full flex items-center justify-between font-caption text-caption text-secondary">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="">텍스트 레이어 OCR 분석 완료</span>
+</span>
+<span class="">100% (38페이지 파싱)</span>
+</div>
+</div>
+<!-- Attached PDF Status Card -->
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">picture_as_pdf</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-term-kr-title text-term-kr-title text-on-surface truncate">Electromagnetics_Ch04.pdf</span>
+<span class="font-caption text-caption text-on-surface-variant">14.2 MB • 총 26개 전문 용어 식별됨</span>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-on-surface" title="파일 변경" type="button">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+</div>
+<!-- Extracted Terms Preview Header -->
+<div class="bg-surface-container-low p-3 rounded-lg flex items-center justify-between">
+<div class="flex items-center gap-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-primary accent-primary" id="select-all-pdf" onchange="toggleAllPdfTerms(this.checked)" type="checkbox">
+<span class="font-label-ui text-label-ui text-on-surface">선택 단어 일괄 저장</span>
+</label>
+<span class="px-2 py-0.5 rounded-full bg-primary-container text-on-primary-container font-label-mono text-label-mono" id="selected-pdf-count">3개 선택됨</span>
+</div>
+
+</div>
+<!-- Term Preview Check List -->
+<div class="flex flex-col gap-2 pt-1" id="pdf-extracted-list"><div class="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-colors flex items-start gap-3 shadow-sm border border-outline-variant/30"><input checked="" class="pdf-term-check mt-1 w-4 h-4 rounded accent-primary shrink-0 cursor-pointer" onchange="updatePdfSelectionCount()" type="checkbox"><div class="flex-1 min-w-0 flex flex-col gap-1"><div class="flex items-center justify-between gap-2 flex-wrap"><div class="flex items-center gap-2 min-w-0 flex-wrap"><span class="font-term-en-title text-[18px] text-on-surface font-bold tracking-tight">Permeability</span><span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-mono text-[11px] whitespace-nowrap shrink-0">명사 • 전자기학</span></div></div><div class="flex flex-col gap-0.5 mt-0.5"><span class="font-term-kr-title text-[14px] text-on-surface font-semibold">투자율 (透磁率)</span><p class="font-caption text-caption text-outline line-clamp-1">"The ratio of the magnetic induction to the magnetic intensity in a given medium."</p></div></div></div><div class="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-colors flex items-start gap-3 shadow-sm border border-outline-variant/30"><input checked="" class="pdf-term-check mt-1 w-4 h-4 rounded accent-primary shrink-0 cursor-pointer" onchange="updatePdfSelectionCount()" type="checkbox"><div class="flex-1 min-w-0 flex flex-col gap-1"><div class="flex items-center justify-between gap-2 flex-wrap"><div class="flex items-center gap-2 min-w-0 flex-wrap"><span class="font-term-en-title text-[18px] text-on-surface font-bold tracking-tight">Capacitance</span><span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-mono text-[11px] whitespace-nowrap shrink-0">명사 • 회로이론</span></div></div><div class="flex flex-col gap-0.5 mt-0.5"><span class="font-term-kr-title text-[14px] text-on-surface font-semibold">정전용량 (커패시턴스)</span><p class="font-caption text-caption text-outline line-clamp-1">"The ability of a system to store an electric charge per unit potential difference."</p></div></div></div><div class="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-colors flex items-start gap-3 shadow-sm border border-outline-variant/30"><input checked="" class="pdf-term-check mt-1 w-4 h-4 rounded accent-primary shrink-0 cursor-pointer" onchange="updatePdfSelectionCount()" type="checkbox"><div class="flex-1 min-w-0 flex flex-col gap-1"><div class="flex items-center justify-between gap-2 flex-wrap"><div class="flex items-center gap-2 min-w-0 flex-wrap"><span class="font-term-en-title text-[18px] text-on-surface font-bold tracking-tight">Eddy Current</span><span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-mono text-[11px] whitespace-nowrap shrink-0">복합명사 • 전자기학</span></div></div><div class="flex flex-col gap-0.5 mt-0.5"><span class="font-term-kr-title text-[14px] text-on-surface font-semibold">와전류 (소용돌이 전류)</span><p class="font-caption text-caption text-outline line-clamp-1">"Loops of electrical current induced within conductors by a changing magnetic field."</p></div></div></div><div class="p-3 rounded-lg bg-surface-container-low flex items-center justify-between text-on-surface-variant hover:text-on-surface cursor-pointer"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">format_list_bulleted</span><span class="font-label-ui text-label-ui">추가 23개 후보 단어 모두 보기</span></div><span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span></div></div>
+</div>
+</div>
+</div>
+<!-- Bottom Floating Action Bar & Microcopy -->
+<div class="fixed left-0 right-0 p-margin bg-surface/90 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2 z-40 bottom-16">
+<div class="w-full max-w-lg flex flex-col gap-2">
+<button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="submit-action-btn" onclick="triggerAiAnalysis()" type="button">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+<span class="" id="submit-btn-text">AI 분석 시작 (단어 3개)</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<!-- Reassurance Microcopy -->
+<div class="flex items-center justify-center gap-1.5 text-center">
+<span class="material-symbols-outlined text-[15px] text-secondary">verified_user</span>
+<p class="font-caption text-caption text-on-surface-variant">
+          분석 후 통합 검수 단계를 거쳐 단어장에 저장됩니다.
+        </p>
+</div>
+</div>
+</div>
+<!-- Toast Notification Template -->
+<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-inverse-surface text-inverse-on-surface font-label-ui text-label-ui shadow-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300" id="lexicon-toast">
+<span class="material-symbols-outlined text-[18px] text-secondary-fixed">check_circle</span>
+<span class="" id="toast-message">작업이 완료되었습니다.</span>
+</div>
+</div>
+<script>
+  let currentMode = 'direct';
+
+  function switchMode(mode) {
+    currentMode = mode;
+    const directBtn = document.getElementById('tab-direct-btn');
+    const pdfBtn = document.getElementById('tab-pdf-btn');
+    const directSec = document.getElementById('section-direct');
+    const pdfSec = document.getElementById('section-pdf');
+    const submitText = document.getElementById('submit-btn-text');
+
+    if (mode === 'direct') {
+      directBtn.className = "flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-primary bg-primary shadow-sm flex items-center justify-center gap-1.5 transition-all duration-200";
+      pdfBtn.className = "flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1.5 transition-all duration-200";
+      directSec.classList.remove('hidden');
+      pdfSec.classList.add('hidden');
+      submitText.textContent = "AI 분석 시작 (단어 1개)";
+    } else {
+      pdfBtn.className = "flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-primary bg-primary shadow-sm flex items-center justify-center gap-1.5 transition-all duration-200";
+      directBtn.className = "flex-1 py-2 rounded-lg font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1.5 transition-all duration-200";
+      pdfSec.classList.remove('hidden');
+      directSec.classList.add('hidden');
+      updatePdfSelectionCount();
+    }
+  }
+
+  function updateTermState(val) {
+    const counter = document.getElementById('char-counter');
+    if (counter) {
+      counter.textContent = `${val.length} / 80`;
+    }
+  }
+
+  function clearTermInput() {
+    const input = document.getElementById('term-input');
+    if (input) {
+      input.value = '';
+      updateTermState('');
+      input.focus();
+    }
+  }
+
+  function selectSubject(btn, name) {
+    const chips = document.querySelectorAll('.subject-chip');
+    chips.forEach(c => {
+      c.className = "subject-chip px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface font-label-mono text-label-mono flex items-center gap-1 hover:bg-surface-container";
+    });
+    btn.className = "subject-chip px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container font-label-mono text-label-mono flex items-center gap-1";
+    showToast(`분류 과목: '${name}' 선택됨`);
+  }
+
+  function toggleAiTaxonomy(checked) {
+    const hint = document.getElementById('ai-tax-hint');
+    if (hint) {
+      hint.style.opacity = checked ? '1' : '0.4';
+    }
+    showToast(checked ? "AI 과목 자동 분류가 켜졌습니다." : "과목 수동 지정 모드로 변경되었습니다.");
+  }
+
+  function promptNewSubject() {
+    const custom = prompt("추가할 전공 과목명을 입력하세요 (예: 양자역학):");
+    if (custom && custom.trim().length > 0) {
+      const container = document.getElementById('subject-chips-container');
+      const newBtn = document.createElement('button');
+      newBtn.type = "button";
+      newBtn.onclick = function() { selectSubject(this, custom.trim()); };
+      newBtn.className = "subject-chip px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container font-label-mono text-label-mono flex items-center gap-1";
+      newBtn.innerHTML = `<span>${custom.trim()}</span>`;
+      container.insertBefore(newBtn, container.lastElementChild);
+      showToast(`'${custom.trim()}' 과목이 추가되었습니다.`);
+    }
+  }
+
+  function pasteClipboard() {
+    const area = document.getElementById('context-area');
+    if (navigator.clipboard) {
+      navigator.clipboard.readText().then(text => {
+        if (text) {
+          area.value = text;
+          showToast("클립보드 문맥이 입력되었습니다.");
+        }
+      }).catch(() => {
+        showToast("클립보드 읽기 권한을 확인해주세요.");
+      });
+    } else {
+      showToast("이 브라우저는 붙여넣기 API를 지원하지 않습니다.");
+    }
+  }
+
+  function toggleAllPdfTerms(checked) {
+    const checkboxes = document.querySelectorAll('.pdf-term-check');
+    checkboxes.forEach(cb => cb.checked = checked);
+    updatePdfSelectionCount();
+  }
+
+  function updatePdfSelectionCount() {
+    const checkboxes = document.querySelectorAll('.pdf-term-check');
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const badge = document.getElementById('selected-pdf-count');
+    const submitText = document.getElementById('submit-btn-text');
+    
+    if (badge) {
+      badge.textContent = `${checkedCount}개 선택됨`;
+    }
+    if (currentMode === 'pdf') {
+      submitText.textContent = `AI 분석 시작 (단어 ${checkedCount}개)`;
+    }
+  }
+
+  function triggerAiAnalysis() {
+    const btn = document.getElementById('submit-action-btn');
+    const originalText = document.getElementById('submit-btn-text').textContent;
+    btn.disabled = true;
+    btn.classList.add('opacity-80');
+    document.getElementById('submit-btn-text').textContent = "전문 학술 신경망 분석 중...";
+    
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.classList.remove('opacity-80');
+      document.getElementById('submit-btn-text').textContent = originalText;
+      showToast("분석 완료! 통합 검수 화면으로 이동합니다.");
+    }, 1200);
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('lexicon-toast');
+    const text = document.getElementById('toast-message');
+    if (toast && text) {
+      text.textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2200);
+    }
+  }
+</script></main>
+
+
+
+
+
+
+
+
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-outline-variant/30 flex justify-around items-center h-16 px-2 pb-safe"><button class="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">home</span><span class="text-[11px] font-label-ui">홈</span></button><button class="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-primary font-bold"><span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">add_circle</span><span class="text-[11px] font-label-ui">단어 추가</span></button><button class="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">bookmark</span><span class="text-[11px] font-label-ui">북마크</span></button><button class="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">print</span><span class="text-[11px] font-label-ui">출력</span></button></nav>
+
+
+
+
+
+</body></html>
