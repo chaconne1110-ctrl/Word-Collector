@@ -1,4 +1,3 @@
-
 /// Word Collector 공통 단어 데이터 모델.
 ///
 /// 기본 데이터 7개 항목과 내부 식별자(id)를 관리합니다.
@@ -30,25 +29,22 @@ class WordRecord {
 
   // XLSX 출력 열 이름
   static const List<String> exportHeaders = [
-    '영어 단어',
-    '한국어 뜻',
-    '전문 분야',
+    '전공',
     '단어장 이름',
+    '표제어',
+    '한글 뜻',
     '영어 정의',
-    '한국어 정의',
+    '정의 한글해석',
     '예문',
   ];
 
-  // XLSX 출력용 데이터
-  List<String> toExportRow() {
-    return [
-      englishTerm,
-      koreanMeaning,
-      specialization,
-      notebookName,
-      englishDefinition,
-      koreanDefinition,
-      exampleSentence,
-    ];
-  }
+  List<String> toExportRow() => [
+    specialization,
+    notebookName,
+    englishTerm,
+    koreanMeaning,
+    englishDefinition,
+    koreanDefinition,
+    exampleSentence,
+  ];
 }

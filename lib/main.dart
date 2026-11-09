@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'models/word_record.dart';
+import 'services/word_analysis_service.dart';
+import 'storage/word_database.dart';
 
 // Word Collector — Stitch UI 7단계 + SQLite 로컬 저장 적용.
 // 홈·단어 목록·플래시카드·북마크·수정·검수 화면은 기존 구조를 유지합니다.
 // 예제 단어 수정과 북마크는 기기의 SQLite에 저장되고 앱 재실행 후 복원됩니다.
-// AI 검수 중인 단어의 최종 저장은 여전히 차단되어 있습니다.
-// 실제 PDF 추출, AI 분석, 이미지 생성, 사용자별 서버 연동은 아직 없습니다.
+// Gemini 텍스트 분석은 PC 서버를 통해 요청하고, 검수한 내용만 SQLite에 저장합니다.
+// PDF 추출·이미지 생성·사용자별 서버 동기화는 별도 기능입니다.
 
 const Color wcBackground = Color(0xFFFAF8FF);
 const Color wcNavy = Color(0xFF00236F);
@@ -329,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 4),
           const Center(
             child: Text(
-              '현재 단어 수와 북마크 수는 UI 테스트용 예시입니다.',
+              '단어와 북마크는 이 기기의 저장소에서 불러옵니다.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF757682), fontSize: 11),
             ),
@@ -557,6 +558,8 @@ class _DemoTerm {
   final String formula;
   final bool important;
   final bool initiallyBookmarked;
+  final String specialization;
+  final String exampleSentence;
 
   const _DemoTerm({
     required this.id,
@@ -566,9 +569,12 @@ class _DemoTerm {
     this.formula = '',
     this.important = false,
     this.initiallyBookmarked = false,
+    this.specialization = '',
+    this.exampleSentence = '',
   });
 
-  _DemoTerm copyWith({String? english, String? korean, String? summary}) =>
+  _DemoTerm copyWith({String? english, String? korean, String? summary,
+      String? specialization, String? exampleSentence}) =>
       _DemoTerm(
         id: id,
         english: english ?? this.english,
@@ -577,6 +583,8 @@ class _DemoTerm {
         formula: formula,
         important: important,
         initiallyBookmarked: initiallyBookmarked,
+        specialization: specialization ?? this.specialization,
+        exampleSentence: exampleSentence ?? this.exampleSentence,
       );
 }
 
@@ -854,7 +862,7 @@ class _SubjectNextStepScreenState extends State<_SubjectNextStepScreen> {
                 )),
           const SizedBox(height: 12),
           const Text(
-            '현재 단어는 UI 테스트용 예제입니다. 북마크와 수정 내용은 기기에 저장되며 홈·북마크에 함께 반영됩니다.',
+            '북마크와 수정 내용은 기기에 저장되며 홈·북마크에 함께 반영됩니다.',
             textAlign: TextAlign.center,
             style: TextStyle(color: wcMutedText, fontSize: 11, height: 1.5),
           ),
@@ -934,7 +942,13 @@ class _TermListCard extends StatelessWidget {
                         color: wcNavyLight,
                         fontSize: 15,
                         fontWeight: FontWeight.w600)),
-                if (term.formula.isNotEmpty) ...[
+                if (term.exampleSentence.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('영어 예문', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(term.exampleSentence, style: const TextStyle(height: 1.6)),
+            ],
+            if (term.formula.isNotEmpty) ...[
                   const SizedBox(height: 9),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -1051,92 +1065,23 @@ const Map<String, _DemoDefinition> _demoDefinitions = {
 };
 
 
-// 기기 내 SQLite 저장소. 현재는 단일 기기 로컬 DB이며 사용자 로그인/동기화는 없습니다.
-// 검수 미완료 단어와 예제 PDF 후보는 이 테이블에 저장하지 않습니다.
-class _LocalTermDatabase {
-  late final Database _db;
-
-  Future<void> initialize() async {
-    final databasePath = p.join(await getDatabasesPath(), 'word_collector.db');
-    _db = await openDatabase(
-      databasePath,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute("""CREATE TABLE terms (
-          id TEXT PRIMARY KEY,
-          subject TEXT NOT NULL,
-          english TEXT NOT NULL,
-          korean TEXT NOT NULL,
-          summary TEXT NOT NULL,
-          formula TEXT NOT NULL,
-          important INTEGER NOT NULL,
-          bookmarked INTEGER NOT NULL,
-          english_definition TEXT NOT NULL,
-          korean_definition TEXT NOT NULL,
-          explanation TEXT NOT NULL
-        )""");
-        // 첫 설치에만 기존 UI 예제 단어를 넣습니다.
-        // 앱을 다시 실행하거나 코드를 Hot Restart 해도 다시 덮어쓰지 않습니다.
-        for (final subject in sampleSubjects) {
-          for (final term in _demoTermsForSubject(subject.name)) {
-            final details = _demoDefinitions[term.id];
-            await db.insert('terms', {
-              'id': term.id,
-              'subject': subject.name,
-              'english': term.english,
-              'korean': term.korean,
-              'summary': term.summary,
-              'formula': term.formula,
-              'important': term.important ? 1 : 0,
-              'bookmarked': term.initiallyBookmarked ? 1 : 0,
-              'english_definition': details?.english ?? '',
-              'korean_definition': details?.korean ?? '',
-              'explanation': details?.explanation ?? '',
-            });
-          }
-        }
-      },
-    );
-  }
-
-  Future<List<Map<String, Object?>>> getTerms() =>
-      _db.query('terms', orderBy: 'rowid ASC');
-
-  Future<void> updateBookmark(String id, bool bookmarked) async {
-    final count = await _db.update(
-      'terms',
-      {'bookmarked': bookmarked ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    if (count != 1) throw StateError('해당 단어를 DB에서 찾지 못했습니다: $id');
-  }
-
-  Future<void> updateTerm({
-    required String id,
-    required String english,
-    required String korean,
-    required String englishDefinition,
-    required String koreanDefinition,
-    required String explanation,
-  }) async {
-    // 단어 본문과 정의를 한 번의 SQL UPDATE로 함께 기록합니다.
-    final count = await _db.update(
-      'terms',
+List<Map<String, Object?>> _initialTermRows() => [
+  for (final subject in sampleSubjects)
+    for (final term in _demoTermsForSubject(subject.name))
       {
-        'english': english,
-        'korean': korean,
-        'summary': koreanDefinition,
-        'english_definition': englishDefinition,
-        'korean_definition': koreanDefinition,
-        'explanation': explanation,
+        'id': term.id,
+        'subject': subject.name,
+        'english': term.english,
+        'korean': term.korean,
+        'summary': term.summary,
+        'formula': term.formula,
+        'important': term.important ? 1 : 0,
+        'bookmarked': term.initiallyBookmarked ? 1 : 0,
+        'english_definition': _demoDefinitions[term.id]?.english ?? '',
+        'korean_definition': _demoDefinitions[term.id]?.korean ?? '',
+        'explanation': _demoDefinitions[term.id]?.explanation ?? '',
       },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    if (count != 1) throw StateError('해당 단어를 DB에서 찾지 못했습니다: $id');
-  }
-}
+];
 
 // 북마크는 단어 복사본이 아니라 같은 id를 참조합니다.
 class _DemoBookmarkEntry {
@@ -1146,7 +1091,7 @@ class _DemoBookmarkEntry {
 }
 
 class _DemoTermStore extends ChangeNotifier {
-  final _LocalTermDatabase _database = _LocalTermDatabase();
+  final WordDatabase _database = WordDatabase(seedRows: _initialTermRows());
   final Map<String, List<_DemoTerm>> _termsBySubject = {
     for (final subject in sampleSubjects) subject.name: <_DemoTerm>[],
   };
@@ -1170,6 +1115,8 @@ class _DemoTermStore extends ChangeNotifier {
         formula: record['formula'] as String,
         important: (record['important'] as int) == 1,
         initiallyBookmarked: (record['bookmarked'] as int) == 1,
+        specialization: record['specialization'] as String,
+        exampleSentence: record['example_sentence'] as String,
       ));
       if ((record['bookmarked'] as int) == 1) _bookmarkedIds.add(id);
       _updatedDefinitions[id] = _DemoDefinition(
@@ -1244,6 +1191,8 @@ class _DemoTermStore extends ChangeNotifier {
     required String englishDefinition,
     required String koreanDefinition,
     required String explanation,
+    String? specialization,
+    String? exampleSentence,
   }) async {
     final terms = _termsBySubject[subjectName];
     if (terms == null) throw StateError('과목을 찾지 못했습니다.');
@@ -1258,12 +1207,16 @@ class _DemoTermStore extends ChangeNotifier {
       englishDefinition: englishDefinition,
       koreanDefinition: koreanDefinition,
       explanation: explanation,
+      specialization: specialization,
+      exampleSentence: exampleSentence,
     );
     final before = terms[index];
     terms[index] = before.copyWith(
       english: english,
       korean: korean,
       summary: koreanDefinition,
+      specialization: specialization,
+      exampleSentence: exampleSentence,
     );
     _updatedDefinitions[termId] = _DemoDefinition(
       englishDefinition,
@@ -1272,6 +1225,41 @@ class _DemoTermStore extends ChangeNotifier {
     );
     notifyListeners();
   }
+
+  List<Map<String, Object?>> analysisNotebooks() => [
+    for (final subject in sampleSubjects)
+      {
+        'name': subject.name,
+        'terms': [
+          for (final term in termsForSubject(subject.name))
+            {
+              'englishTerm': term.english,
+              'koreanMeaning': term.korean,
+              'englishDefinition': definitionFor(term.id)?.english ?? '',
+              'koreanDefinition': definitionFor(term.id)?.korean ?? term.summary,
+            },
+        ],
+      },
+  ];
+
+  Future<void> saveReviewedTerm(WordRecord record, String explanation, String model) async {
+    final terms = _termsBySubject[record.notebookName];
+    if (terms == null) throw StateError('저장할 단어장을 찾지 못했습니다.');
+    await _database.insertReviewedTerm(record: record, explanation: explanation, model: model);
+    terms.add(_DemoTerm(
+      id: record.id,
+      english: record.englishTerm,
+      korean: record.koreanMeaning,
+      summary: record.koreanDefinition,
+      specialization: record.specialization,
+      exampleSentence: record.exampleSentence,
+    ));
+    _updatedDefinitions[record.id] = _DemoDefinition(
+      record.englishDefinition, record.koreanDefinition, explanation,
+    );
+    notifyListeners();
+  }
+
 }
 
 final _DemoTermStore _demoStore = _DemoTermStore();
@@ -1373,7 +1361,7 @@ class _PreviewFlashcardScreenState extends State<_PreviewFlashcardScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text('현재 표시되는 설명은 UI 테스트용 예제입니다.',
+                const Text('저장된 학습 해설입니다. 내용을 확인하며 학습하세요.',
                     style: TextStyle(color: wcMutedText, fontSize: 12)),
                 const SizedBox(height: 20),
                 Text(term.english,
@@ -1388,7 +1376,13 @@ class _PreviewFlashcardScreenState extends State<_PreviewFlashcardScreen> {
                   icon: Icons.auto_stories_outlined,
                   content: details?.explanation ?? term.summary,
                 ),
-                if (term.formula.isNotEmpty) ...[
+                if (term.exampleSentence.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('영어 예문', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(term.exampleSentence, style: const TextStyle(height: 1.6)),
+            ],
+            if (term.formula.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _InfoPanel(
                     title: '관련 수식 또는 기호',
@@ -1561,7 +1555,7 @@ class _PreviewFlashcardScreenState extends State<_PreviewFlashcardScreen> {
                   child: Text(widget.subject.name,
                       style: const TextStyle(color: wcMutedText, fontSize: 13)),
                 ),
-                const Text('UI 예제',
+                Text(term.id.startsWith('ai_') ? '검수 완료' : '저장 단어',
                     style: TextStyle(color: wcMutedText, fontSize: 11)),
               ],
             ),
@@ -1617,6 +1611,12 @@ class _PreviewFlashcardScreenState extends State<_PreviewFlashcardScreen> {
                 ],
               ),
             ),
+            if (term.exampleSentence.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('영어 예문', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(term.exampleSentence, style: const TextStyle(height: 1.6)),
+            ],
             if (term.formula.isNotEmpty) ...[
               const SizedBox(height: 18),
               Row(
@@ -1935,6 +1935,8 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
   late final TextEditingController _englishDefinition;
   late final TextEditingController _koreanDefinition;
   late final TextEditingController _explanation;
+  late final TextEditingController _specialization;
+  late final TextEditingController _example;
   bool _meaningChanged = false;
 
   @override
@@ -1947,6 +1949,8 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
     _englishDefinition = TextEditingController(text: def?.english ?? '');
     _koreanDefinition = TextEditingController(text: def?.korean ?? '');
     _explanation = TextEditingController(text: def?.explanation ?? '');
+    _specialization = TextEditingController(text: term.specialization);
+    _example = TextEditingController(text: term.exampleSentence);
   }
 
   @override
@@ -1956,11 +1960,13 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
     _englishDefinition.dispose();
     _koreanDefinition.dispose();
     _explanation.dispose();
+    _specialization.dispose();
+    _example.dispose();
     super.dispose();
   }
 
   Widget _input(String label, TextEditingController controller,
-      {int lines = 1, bool meaning = false}) {
+      {int lines = 1, bool meaning = false, bool requiredField = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 17),
       child: Column(
@@ -1981,7 +1987,7 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
                 borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none,
               ),
             ),
-            validator: (value) => value == null || value.trim().isEmpty
+            validator: (value) => requiredField && (value == null || value.trim().isEmpty)
                 ? '$label 항목을 입력해 주세요.' : null,
           ),
         ],
@@ -2003,6 +2009,8 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
         englishDefinition: _englishDefinition.text.trim(),
         koreanDefinition: _koreanDefinition.text.trim(),
         explanation: _explanation.text.trim(),
+        specialization: _specialization.text.trim(),
+        exampleSentence: _example.text.trim(),
       );
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -2039,7 +2047,7 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
                 borderRadius: BorderRadius.circular(15),
               ),
               child: const Text(
-                '예제 단어의 수정 내용은 이 기기의 SQLite에 저장됩니다. 서버 동기화는 아직 제공하지 않습니다.',
+                '단어의 수정 내용은 이 기기의 SQLite에 저장됩니다. 서버 동기화는 아직 제공하지 않습니다.',
                 style: TextStyle(color: wcNavy, height: 1.5),
               ),
             ),
@@ -2053,11 +2061,13 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
                   Text('과목: ${widget.subject.name}',
                       style: const TextStyle(color: wcNavy, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 15),
+                  _input('전공', _specialization, requiredField: false),
                   _input('영단어', _english, meaning: true),
                   _input('한국어 뜻', _korean, meaning: true),
                   _input('영어 정의', _englishDefinition, lines: 3, meaning: true),
                   _input('한국어 정의 (영어 정의 해석)', _koreanDefinition, lines: 3, meaning: true),
-                  _input('AI 추가 설명', _explanation, lines: 4),
+                  _input('영어 예문', _example, lines: 3, requiredField: false),
+                  _input('AI 추가 설명', _explanation, lines: 4, requiredField: false),
                 ],
               ),
             ),
@@ -2067,7 +2077,7 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: const Color(0xFFFFE8D7), borderRadius: BorderRadius.circular(14)),
                 child: const Text(
-                  '뜻이나 정의가 변경되었습니다. AI 연결 후에는 추가 설명과 이미지를 현재 내용에 맞게 재확인해야 합니다.',
+                  '뜻이나 정의가 변경되었습니다. 예문과 추가 설명도 현재 뜻에 맞는지 확인해 주세요.',
                   style: TextStyle(color: Color(0xFF573115), height: 1.4),
                 ),
               ),
@@ -2096,7 +2106,7 @@ class _EditSavedExampleScreenState extends State<_EditSavedExampleScreen> {
 }
 
 // STEP 4: Stitch의 단어 추가 화면을 Flutter로 구현한 UI 프로토타입입니다.
-// 실제 PDF 선택/추출, GPT 분석, 이미지 생성 및 최종 저장은 아직 연결하지 않았습니다.
+// 텍스트 분석·검수·저장은 실제 연결되며 PDF 선택/추출과 이미지는 별도 예제입니다.
 // 사용자가 입력한 자료가 실제 분석된 것처럼 표시하지 않습니다.
 class AddTermScreen extends StatefulWidget {
   const AddTermScreen({super.key});
@@ -2113,6 +2123,7 @@ class _AddTermScreenState extends State<AddTermScreen> {
   bool _pdfMode = false;
   bool _demoPdfAttached = false;
   bool _autoSubject = true;
+  bool _analyzing = false;
   String _selectedSubject = sampleSubjects.first.name;
 
   @override
@@ -2130,7 +2141,8 @@ class _AddTermScreenState extends State<AddTermScreen> {
       );
   }
 
-  void _showInputPreview() {
+  Future<void> _showInputPreview() async {
+    if (_analyzing) return;
     if (_pdfMode) {
       FocusScope.of(context).unfocus();
       if (!_demoPdfAttached) {
@@ -2149,98 +2161,37 @@ class _AddTermScreenState extends State<AddTermScreen> {
     }
     if (!_formKey.currentState!.validate()) return;
     final word = _wordController.text.trim();
-    final subject = _autoSubject ? 'AI 자동 분류 예정' : _selectedSubject;
     final reference = _contextController.text.trim();
+    final autoSubject = _autoSubject;
+    final selectedSubject = _selectedSubject;
     FocusScope.of(context).unfocus();
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: wcBackground,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '입력 내용 확인 (UI 테스트)',
-                style: TextStyle(
-                  color: wcText, fontSize: 20, fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'AI 분석은 아직 연결되지 않았습니다. 예제 데이터로 검수 UI를 확인할 수 있습니다.',
-                style: TextStyle(color: wcMutedText, height: 1.5),
-              ),
-              const SizedBox(height: 18),
-              _previewLine('영단어', word),
-              const SizedBox(height: 12),
-              _previewLine('과목 분류', subject),
-              const SizedBox(height: 12),
-              _previewLine(
-                '참고 문장', reference.isEmpty ? '입력되지 않음' : reference,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ReviewTermScreen(
-                          inputWord: word,
-                          initialSubject: _selectedSubject,
-                          referenceText: reference,
-                          autoSubject: _autoSubject,
-                        ),
-                      ),
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: wcNavyLight,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('통합 검수 화면 미리보기'),
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                  child: const Text('입력 화면으로 돌아가기'),
-                ),
-              ),
-            ],
-          ),
+    setState(() => _analyzing = true);
+    try {
+      final analysis = await WordAnalysisService().analyze(
+        word: word,
+        referenceText: reference,
+        autoSubject: autoSubject,
+        selectedSubject: selectedSubject,
+        notebooks: _demoStore.analysisNotebooks(),
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+        builder: (_) => ReviewTermScreen(
+          inputWord: word,
+          initialSubject: selectedSubject,
+          referenceText: reference,
+          autoSubject: autoSubject,
+          analysis: analysis,
         ),
-      ),
-    );
+      ));
+    } on WordAnalysisException catch (error) {
+      if (mounted) _notice(error.message);
+    } catch (_) {
+      if (mounted) _notice('분석하지 못했습니다. 입력 내용을 유지한 채 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
   }
-
-  Widget _previewLine(String label, String value) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label,
-          style: const TextStyle(
-            fontSize: 12, fontWeight: FontWeight.w600, color: wcMutedText,
-          )),
-      const SizedBox(height: 5),
-      Text(value, style: const TextStyle(fontSize: 15, color: wcText)),
-    ],
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -2297,17 +2248,18 @@ class _AddTermScreenState extends State<AddTermScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _AddFieldLabel(text: '영단어', requiredField: true),
+                    const _AddFieldLabel(text: '단어 (한국어·영어)', requiredField: true),
                     const SizedBox(height: 9),
                     TextFormField(
+                      key: const ValueKey('add-word'),
                       controller: _wordController,
                       maxLength: 80,
                       textInputAction: TextInputAction.next,
                       decoration: _inputDecoration(
-                        '예: Magnetic Flux Density',
+                        '예: 와전류 또는 Eddy Current',
                       ),
                       validator: (value) => (value == null || value.trim().isEmpty)
-                          ? '영단어를 입력하세요.'
+                          ? '분석할 단어를 입력하세요.'
                           : null,
                     ),
                   ],
@@ -2325,6 +2277,7 @@ class _AddTermScreenState extends State<AddTermScreen> {
                     const _AddFieldLabel(text: '참고 문장 / 교재 문맥'),
                     const SizedBox(height: 8),
                     TextFormField(
+                      key: const ValueKey('add-reference'),
                       controller: _contextController,
                       maxLines: 5,
                       minLines: 4,
@@ -2335,7 +2288,7 @@ class _AddTermScreenState extends State<AddTermScreen> {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      '참고 문장을 입력하면 추후 AI가 해당 문맥을 우선해 분석합니다.',
+                      '참고 문장을 입력하면 해당 문맥을 최우선으로 분석합니다.',
                       style: TextStyle(
                         color: Color(0xFF006C4A), fontSize: 12, height: 1.5,
                       ),
@@ -2442,8 +2395,8 @@ class _AddTermScreenState extends State<AddTermScreen> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '분석 결과와 학습 이미지는 사용자가 검수한 다음에만 '
-                      '개인 단어장에 저장됩니다. 지금은 UI 동작만 확인합니다.',
+                      '분석 결과는 사용자가 검수한 다음에만 개인 단어장에 저장됩니다. '
+                      'Gemini 3.5 Flash-Lite로 분석합니다.',
                       style: TextStyle(
                         color: wcMutedText, fontSize: 12, height: 1.6,
                       ),
@@ -2463,7 +2416,8 @@ class _AddTermScreenState extends State<AddTermScreen> {
             width: double.infinity,
             height: 54,
             child: FilledButton.icon(
-              onPressed: _showInputPreview,
+              key: const ValueKey('analyze-word'),
+              onPressed: _analyzing ? null : _showInputPreview,
               style: FilledButton.styleFrom(
                 backgroundColor: wcNavyLight,
                 shape: RoundedRectangleBorder(
@@ -2473,7 +2427,7 @@ class _AddTermScreenState extends State<AddTermScreen> {
               icon: const Icon(Icons.auto_awesome_rounded),
               label: Text(_pdfMode
                   ? '추출 단어 목록 보기 (UI 테스트)'
-                  : 'AI 분석 시작 (UI 테스트)'),
+                  : (_analyzing ? 'Gemini 분석 중...' : 'AI 분석 시작')),
             ),
           ),
         ),
@@ -3017,14 +2971,13 @@ class __PdfSelectedTermsScreen extends StatelessWidget {
   );
 }
 
-// STEP 5: 통합 검수 화면(UI 테스트 전용).
-// 여기에 나타나는 예제는 분석 API의 결과가 아니며,
-// 이미지 생성/서버 저장은 실제 연결 전까지 실행되지 않습니다.
+// STEP 5: Gemini 결과 검수 및 기기 저장. PDF 경로의 예제는 별도로 표시합니다.
 class ReviewTermScreen extends StatefulWidget {
   final String inputWord;
   final String initialSubject;
   final String referenceText;
   final bool autoSubject;
+  final WordAnalysis? analysis;
 
   const ReviewTermScreen({
     super.key,
@@ -3032,6 +2985,7 @@ class ReviewTermScreen extends StatefulWidget {
     required this.initialSubject,
     required this.referenceText,
     required this.autoSubject,
+    this.analysis,
   });
 
   @override
@@ -3045,6 +2999,9 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
   final _englishDefinitionController = TextEditingController();
   final _koreanDefinitionController = TextEditingController();
   final _explanationController = TextEditingController();
+  final _specializationController = TextEditingController();
+  final _exampleController = TextEditingController();
+  bool _saving = false;
 
   String? _subject;
   bool _hasSample = false;
@@ -3054,6 +3011,18 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
   @override
   void initState() {
     super.initState();
+    final analysis = widget.analysis;
+    if (analysis != null) {
+      _subject = analysis.notebookName;
+      _englishTermController.text = analysis.englishTerm;
+      _koreanTermController.text = analysis.koreanMeaning;
+      _englishDefinitionController.text = analysis.englishDefinition;
+      _koreanDefinitionController.text = analysis.koreanDefinition;
+      _explanationController.text = analysis.explanation;
+      _specializationController.text = analysis.specialization;
+      _exampleController.text = analysis.exampleSentence;
+      return;
+    }
     _englishTermController.text = widget.inputWord;
     if (!widget.autoSubject) {
       _subject = widget.initialSubject;
@@ -3089,6 +3058,8 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
     _englishDefinitionController.dispose();
     _koreanDefinitionController.dispose();
     _explanationController.dispose();
+    _specializationController.dispose();
+    _exampleController.dispose();
     super.dispose();
   }
 
@@ -3105,31 +3076,42 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
     if (_reviewConfirmed) setState(() => _reviewConfirmed = false);
   }
 
-  void _showSaveUnavailable() {
-    if (!_reviewFormKey.currentState!.validate()) {
-      _notice('필수 항목을 확인해주세요.');
+  Future<void> _saveReviewedTerm() async {
+    if (_saving) return;
+    if (widget.analysis == null) {
+      _notice('PDF 예제 미리보기는 저장되지 않습니다. 단어 추가에서 실제 분석을 요청해 주세요.');
+      return;
+    }
+    if (!_reviewFormKey.currentState!.validate() || _subject == null) {
+      _notice('필수 항목을 확인해 주세요.');
       return;
     }
     if (!_reviewConfirmed) {
-      _notice('먼저 검수 확인 체크박스를 선택해주세요.');
+      _notice('먼저 검수 확인 체크박스를 선택해 주세요.');
       return;
     }
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('최종 저장은 아직 연결되지 않았습니다'),
-        content: const Text(
-          '현재는 UI 테스트 단계입니다. 실제 AI 분석·이미지 생성·개인 단어장 데이터베이스 저장은 실행되지 않습니다. '
-          '최종 구현에서는 이미지까지 검수한 후에만 저장할 수 있습니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
+    setState(() => _saving = true);
+    try {
+      final record = WordRecord(
+        id: 'ai_${DateTime.now().microsecondsSinceEpoch}',
+        englishTerm: _englishTermController.text.trim(),
+        koreanMeaning: _koreanTermController.text.trim(),
+        specialization: _specializationController.text.trim(),
+        notebookName: _subject!,
+        englishDefinition: _englishDefinitionController.text.trim(),
+        koreanDefinition: _koreanDefinitionController.text.trim(),
+        exampleSentence: _exampleController.text.trim(),
+      );
+      await _demoStore.saveReviewedTerm(record, _explanationController.text.trim(), widget.analysis!.model);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      messenger.showSnackBar(SnackBar(content: Text('${record.notebookName} 단어장에 저장했습니다.')));
+    } catch (_) {
+      if (mounted) _notice('저장하지 못했습니다. 검수 내용을 유지한 채 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -3155,6 +3137,7 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                   const _AddFieldLabel(text: '과목', requiredField: true),
                   const SizedBox(height: 7),
                   DropdownButtonFormField<String>(
+                    key: const ValueKey('review-subject'),
                     initialValue: _subject,
                     isExpanded: true,
                     hint: const Text('과목을 선택하세요'),
@@ -3173,6 +3156,8 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                     },
                     validator: (value) => value == null ? '과목을 선택하세요.' : null,
                   ),
+                  const SizedBox(height: 14),
+                  _reviewTextField('전공', _specializationController, onChanged: _markMeaningChanged),
                   const SizedBox(height: 14),
                   _reviewTextField('영단어', _englishTermController,
                       requiredField: true, onChanged: _markMeaningChanged),
@@ -3196,6 +3181,9 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                       _koreanDefinitionController,
                       requiredField: true, minLines: 3,
                       onChanged: _markMeaningChanged),
+                  const SizedBox(height: 14),
+                  _reviewTextField('영어 예문', _exampleController,
+                      requiredField: true, minLines: 3, onChanged: _markMeaningChanged),
                 ],
               ),
             ),
@@ -3207,7 +3195,7 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _reviewTextField('상세 설명', _explanationController,
-                      requiredField: true, minLines: 5,
+                      minLines: 5,
                       onChanged: (_) {
                         if (_reviewConfirmed) {
                           setState(() => _reviewConfirmed = false);
@@ -3215,7 +3203,7 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                       }),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
-                    onPressed: () => _notice('추가 설명 재생성은 AI 연결 후 사용할 수 있습니다. 수정 내용은 유지됩니다.'),
+                    onPressed: () => _notice('추가 설명은 직접 수정할 수 있습니다. 새 분석은 단어 추가에서 요청해 주세요.'),
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('추가 설명만 다시 생성'),
                   ),
@@ -3256,7 +3244,7 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('이미지만 다시 생성'),
                   ),
-                  const Text('실제 앱에서는 이미지도 검수한 후 저장합니다.',
+                  const Text('텍스트 분석 결과는 이미지 없이 저장할 수 있습니다.',
                       style: TextStyle(color: wcMutedText, fontSize: 12)),
                 ],
               ),
@@ -3303,25 +3291,25 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  '뜻이나 정의가 수정되었습니다. 실제 AI를 연결한 뒤에는 추가 설명과 이미지를 '
-                  '수정된 의미에 맞게 다시 확인하거나 재생성해야 합니다.',
+                  '뜻이나 정의가 수정되었습니다. 예문과 추가 설명도 수정된 의미에 맞는지 확인해 주세요.',
                   style: TextStyle(color: Color(0xFF573115), height: 1.5),
                 ),
               ),
             ],
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => _notice('전체 재분석은 AI 연결 후 사용할 수 있습니다. 직접 수정한 내용은 유지됩니다.'),
+              onPressed: () => _notice('새 분석은 단어 추가 화면에서 요청해 주세요. 검수 중 수정한 내용은 새 분석에 자동 반영되지 않습니다.'),
               icon: const Icon(Icons.sync_rounded),
               label: const Text('전체 재분석 요청'),
             ),
             const SizedBox(height: 6),
             CheckboxListTile(
+              key: const ValueKey('review-confirm'),
               value: _reviewConfirmed,
               onChanged: (value) => setState(() => _reviewConfirmed = value ?? false),
-              title: const Text('텍스트 검수 확인 (UI 테스트)',
+              title: const Text('텍스트 검수 확인',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              subtitle: const Text('이미지 검수·최종 저장은 API 연결 이후 진행합니다.',
+              subtitle: const Text('선택한 단어장과 텍스트를 확인했습니다.',
                   style: TextStyle(fontSize: 12)),
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
@@ -3337,9 +3325,10 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
           child: SizedBox(
             height: 54,
             child: FilledButton.icon(
-              onPressed: _showSaveUnavailable,
+              key: const ValueKey('save-reviewed-word'),
+              onPressed: _saving ? null : _saveReviewedTerm,
               icon: const Icon(Icons.bookmark_add_outlined),
-              label: const Text('개인 단어장 저장 (UI 테스트)',
+              label: Text(_saving ? '기기에 저장 중...' : '개인 단어장 저장',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               style: FilledButton.styleFrom(
                 backgroundColor: wcNavyLight,
@@ -3374,15 +3363,25 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          _hasSample
-              ? '기존 UI 예제 데이터를 불러왔습니다. GPT 분석 결과가 아닙니다.'
-              : '이 단어의 예제 분석 데이터가 없습니다. 정의와 설명을 직접 입력해 화면 동작을 테스트할 수 있습니다.',
+          widget.analysis != null
+              ? '${widget.analysis!.model} 분석 결과입니다. 저장 전에 내용을 확인해 주세요.'
+              : (_hasSample ? '기존 UI 예제이며 AI 분석 결과가 아닙니다.' : 'PDF 예제 미리보기입니다. 실제 분석 결과가 아닙니다.'),
           style: const TextStyle(color: wcMutedText, fontSize: 12, height: 1.5),
         ),
-        if (widget.autoSubject) ...[
+        if (widget.analysis != null) ...[
           const SizedBox(height: 8),
-          const Text('과목 자동 분류는 아직 연결되지 않았습니다. 현재 과목은 UI 예제값이거나 직접 선택한 값입니다.',
-              style: TextStyle(color: wcMutedText, fontSize: 12, height: 1.5)),
+          Text(widget.autoSubject
+              ? 'AI 추천 단어장: ${widget.analysis!.notebookName}'
+              : '분석 기준: 참고 문장 최우선 · 저장 위치: 직접 선택한 단어장',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+          if (widget.autoSubject) ...[
+            const SizedBox(height: 6),
+            Text(widget.analysis!.recommendationReason,
+                style: const TextStyle(color: wcMutedText, fontSize: 12, height: 1.5)),
+            if (widget.analysis!.relatedTerms.isNotEmpty)
+              Text('관련 저장 단어: ${widget.analysis!.relatedTerms.join(', ')}',
+                  style: const TextStyle(color: wcMutedText, fontSize: 12)),
+          ],
         ],
       ],
     ),
@@ -3436,6 +3435,7 @@ class _ReviewTermScreenState extends State<ReviewTermScreen> {
       _AddFieldLabel(text: label, requiredField: requiredField),
       const SizedBox(height: 8),
       TextFormField(
+        key: ValueKey('review-$label'),
         controller: controller,
         minLines: minLines,
         maxLines: minLines == 1 ? 1 : null,
