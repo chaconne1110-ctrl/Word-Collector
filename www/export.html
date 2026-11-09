@@ -13,12 +13,8 @@
   <h1>단어장 CSV·XLSX 내보내기</h1>
   <p>검수 후 저장한 최신 단어를 Excel·Google 스프레드시트에서 열 수 있는 파일로 저장합니다.</p>
   <label for="course">단어장<select id="course"></select></label>
-  <label for="layout">열 구성<select id="layout">
-    <option value="basic">팀 기본 8열</option>
-    <option value="ai">입력 단어 + AI 검수 7항목</option>
-  </select></label>
   <p id="columns"></p>
-  <p><small>미입력 항목은 빈 칸입니다. AI 형식의 최초 입력 원문은 originalTerm 필드를 사용하며, 기존에 저장되지 않은 원문을 임의로 추정하지 않습니다.</small></p>
+  <p><small>미입력 항목은 빈 칸입니다. 예문 열에는 영어 예문을 내보냅니다. 저장된 예문 번역·품사·최초 입력 원문은 이번 출력에 포함하지 않습니다.</small></p>
   <p id="count" aria-live="polite"></p>
   <div class="actions">
     <button id="export" data-format="csv" type="button">CSV로 저장</button>

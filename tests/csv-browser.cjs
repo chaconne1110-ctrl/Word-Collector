@@ -27,9 +27,9 @@ const assert = require('node:assert/strict');
     await page.goto(base);
     await page.locator('[data-word-export-link]').click();
     await page.waitForURL('**/export.html');
-    assert.equal(await page.locator('#count').textContent(), '9개 단어 · 8열');
+    assert.equal(await page.locator('#count').textContent(), '9개 단어 · 7열');
     await page.locator('#course').selectOption('circuit-theory');
-    assert.equal(await page.locator('#count').textContent(), '4개 단어 · 8열');
+    assert.equal(await page.locator('#count').textContent(), '4개 단어 · 7열');
     const fixture = {
       courses: {em: ['전자기학', 'EM'], circuit: ['회로이론', 'Circuits']},
       terms: {
@@ -53,8 +53,6 @@ const assert = require('node:assert/strict');
     await download('xlsx', 'basic.xlsx');
     const csv = await fs.readFile(path.join(directory, 'basic.csv'), 'utf8');
     assert.ok(csv.startsWith('\uFEFF')); assert.ok(csv.includes('와전류')); assert.ok(!csv.includes('Impedance'));
-    await page.locator('#layout').selectOption('ai');
-    await download('csv', 'ai.csv'); await download('xlsx', 'ai.xlsx');
     await page.evaluate(() => {
       const state = JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));
       state.terms.a.ko = '최신 수정'; localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(state));
@@ -100,7 +98,7 @@ const assert = require('node:assert/strict');
     assert.match(await native.locator('#status').textContent(), /저장 위치 오류/);
     assert.equal(await native.evaluate(() => localStorage.getItem('lexicon-word-collector-v1')), null);
     assert.deepEqual(errors, []);
-    console.log('PASS: home entry, course filters, CSV/XLSX downloads, both layouts, latest saved data, malformed storage, native bridge payload/cancel/failure');
+    console.log('PASS: home entry, course filters, CSV/XLSX downloads, latest saved data, malformed storage, native bridge payload/cancel/failure');
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));

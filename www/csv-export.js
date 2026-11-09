@@ -24,10 +24,10 @@
     }
     if (Object.hasOwn(state.courses, selected)) $('#course').value = selected;
     // Re-evaluate if an edited/deleted course no longer exists.
-    const result = api.toCsv(state, $('#course').value, $('#layout').value);
+    const result = api.toCsv(state, $('#course').value);
     $('#preview').value = result.text;
-    $('#count').textContent = result.count + '개 단어 · 8열';
-    $('#columns').textContent = ( $('#layout').value === 'ai' ? api.aiHeaders : api.headers ).join(' / ');
+    $('#count').textContent = result.count + '개 단어 · 7열';
+    $('#columns').textContent = api.headers.join(' / ');
     buttons.forEach(button => { button.disabled = busy || result.count === 0; });
     return {state, count: result.count};
   }
@@ -70,8 +70,8 @@
     try {
       const result = refresh(), format = button.dataset.format;
       if (!result.count) throw new Error('내보낼 단어가 없습니다.');
-      const bytes = format === 'xlsx' ? api.toXlsx(result.state, $('#course').value, $('#layout').value).bytes :
-        new TextEncoder().encode(api.toCsv(result.state, $('#course').value, $('#layout').value).text);
+      const bytes = format === 'xlsx' ? api.toXlsx(result.state, $('#course').value).bytes :
+        new TextEncoder().encode(api.toCsv(result.state, $('#course').value).text);
       const now = new Date();
       const stamp = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
       $('#status').textContent = await save(bytes, 'wordcollector-' + stamp + '.' + format, api.mime[format]);
@@ -82,7 +82,6 @@
       try { refresh(); } catch (error) { showError(error); }
     }
   });
-  $('#layout').addEventListener('change', update);
   $('#course').addEventListener('change', update);
   $('#refresh').addEventListener('click', update);
   window.addEventListener('pageshow', update);
