@@ -3,7 +3,7 @@
   const $=s=>document.querySelector(s),key='lexicon-word-collector-v1',model=window.WordCollectorDemoData;
   const read=()=>model.read(localStorage.getItem(key),seed);
   function message(text){$('#demo-status').textContent=text;}
-  function fill(word){for(const field of model.fields)$('#demo-'+field).value=word[field]||'';}
+  function fill(word){for(const field of model.fields){const input=$('#demo-'+field);if(input)input.value=word[field]||'';}}
   function targets(selected=''){
     const state=read();
     $('#demo-target').replaceChildren(new Option('새 단어',''));
@@ -16,7 +16,7 @@
   $('#demo-form').addEventListener('submit',event=>{
     event.preventDefault();
     try{
-      const record=Object.fromEntries(model.fields.map(field=>[field,$('#demo-'+field).value]));
+      const record=Object.fromEntries(model.fields.filter(field=>$('#demo-'+field)).map(field=>[field,$('#demo-'+field).value]));
       const result=model.save(read(),record,$('#demo-target').value);
       localStorage.setItem(key,JSON.stringify(result.state));
       targets(result.id);fill(result.state.terms[result.id]);$('#refresh').click();
