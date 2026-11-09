@@ -1,0 +1,11 @@
+{
+  "name": "word-collector-local-ai-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "GitHub main Word Collector용 PC 로컬 Gemini 분석 서버",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test test/*.test.cjs"
+  }
+}
