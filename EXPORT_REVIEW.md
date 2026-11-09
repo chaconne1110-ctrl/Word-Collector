@@ -65,3 +65,13 @@ Set-Location android
 ```
 
 휴대폰에서 CSV와 XLSX 각각 저장 위치 선택 → 파일 앱에서 실제 파일 생성 → Excel/스프레드시트에서 열기 → 7열·한글·예문 확인, 저장 취소와 기존 단어 유지도 확인해야 합니다. APK 설치는 동일 앱 ID/서명을 유지하는 업데이트 방식으로 진행합니다.
+
+## Existing app Output tab integration
+
+`www/_6/code.html` now exports from the existing bottom-navigation Output tab. The existing styled layout is retained; mock word cards/counts are replaced with the actual `lexicon-word-collector-v1` terms and courses. The seven checkboxes select columns in this order: 전공, 단어장 이름, 표제어, 한글 뜻, 영어 정의, 정의 한글해석, 예문 (English example). Missing fields remain blank. Per-word, per-notebook, and global selections control rows. CSV/XLSX share both selection filters. No selection disables download. Export rereads saved data immediately before generation; deleted selected IDs cannot include unrelated words. Saved data is never modified.
+
+`word-export.js` accepts optional third argument `{columns: ['en', 'ko'], termIds: ['term_id']}` on `toRows`, `toCsv`, `toXlsx`. Omit options to retain the seven-column whole-notebook API. Column order follows the seven canonical fields, regardless of option ordering. The XLSX dimension and filter adapt to selected columns. `export-save.js` shares browser downloads and the existing Android WordExport native save bridge between the app Output tab and the standalone page. The extra floating home export shortcut is removed; use the existing Output navigation.
+
+Validation: `node --test tests/csv-export.test.cjs tests/word-export.test.cjs` (7 passed), `node tests/export-screen-browser.cjs` (actual mobile-size Chromium CSV/XLSX downloads, selected terms and columns, latest edits, partial selections, no columns, unchanged storage). Android SDK/device verification remains pending. No API calls added. This PR targets the Capacitor HTML app on main; it does not modify the separate Flutter feature/ui-ux branch.
+
+Manual: enter app → 출력 → choose words/notebooks → uncheck unwanted columns → choose Excel or CSV → download. In Android, sync/build/install the updated APK (including native WordExportPlugin), then check the system save picker. Existing APKs without that plugin require an APK update.

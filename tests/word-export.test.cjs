@@ -47,3 +47,16 @@ test('Unsupported or overlong XLSX text fails without truncating or changing sto
   state.terms.a.ko = {}; assert.throws(() => toRows(state), /문자열/);
   assert.throws(() => toXlsx(null));
 });
+test('Selected columns and IDs are identical in CSV and XLSX; missing IDs never export other terms', () => {
+  const state = fixture(); state.terms.b = {course:'em', en:'other', ko:'다른 단어'};
+  const before = JSON.stringify(state);
+  const options = {columns:['exampleEn','en','ko'],termIds:['a','deleted']};
+  assert.deepEqual(toRows(state,'',options), [['표제어','한글 뜻','예문'],['=HYPERLINK("x")','와전류 😀','A sentence.']]);
+  const sheet = entries(toXlsx(state,'',options).bytes)['xl/worksheets/sheet1.xml'];
+  assert.ok(sheet.includes('A1:C2')); assert.equal((sheet.match(/<c /g)||[]).length,6);
+  assert.ok(!toCsv(state,'',options).text.includes('other'));
+  assert.equal(toCsv(state,'',{termIds:[]}).count,0);
+  assert.throws(()=>toXlsx(state,'',{columns:[]}),/항목/);
+  assert.throws(()=>toCsv(state,'',{columns:['pos']}),/항목/);
+  assert.equal(JSON.stringify(state),before);
+});

@@ -2,24 +2,31 @@
 (function (root) {
   'use strict';
   const headers = ['전공', '단어장 이름', '표제어', '한글 뜻', '영어 정의', '정의 한글해석', '예문'];
+  const columnKeys = ['discipline', 'course', 'en', 'ko', 'enDef', 'koDef', 'exampleEn'];
   const mime = {csv: 'text/csv;charset=utf-8', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   function scalar(value) {
     if (value == null) return '';
     if (!['string', 'number', 'boolean'].includes(typeof value)) throw new Error('내보낼 항목은 문자열 또는 숫자여야 합니다.');
     return String(value);
   }
-  function toRows(state, course = '') {
+  function toRows(state, course = '', options = {}) {
     if (!state || !state.terms || typeof state.terms !== 'object' || Array.isArray(state.terms) ||
         !state.courses || typeof state.courses !== 'object' || Array.isArray(state.courses)) {
       throw new Error('저장 데이터 구성을 확인해 주세요.');
     }
-    const rows = [headers.slice()];
-    for (const word of Object.values(state.terms)) {
+    const columns = options.columns === undefined ? columnKeys : options.columns;
+    if (!Array.isArray(columns) || !columns.length || columns.some(key => !columnKeys.includes(key)) || new Set(columns).size !== columns.length) throw new Error('출력할 항목을 하나 이상 선택해 주세요.');
+    const indices = columnKeys.map((key, index) => columns.includes(key) ? index : -1).filter(index => index >= 0);
+    if (options.termIds !== undefined && !Array.isArray(options.termIds)) throw new Error('단어 선택을 확인해 주세요.');
+    const ids = options.termIds === undefined ? null : new Set(options.termIds);
+    const rows = [indices.map(index => headers[index])];
+    for (const [id, word] of Object.entries(state.terms)) {
+      if (ids && !ids.has(id)) continue;
       if (!word || typeof word !== 'object' || Array.isArray(word)) throw new Error('단어 데이터를 확인해 주세요.');
       if (course && word.course !== course) continue;
       const names = Object.hasOwn(state.courses, word.course) ? state.courses[word.course] : null;
       rows.push([word.discipline, Array.isArray(names) ? names[0] : word.course, word.en, word.ko,
-        word.enDef, word.koDef, word.exampleEn].map(scalar));
+        word.enDef, word.koDef, word.exampleEn].filter((_, index) => indices.includes(index)).map(scalar));
     }
     return rows;
   }
@@ -27,8 +34,8 @@
     if (/^[\s\u0000-\u001f]*[=+\-@]/u.test(text)) text = "'" + text;
     return '"' + text.replace(/"/g, '""') + '"';
   }
-  function toCsv(state, course = '') {
-    const rows = toRows(state, course);
+  function toCsv(state, course = '', options = {}) {
+    const rows = toRows(state, course, options);
     return {text: '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n', count: rows.length - 1};
   }
   function xml(text) {
@@ -78,9 +85,10 @@
     info.setUint32(12, directory.length, true); info.setUint32(16, offset, true);
     return concat([...local, directory, end]);
   }
-  function toXlsx(state, course = '') {
-    const rows = toRows(state, course);
+  function toXlsx(state, course = '', options = {}) {
+    const rows = toRows(state, course, options);
     if (rows.length > 1048576) throw new Error('Excel 최대 행 수를 초과했습니다. 단어장을 나눠 내보내 주세요.');
+    const lastColumn = String.fromCharCode(64 + rows[0].length);
     const sheetRows = rows.map((row, r) => '<row r="' + (r + 1) + '">' + row.map((value, c) => {
       if (value.length > 32767) throw new Error('Excel 한 셀의 최대 길이(32,767자)를 초과했습니다.');
       return '<c r="' + String.fromCharCode(65 + c) + (r + 1) + '" t="inlineStr" s="' + (r === 0 ? 1 : 0) + '"><is><t xml:space="preserve">' + xml(value) + '</t></is></c>';
@@ -95,11 +103,11 @@
       ['xl/workbook.xml', head + '<workbook xmlns="' + ns + '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="단어장" sheetId="1" r:id="rId1"/></sheets></workbook>'],
       ['xl/_rels/workbook.xml.rels', head + '<Relationships xmlns="' + relationships + '"><Relationship Id="rId1" Type="' + office + 'worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="' + office + 'styles" Target="styles.xml"/></Relationships>'],
       ['xl/styles.xml', head + '<styleSheet xmlns="' + ns + '"><fonts count="2"><font><sz val="11"/><name val="맑은 고딕"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF00236F"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
-      ['xl/worksheets/sheet1.xml', head + '<worksheet xmlns="' + ns + '"><dimension ref="A1:G' + rows.length + '"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="4" width="22" customWidth="1"/><col min="5" max="7" width="50" customWidth="1"/></cols><sheetData>' + sheetRows + '</sheetData><autoFilter ref="A1:G' + rows.length + '"/></worksheet>']
+      ['xl/worksheets/sheet1.xml', head + '<worksheet xmlns="' + ns + '"><dimension ref="A1:' + lastColumn + rows.length + '"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="' + rows[0].length + '" width="30" customWidth="1"/></cols><sheetData>' + sheetRows + '</sheetData><autoFilter ref="A1:' + lastColumn + rows.length + '"/></worksheet>']
     ]);
     return {bytes, count: rows.length - 1};
   }
-  const api = {headers, mime, toRows, toCsv, toXlsx};
+  const api = {headers, columnKeys, mime, toRows, toCsv, toXlsx};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WordCollectorExport = api;
 })(globalThis);
