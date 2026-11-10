@@ -155,7 +155,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     if (!response.ok) {
       // Never return the upstream body: it can include request details or credentials.
       if (response.status === 429) throw new ApiError(429, 'Gemini 호출 한도를 초과했습니다. 잠시 후 다시 분석해 주세요.');
-      throw new ApiError(502, 'Gemini 분석 요청에 실패했습니다. 서버의 키 설정과 서비스 상태를 확인해 주세요.');
+      throw new ApiError(502, `GEMINI_UPSTREAM_HTTP_${response.status}: Gemini가 요청을 거부했습니다.`);
     }
     let payload;
     try {
@@ -361,11 +361,13 @@ const handler = {
 
     const isUsage = pathname === '/api/usage';
     const isAnalyze = pathname === '/api/analyze';
-    if (!(isUsage || isAnalyze)) {
+    const isModelStatus = pathname === '/internal/model-status';
+    if (!(isUsage || isAnalyze || isModelStatus)) {
       return workerJson({error:'요청한 경로가 없습니다.'}, 404);
     }
-    if (request.method !== (isUsage ? 'GET' : 'POST')) {
-      return workerJson({error: (isUsage ? 'GET' : 'POST') + ' 요청만 허용됩니다.'}, 405);
+    const requiredMethod = (isUsage || isModelStatus) ? 'GET' : 'POST';
+    if (request.method !== requiredMethod) {
+      return workerJson({error: requiredMethod + ' 요청만 허용됩니다.'}, 405);
     }
     if (!env.DB || !env.GEMINI_API_KEY) {
       return workerJson({error:'서버 설정을 확인해 주세요.'}, 503);
@@ -376,6 +378,31 @@ const handler = {
       const tester = await authenticate(request, env);
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
       if (isUsage) return workerJson(await usage(env, tester.tester_id));
+
+      // Admin-only metadata request: no generateContent call and no D1 usage charge.
+      // Never return upstream body, key, model inventory, or response headers.
+      if (isModelStatus) {
+        if (tester.tester_id !== 'owner-test-01') {
+          return workerJson({error: '관리자 전용 요청입니다.'}, 403);
+        }
+        try {
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`,
+            {method: 'GET', redirect: 'manual', headers: {'x-goog-api-key': env.GEMINI_API_KEY}}
+          );
+          if (!r.ok) return workerJson({model: MODEL, upstreamHttpStatus: r.status, available: false});
+          const info = await r.json();
+          return workerJson({
+            model: MODEL,
+            upstreamHttpStatus: r.status,
+            available: info?.name === `models/${MODEL}`,
+            generateContentSupported: Array.isArray(info?.supportedGenerationMethods)
+              ? info.supportedGenerationMethods.includes('generateContent') : null
+          });
+        } catch {
+          return workerJson({error: 'GEMINI_MODEL_STATUS_NETWORK'}, 502);
+        }
+      }
 
       if (env.ENABLE_LIVE_ANALYSIS !== 'true') {
         return workerJson({error:'AI 분석 기능은 아직 준비 중입니다.'}, 503);
