@@ -9,6 +9,7 @@ const reviewCourse = $('#review-course');
 const contextInput = $('#context-sentence-input');
 const inputControls = [termInput, courseInput, contextInput, ...$$('[id^="btn-mode-"], [id^="tab-ref-"]')];
 const resultFields = {
+  discipline: '전공',
   en: '영어 표제어',
   ko: '한국어 뜻',
   pos: '품사',
@@ -151,10 +152,6 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     return;
   }
-  if (location.protocol !== 'http:' || !['127.0.0.1:8000', 'localhost:8000'].includes(location.host)) {
-    status.textContent = 'PC에서 AI 분석 테스트 서버를 먼저 실행하세요.';
-    return;
-  }
   analyzing = true;
   draft = null;
   reviewForm.hidden = true;
@@ -163,14 +160,9 @@ analysisButton.addEventListener('click', async () => {
   analysisLabel.textContent = '분석 중…';
   status.textContent = 'Gemini에 분석을 요청하고 있어요.';
   try {
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({term, course: autoCourse ? undefined : seed.courses[selected][0], context, autoCourse,
-        ...(autoCourse ? {notebooks: currentNotebooks()} : {})})
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || '분석에 실패했습니다.');
+    const result = await WordCollectorAI.request({term,
+      course: autoCourse ? undefined : seed.courses[selected][0], context, autoCourse,
+      ...(autoCourse ? {notebooks: currentNotebooks()} : {})});
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
     const target = autoCourse ?
       Object.keys(seed.courses).find(id => seed.courses[id][0] === result.course) : selected;
@@ -178,7 +170,7 @@ analysisButton.addEventListener('click', async () => {
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, recommended: autoCourse ? target : null, selected: target,
+    draft = {term, model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     reviewCourse.value = target;
     $('#review-course-row').hidden = !autoCourse;
@@ -189,8 +181,8 @@ analysisButton.addEventListener('click', async () => {
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = '분석 완료. 아래 결과를 검토하세요.';
   } catch (error) {
-    status.textContent = error instanceof TypeError || error instanceof SyntaxError ?
-      'AI 분석 서버에 연결할 수 없습니다. 실행한 서버를 확인하세요.' : error.message;
+    status.textContent = ['TimeoutError','AbortError'].includes(error.name) ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.' : error instanceof TypeError || error instanceof SyntaxError ?
+      'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
   } finally {
     analyzing = false;
     for (const item of inputControls) item.disabled = false;
@@ -219,7 +211,7 @@ reviewForm.addEventListener('submit', event => {
     item.course === draft.selected && normalize(item.en) === normalize(result.en));
   if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
   const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
-  const word = {...previous, ...result, course: draft.selected, pron: result.pos};
+  const word = {...previous, ...result, course: draft.selected, pron: result.pos, analysisModel: draft.model};
   delete word.diagram;
   if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
   if (commit({...state, terms: {...state.terms, [id]: word}})) {
@@ -227,3 +219,21 @@ reviewForm.addEventListener('submit', event => {
     location.href = '../' + route('words.html', {course: word.course});
   }
 });
+
+const testerToken = $('#tester-token');
+const testerStatus = $('#tester-status');
+function configureTester(clear = false) {
+  if (clear) testerToken.value = '';
+  const token = testerToken.value.trim();
+  const useLocal = $('#ai-server-mode').value === 'local';
+  if (!clear && !useLocal && !/^wc_[a-f0-9]{64}$/.test(token)) {
+    testerStatus.textContent = '발급받은 테스터 인증 코드 형식을 확인해 주세요.';
+    return;
+  }
+  WordCollectorAI.configure({testerToken: token, useLocal});
+  testerToken.value = '';
+  testerStatus.textContent = clear ? '인증 코드를 지웠습니다.' : useLocal ? 'PC 로컬 개발 서버를 선택했습니다.' : '인증 코드가 등록되었습니다. 이 화면에서만 유지됩니다.';
+}
+$('#register-tester').addEventListener('click', () => configureTester());
+$('#clear-tester').addEventListener('click', () => configureTester(true));
+$('#ai-server-mode').addEventListener('change', () => configureTester(true));

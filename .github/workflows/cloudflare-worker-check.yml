@@ -1,0 +1,21 @@
+name: Verify Cloudflare Worker
+on:
+  push:
+    branches:
+      - feature/cloudflare-gemini35
+  pull_request:
+    branches:
+      - feature/main-gemini35
+  workflow_dispatch:
+jobs:
+  worker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and security-gate tests
+        run: |
+          node --check cloudflare/worker.mjs
+          node --test cloudflare/worker.test.mjs
