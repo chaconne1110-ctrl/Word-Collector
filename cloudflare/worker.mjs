@@ -343,7 +343,7 @@ async function generatePhoto(input, apiKey) {
           contents:[{role:'user', parts:[{text:prompt}]}],
           generationConfig:{
             responseModalities:['IMAGE'],
-            responseFormat:{image:{aspectRatio:'1:1', imageSize:'1K'}}
+            imageConfig:{aspectRatio:'1:1', imageSize:'1K'}
           }
         })
       }
