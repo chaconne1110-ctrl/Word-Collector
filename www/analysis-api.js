@@ -41,10 +41,27 @@
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
-    let token = ''; // Memory only: never included in word backups or persistent web storage.
+    // Keep authentication separate from vocabulary data and exported backups.
+    const authKey = 'word-collector-tester-auth-v1';
+    let token = '';
     let local = false;
+    try {
+      const saved = JSON.parse(root.localStorage.getItem(authKey));
+      if (/^wc_[a-f0-9]{64}$/.test(saved?.token)) token = saved.token;
+      local = saved?.useLocal === true;
+    } catch { /* Storage may be unavailable; registration reports write failures. */ }
     root.WordCollectorAI = {
-      configure({testerToken = '', useLocal = false}) { token = testerToken.trim(); local = useLocal; },
+      getStatus() { return {registered: !!token, useLocal: local}; },
+      configure({testerToken = token, useLocal = local}) {
+        const nextToken = testerToken.trim();
+        if (nextToken && !/^wc_[a-f0-9]{64}$/.test(nextToken)) throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
+        try {
+          if (!nextToken && !useLocal) root.localStorage.removeItem(authKey);
+          else root.localStorage.setItem(authKey, JSON.stringify({token: nextToken, useLocal}));
+        } catch { throw new Error('인증 정보를 기기에 저장하지 못했습니다. 사이트 저장 설정을 확인해 주세요.'); }
+        token = nextToken;
+        local = useLocal;
+      },
       request: payload => createClient({
         baseUrl: local ? (root.Capacitor?.getPlatform?.() === 'android' ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
         token,

@@ -249,10 +249,19 @@ function configureTester(clear = false) {
     testerStatus.textContent = '발급받은 테스터 인증 코드 형식을 확인해 주세요.';
     return;
   }
-  WordCollectorAI.configure({testerToken: token, useLocal});
+  try { WordCollectorAI.configure({testerToken: token, useLocal}); }
+  catch (error) { testerStatus.textContent = error.message; return; }
   testerToken.value = '';
-  testerStatus.textContent = clear ? '인증 코드를 지웠습니다.' : useLocal ? 'PC 로컬 개발 서버를 선택했습니다.' : '인증 코드가 등록되었습니다. 이 화면에서만 유지됩니다.';
+  testerStatus.textContent = clear ? '저장된 인증 코드를 지웠습니다.' : useLocal ? 'PC 로컬 개발 서버를 선택했습니다.' : '인증 코드가 기기에 저장되었습니다. 다음부터 자동으로 사용합니다.';
 }
 $('#register-tester').addEventListener('click', () => configureTester());
 $('#clear-tester').addEventListener('click', () => configureTester(true));
-$('#ai-server-mode').addEventListener('change', () => configureTester(true));
+$('#ai-server-mode').addEventListener('change', () => {
+  try {
+    WordCollectorAI.configure({useLocal: $('#ai-server-mode').value === 'local'});
+    testerStatus.textContent = '서버 설정을 저장했습니다.';
+  } catch (error) { testerStatus.textContent = error.message; }
+});
+const savedAuth = WordCollectorAI.getStatus();
+$('#ai-server-mode').value = savedAuth.useLocal ? 'local' : 'cloud';
+if (savedAuth.registered) testerStatus.textContent = '저장된 인증 코드를 자동으로 사용합니다. 지우기를 누르면 인증이 해제됩니다.';
