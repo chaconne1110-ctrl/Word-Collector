@@ -64,7 +64,7 @@ test('invalid photo input is rejected before charging any photo quota',async()=>
   assert.equal(res.status,400);assert.equal(f.used(),0);
 });
 test('image quota DB trigger blocks billable upstream fetch',async()=>{
-  const f=await fixture({photoEnabled:true,quotaError:'image_global_limit_50'});
+  const f=await fixture({photoEnabled:true,quotaError:'image_global_limit_1500'});
   const res=await worker.fetch(request(),f.env);
   assert.equal(res.status,429);assert.equal(f.used(),1);
 });
