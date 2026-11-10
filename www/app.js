@@ -386,7 +386,9 @@ function renderDeck() {
     });
     const bookmarkButtons = $('[data-action="bookmark"]', card);
     bookmarkButtons.forEach(button => paintBookmark(button, current));
+    let suppressTapUntil = 0;
     card.addEventListener('click', event => {
+      if (Date.now() < suppressTapUntil) return;
       const button = event.target.closest('button');
       if (!button || button.dataset.action === 'flip') flipper.classList.toggle('is-flipped');
       else if (button.dataset.action === 'edit') location.href = cardUrl(current).replace('flashcard.html', 'edit.html');
@@ -406,29 +408,21 @@ function renderDeck() {
       const y = end.clientY - start.clientY;
       start = null;
       if (Math.max(Math.abs(x), Math.abs(y)) < 40) return;
-      event.preventDefault();
-      if (Math.abs(x) > Math.abs(y)) flipper.classList.toggle('is-flipped');
-      else draw(y < 0 ? 1 : -1);
+      suppressTapUntil = Date.now() + 400;
+      if (Math.abs(x) > Math.abs(y)) {
+        event.preventDefault();
+        flipper.classList.toggle('is-flipped');
+      }
     });
     container.append(card);
+    container.scrollTop = 0;
     void refreshPhoto().catch(error => {
       photoStatus.textContent = error?.message || '저장된 사진을 읽지 못했습니다.';
     });
   }
   prev.addEventListener('click', () => draw(-1));
   next.addEventListener('click', () => draw(1));
-  document.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      draw(event.key === 'ArrowDown' ? 1 : -1);
-    }
-  });
-  let lastWheel = -Infinity;
-  container.addEventListener('wheel', event => {
-    if (Math.abs(event.deltaY) < 10 || performance.now() - lastWheel < 350) return;
-    lastWheel = performance.now();
-    draw(event.deltaY > 0 ? 1 : -1);
-  }, {passive: true});
+  // Leave wheel and vertical arrow input to the card's native scroll area.
   window.addEventListener('pageshow', () => { state = load(); draw(); });
 }
 
