@@ -4,6 +4,10 @@ const fs=require('node:fs');
 test('client sends user-created empty notebooks for all classification modes',()=>{
   const c=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   assert.match(c,/notebooks: currentNotebooks\(\)/);
+  assert.match(c,/refreshNotebookChoices\(\)/);
+  assert.match(c,/!hasCourse\(selected\)/);
+  assert.match(c,/review-course-row'\)\.hidden = false/);
+  assert.match(c,/needsManualCompletion/);
   assert.match(c,/reviewedWords === 0/);
   const html=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.match(html,/저장된 단어가 없어도/);

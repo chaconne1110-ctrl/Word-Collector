@@ -80,17 +80,33 @@ diagramRefresh.addEventListener('click', () => {
   drawDiagram(true);
 });
 let analyzing = false;
-$('#existing-notebook-count').textContent = '등록된 ' + Object.keys(allCourses()).length + '개 단어장';
-courseInput.replaceChildren();
-for (const [id, [name]] of Object.keys(allCourses()).map(id => [id, courseNames(id)])) {
-  courseInput.add(new Option(name, id));
-  reviewCourse.add(new Option(name, id));
+// Keep the selected notebook ID (not the display name) across UI navigation and new notebooks.
+// This also handles Safari PWA resumes and another tab creating/deleting a notebook.
+const initialCourseId = new URLSearchParams(location.search).get('course');
+function refreshNotebookChoices() {
+  const oldSelection = courseInput.value || initialCourseId;
+  const oldReview = reviewCourse.value;
+  state = load();
+  const notebookEntries = Object.entries(allCourses());
+  const options = () => notebookEntries.map(([id, [name]]) => new Option(name, id));
+  courseInput.replaceChildren(...options());
+  reviewCourse.replaceChildren(...options());
+  if (oldSelection && hasCourse(oldSelection)) courseInput.value = oldSelection;
+  if (oldReview && hasCourse(oldReview)) reviewCourse.value = oldReview;
+  $('#existing-notebook-count').textContent = '등록된 ' + notebookEntries.length + '개 단어장';
+  const existingButton = $('#btn-mode-existing');
+  existingButton.disabled = notebookEntries.length === 0;
+  if (!notebookEntries.length) {
+    existingButton.setAttribute('aria-label', '단어장이 없습니다. 직접 입력으로 먼저 만들어 주세요.');
+    if ($('#section-mode-existing').classList.contains('hidden') === false) setCategoryMode('direct');
+  } else {
+    existingButton.removeAttribute('aria-label');
+  }
 }
-if (!courseInput.options.length) {
-  $('#btn-mode-existing').disabled = true;
-  $('#btn-mode-existing').setAttribute('aria-label', '먼저 단어장을 만들어 주세요');
-  setCategoryMode('direct');
-}
+refreshNotebookChoices();
+window.addEventListener('pageshow', () => {
+  if (!analyzing) refreshNotebookChoices();
+});
 
 function supportsEddyDiagram(en, selected) {
   return ['eddy current', 'eddy currents'].includes(normalize(en)) &&
@@ -104,10 +120,10 @@ function updateReviewTarget() {
 }
 
 function currentNotebooks() {
-  const latest = load();
+  state = load();
   return Object.keys(allCourses()).map(id => [id, courseNames(id)]).map(([id, [course]]) => ({
     course,
-    words: Object.values(latest.terms).filter(word => word.course === id).map(word =>
+    words: Object.values(state.terms).filter(word => word.course === id).map(word =>
       Object.fromEntries(['en', 'ko', 'enDef', 'koDef'].map(field => [field, word[field] ?? ''])))
   }));
 }
@@ -191,6 +207,7 @@ analysisButton.addEventListener('click', async () => {
     return;
   }
   const term = termInput.value.trim();
+  refreshNotebookChoices();
   let selected = courseInput.value;
   const context = contextInput.value.trim();
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
@@ -201,7 +218,7 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '단어장이 없습니다. 직접 입력에서 새 단어장 이름을 먼저 생성해 주세요.';
     return;
   }
-  if (!directCourse && !autoCourse && !selected) {
+  if (!directCourse && !autoCourse && (!selected || !hasCourse(selected))) {
     status.textContent = '저장할 기존 단어장을 선택하거나 직접 입력에서 새 단어장을 만들어 주세요.';
     return;
   }
@@ -248,14 +265,17 @@ analysisButton.addEventListener('click', async () => {
     draft = {term, referenceSentence: context, model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     reviewCourse.value = target;
-    $('#review-course-row').hidden = !autoCourse;
+    // Users always control the destination, including when the notebook contains no words.
+    $('#review-course-row').hidden = false;
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
     reviewForm.hidden = false;
     reviewForm.scrollIntoView({block: 'start'});
-    status.textContent = '분석 완료. 아래 결과를 검토하세요.';
-    if (directCourse) reviewForm.requestSubmit();
+    status.textContent = result.needsManualCompletion ?
+      '분석은 완료됐지만 서버 호환 모드에서 품사와 예문 번역은 제공되지 않습니다. 아래 두 항목을 직접 입력한 다음 저장해 주세요.' :
+      '분석 완료. 아래 결과를 검토하세요.';
+    if (directCourse && !result.needsManualCompletion) reviewForm.requestSubmit();
   } catch (error) {
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.' : error instanceof TypeError || error instanceof SyntaxError ?
       'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
