@@ -7,9 +7,9 @@
   }
   async function save(bytes, name, mimeType) {
     const cap = window.Capacitor;
-    if (cap?.getPlatform?.() === 'android') {
+    if (['android', 'ios'].includes(cap?.getPlatform?.())) {
       const plugin = cap.Plugins?.WordExport;
-      if (typeof plugin?.save !== 'function') throw new Error('파일 저장 기능이 포함된 최신 APK로 업데이트해 주세요.');
+      if (typeof plugin?.save !== 'function') throw new Error('파일 저장 기능이 포함된 최신 앱으로 업데이트해 주세요.');
       if (bytes.length > 24 * 1024 * 1024) throw new Error('파일이 24 MiB를 넘었습니다. 단어장을 나눠 내보내 주세요.');
       const result = await plugin.save({filename: name, mimeType: mimeType.split(';')[0], base64: base64(bytes)});
       return result.cancelled ? '저장을 취소했습니다.' : '파일을 저장했습니다.';

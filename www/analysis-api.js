@@ -72,10 +72,12 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
     // A tester token never enters localStorage, cookies, word records or backups.
-    // On Android, only the native AndroidKeyStore-encrypted plugin persists it.
+    // Native AndroidKeyStore / iOS Keychain plugins persist it; browsers are session-only.
     let token = '';
     let local = false;
     const isAndroid = () => root.Capacitor?.getPlatform?.() === 'android';
+    const isIOS = () => root.Capacitor?.getPlatform?.() === 'ios';
+    const isNative = () => isAndroid() || isIOS();
     const secureStore = () => root.Capacitor?.Plugins?.TesterTokenStore;
     function requireSecureStore(method) {
       const store = secureStore();
@@ -97,14 +99,14 @@
         if (!/^wc_[a-f0-9]{64}$/.test(validated)) {
           throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
         }
-        if (isAndroid()) await requireSecureStore('save').save({token: validated});
+        if (isNative()) await requireSecureStore('save').save({token: validated});
         token = validated;
         local = false;
-        return {persistent: isAndroid()};
+        return {persistent: isNative()};
       },
       async restoreTesterToken() {
         if (token) return true;
-        if (!isAndroid()) return false; // Browser credentials are session-only.
+        if (!isNative()) return false; // Browser credentials are session-only.
         const saved = await requireSecureStore('read').read();
         if (saved?.token && !/^wc_[a-f0-9]{64}$/.test(saved.token)) {
           throw new Error('저장된 인증 코드 형식을 확인해 주세요. 코드를 지우고 다시 등록하세요.');
@@ -113,15 +115,15 @@
         return Boolean(token);
       },
       async clearTesterToken() {
-        if (isAndroid()) await requireSecureStore('clear').clear();
+        if (isNative()) await requireSecureStore('clear').clear();
         token = '';
         local = false;
       },
-      setLocalServer(value) { local = Boolean(value); },
+      setLocalServer(value) { local = isIOS() ? false : Boolean(value); }, // iOS uses Cloudflare HTTPS only.
       async createImage(payload) {
         if (!token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
-          baseUrl:CLOUD_URL, token, native:isAndroid(),
+          baseUrl:CLOUD_URL, token, native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
         }).requestImage(payload);
       },
@@ -130,7 +132,7 @@
         return createClient({
           baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
           token,
-          native: isAndroid(),
+          native: isNative(),
           nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
         }).request(payload);
       }

@@ -81,3 +81,13 @@ Android SDK/JDK가 구성된 PC에서는 `cd android` 후 `.\gradlew.bat assembl
 
 - [이미지 수정 코드 자동 테스트 및 APK 빌드 성공](https://github.com/chaconne1110-ctrl/Word-Collector/actions/runs/42877147133)
 - [코드 변경 검토 — PR #10](https://github.com/chaconne1110-ctrl/Word-Collector/pull/10)
+
+## iPhone/iOS 추가 (Capacitor 8)
+
+- Android와 동일한 `www/` 소스에서 iOS 프로젝트를 생성하며 Android와 기존 데이터는 그대로 보존합니다.
+- iOS는 기기 전용 Keychain에 테스터 인증을 보관하고 Capacitor 네이티브 HTTPS로 AI 분석 및 이미지 생성을 요청합니다.
+- iOS CSV·XLSX 내보내기 및 JSON 백업은 Files 문서 저장 창으로 진행합니다.
+- iOS 프로젝트 생성(macOS / Xcode 26+): `npm ci`, `npx cap add ios --packagemanager SPM`, `npx cap sync ios`, `python3 scripts/ios/prepare.py`, `npx cap open ios`.
+- GitHub Actions `build-ios-simulator.yml`은 서명 없는 **iOS 시뮬레이터 앱**과 수정 가능한 Xcode 프로젝트를 제공합니다. **iPhone 실기기 설치 IPA가 아닙니다.** Apple 코드 서명과 TestFlight/배포 구성은 별도 단계입니다.
+- 단어장/북마크는 기기 간 자동 동기화하지 않습니다. JSON 백업을 검수한 뒤 복원할 수 있지만, IndexedDB AI 사진은 JSON에 포함되지 않습니다.
+- iOS에서는 Cloudflare HTTPS 서버만 사용하고 로컬 PC HTTP 서버 모드는 비활성화됩니다.

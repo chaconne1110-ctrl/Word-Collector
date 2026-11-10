@@ -40,14 +40,19 @@
     try {
       const c = counts(readCurrent().data);
       $('current').textContent = `단어장 ${c.courses}개 · 단어 ${c.terms}개 · 북마크 ${c.saved}개\n저장 주소: ${location.origin}`;
-      $('export').disabled = false; $('pc-export').disabled = false;
+      $('export').disabled = false; $('pc-export').disabled = window.Capacitor?.getPlatform?.() === 'ios';
     } catch (error) {
       $('current').textContent = error.message + '\n저장 주소: ' + location.origin;
       $('export').disabled = true; $('pc-export').disabled = true;
     }
   }
-  function download(data, name) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json;charset=utf-8'});
+  async function download(data, name) {
+    const content = JSON.stringify(data, null, 2);
+    if (window.Capacitor?.getPlatform?.() === 'ios') {
+      if (typeof window.WordCollectorSave !== 'function') throw new Error('iPhone 파일 저장 기능을 찾지 못했습니다.');
+      return window.WordCollectorSave(new TextEncoder().encode(content), name, 'application/json');
+    }
+    const blob = new Blob([content], {type: 'application/json;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = name; a.style.display = 'none';
@@ -73,13 +78,13 @@
       $('export-status').className = 'warn';
     } finally { button.disabled = false; }
   });
-  $('export').addEventListener('click', () => {
+  $('export').addEventListener('click', async () => {
     try {
       const {raw} = readCurrent();
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      download({format: 'word-collector-backup', version: 1, createdAt: new Date().toISOString(),
+      const message = await download({format: 'word-collector-backup', version: 1, createdAt: new Date().toISOString(),
         sourceOrigin: location.origin, storageKey: KEY, data: JSON.parse(raw)}, `WordCollector_Backup_${stamp}.json`);
-      $('export-status').textContent = '백업 파일 다운로드를 요청했습니다. 휴대폰의 다운로드 폴더에서 실제 파일이 만들어졌는지 확인하세요.';
+      $('export-status').textContent = message || '백업 파일 다운로드를 요청했습니다. 휴대폰의 다운로드 폴더에서 실제 파일이 만들어졌는지 확인하세요.';
       $('export-status').className = 'ok';
     } catch (error) { $('export-status').textContent = '백업 실패: ' + error.message; }
   });
