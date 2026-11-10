@@ -5,6 +5,10 @@ on:
     branches: [feature/secure-tester-token]
     paths:
       - '.github/workflows/build-secure-token-apk.yml'
+      - 'tests/tester-token-persistence.test.cjs'
+      - 'www/analysis-api.js'
+      - 'www/quick_capture/analysis.js'
+      - 'android/app/src/main/java/com/yechan/wordcollector/TesterTokenStorePlugin.java'
   workflow_dispatch:
 
 permissions:
