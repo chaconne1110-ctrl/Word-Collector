@@ -1,0 +1,66 @@
+name: Build Word Collector iOS simulator (unsigned)
+
+on:
+  push:
+    branches: [feature/ai-photo-generation-20261111]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'www/**'
+      - 'scripts/ios/**'
+      - '.github/workflows/build-ios-simulator.yml'
+      - 'tests/ios-support.test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Verify JS tests and iOS integration
+        run: |
+          node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+          node --check www/analysis-api.js
+          node --check www/export-save.js
+          node --check www/backup.js
+      - name: Generate Capacitor 8 iOS SPM project
+        run: |
+          npx --no-install cap add ios --packagemanager SPM
+          npx --no-install cap sync ios
+      - name: Add Keychain and iOS Files native bridges
+        run: python3 scripts/ios/prepare.py
+      - name: Build unsigned iOS Simulator app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios-build \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Archive simulator app and editable Xcode project
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="ios-build/Build/Products/Debug-iphonesimulator/App.app"
+          test -d "$APP"
+          mkdir -p release
+          short_sha="$(git rev-parse --short HEAD)"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "release/WordCollector_iOS_Simulator_$short_sha.zip"
+          tar -czf "release/WordCollector_iOS_Xcode_Project_$short_sha.tar.gz" ios/
+      - name: Upload simulator and Xcode project (not iPhone IPA)
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-collector-ios-simulator-and-xcode
+          path: release/*
+          retention-days: 14
+          if-no-files-found: error
