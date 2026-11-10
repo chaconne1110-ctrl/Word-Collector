@@ -89,7 +89,7 @@ public class WordExportPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDele
             return
         }
         let encoded = call.getString("base64") ?? ""
-        guard !encoded.isEmpty(), encoded.count <= 32 * 1024 * 1024,
+        guard !encoded.isEmpty, encoded.count <= 32 * 1024 * 1024,
               let data = Data(base64Encoded: encoded),
               !data.isEmpty, data.count <= 24 * 1024 * 1024 else {
             call.reject("파일이 비어 있거나 24 MiB를 넘었습니다.")

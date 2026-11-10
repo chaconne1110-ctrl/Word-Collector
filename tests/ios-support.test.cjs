@@ -52,6 +52,7 @@ test('native iOS build includes Keychain and Files export', () => {
   const native = fs.readFileSync('scripts/ios/NativeBridge.swift', 'utf8');
   assert.match(native, /kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly/);
   assert.match(native, /kSecAttrSynchronizable/);
+  assert.doesNotMatch(native, /\.isEmpty\(\)/);
   assert.match(native, /UIDocumentPickerViewController/);
   assert.match(native, /registerPluginInstance\(TesterTokenStorePlugin\(\)\)/);
   assert.match(native, /registerPluginInstance\(WordExportPlugin\(\)\)/);
