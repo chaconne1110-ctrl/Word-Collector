@@ -1,0 +1,168 @@
+name: Build Word Collector notebook header delete APK
+
+on:
+  push:
+    branches: [feature/combined-delete-shortcut-preview]
+    paths:
+      - '.github/workflows/build-notebook-shortcut-apk.yml'
+      - 'www/assets/styles/bottom-navigation.css'
+      - 'www/quick_capture/code.html'
+      - 'www/index.html'
+      - 'www/app.js'
+      - 'www/words.html'
+      - 'www/edit.html'
+      - 'tests/tester-token-persistence.test.cjs'
+      - 'www/analysis-api.js'
+      - 'www/quick_capture/analysis.js'
+      - 'android/app/src/main/java/com/yechan/wordcollector/TesterTokenStorePlugin.java'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout notebook header delete shortcut + secure branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install exact application dependencies
+        run: npm ci
+
+      - name: Verify JS tests
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/worker.test.mjs
+
+      - name: Sync combined branch UI into Capacitor Android
+        run: npx --no-install cap sync android
+
+      - name: Ensure package ID and bundled UI are unchanged
+        run: |
+          grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
+          grep -q '"webDir":  *"www"' capacitor.config.json
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/app/src/main/assets/public/analysis-api.js
+          test -s android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'id="ai-auth-settings"' android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'flex: 0 0 auto' android/app/src/main/assets/public/quick_capture/code.html
+
+      - name: Verify notebook renaming UI and logic are bundled
+        run: |
+          grep -q 'id="notebook-settings"' android/app/src/main/assets/public/words.html
+          grep -q 'id="rename-notebook-dialog"' android/app/src/main/assets/public/words.html
+          grep -q 'const courseNames = id' android/app/src/main/assets/public/app.js
+          grep -q 'id="ai-auth-settings"' android/app/src/main/assets/public/quick_capture/code.html
+
+      - name: Verify Android encrypted token storage is bundled
+        run: |
+          test -s android/app/src/main/java/com/yechan/wordcollector/TesterTokenStorePlugin.java
+          grep -q 'registerPlugin(TesterTokenStorePlugin.class)' android/app/src/main/java/com/yechan/wordcollector/MainActivity.java
+          grep -q 'AES/GCM/NoPadding' android/app/src/main/java/com/yechan/wordcollector/TesterTokenStorePlugin.java
+          grep -q 'rememberTesterToken' android/app/src/main/assets/public/analysis-api.js
+          grep -q 'restoreTesterToken' android/app/src/main/assets/public/quick_capture/analysis.js
+          grep -q 'dataExtractionRules' android/app/src/main/AndroidManifest.xml
+
+      - name: Verify custom notebooks and source sentences are bundled
+        run: |
+          grep -q 'custom-subject-input' android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'referenceSentence' android/app/src/main/assets/public/quick_capture/analysis.js
+          grep -q 'referenceSentence' android/app/src/main/assets/public/app.js
+          grep -q 'const allCourses = ' android/app/src/main/assets/public/app.js
+          if grep -q "localStorage.setItem(authKey" android/app/src/main/assets/public/analysis-api.js; then echo 'Unsafe credential storage detected' >&2; exit 1; fi
+
+      - name: Verify latest deletion and analysis fixes are bundled
+        run: |
+          grep -q 'id="delete-notebook-dialog"' android/app/src/main/assets/public/words.html
+          grep -q 'id="confirm-notebook-delete"' android/app/src/main/assets/public/words.html
+          grep -q 'id="deleteModal"' android/app/src/main/assets/public/edit.html
+          grep -q 'state.deletedCourses' android/app/src/main/assets/public/app.js
+          grep -q 'const autoCourse = !directCourse' android/app/src/main/assets/public/quick_capture/analysis.js
+
+      - name: Verify new nav and automatic save behavior
+        run: |
+          test -s android/app/src/main/assets/public/assets/styles/bottom-navigation.css
+          grep -q 'bottom-navigation.css' android/app/src/main/assets/public/index.html
+          grep -q 'bottom-navigation.css' android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'if (directCourse) reviewForm.requestSubmit()' android/app/src/main/assets/public/quick_capture/analysis.js
+          grep -q 'id="delete-notebook-dialog"' android/app/src/main/assets/public/words.html
+          grep -q 'restoreTesterToken' android/app/src/main/assets/public/quick_capture/analysis.js
+
+      - name: Verify notebook header delete shortcut is bundled
+        run: |
+          grep -q 'id="delete-notebook-shortcut"' android/app/src/main/assets/public/words.html
+          grep -q 'delete-notebook-shortcut' android/app/src/main/assets/public/app.js
+          grep -q 'id="delete-notebook-dialog"' android/app/src/main/assets/public/words.html
+          grep -q 'restoreTesterToken' android/app/src/main/assets/public/quick_capture/analysis.js
+
+      - name: Build Android debug APK (not production signed)
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
+
+      - name: Verify APK and prepare preview release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          VERSION="${GITHUB_SHA:0:7}"
+          TAG="v1.1.6-header-delete-preview-${VERSION}"
+          NAME="WordCollector_HeaderDelete_${VERSION}_Preview_Debug.apk"
+          mkdir -p release
+          cp "$APK" "release/$NAME"
+          printf '%s  %s\n' "$(sha256sum "release/$NAME" | cut -d ' ' -f1)" "$NAME" > release/SHA256.txt
+          {
+            echo "# Word Collector 단어장 상단 삭제 버튼·자동 저장·보안 인증 APK"
+            echo
+            echo "- GitHub feature/combined-delete-shortcut-preview 소스: \`$GITHUB_SHA\`"
+            echo "- 단어장 상단 삭제 버튼과 삭제 확인 대화창, 하단 메뉴 통일, 직접 생성 단어장 자동 저장 및 Android 암호화 인증 코드 자동 복원을 포함한 테스트 APK. 삭제 기능 사용 전 데이터를 백업하세요."
+            echo "- 이 APK는 GitHub Actions에서 생성한 **디버그 서명 테스트 빌드**이며 정식 배포 서명 APK가 아닙니다."
+            echo "- 기존 설치 앱과 서명이 다르면 덮어쓰기 업데이트할 수 없습니다. **기존 앱을 삭제하거나 데이터를 초기화하지 마세요.**"
+            echo "- 기존 단어장 데이터 보존, 기기 설치 및 Gemini API 실제 분석의 회귀 검증은 아직 수행하지 않았습니다. APK 설치 전 앱 백업을 권장합니다."
+            echo "- AI 분석은 서버 인증 및 Cloudflare/Google API 정상 동작에 따라 별도로 실패할 수 있습니다."
+          } > release/RELEASE_NOTES.md
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=$NAME" >> "$GITHUB_ENV"
+
+      - name: Upload APK as downloadable workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-collector-delete-shortcut-preview-apk
+          path: |
+            release/*.apk
+            release/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish public GitHub prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            "release/$RELEASE_NAME" release/SHA256.txt \
+            --target "$GITHUB_SHA" \
+            --title "Word Collector header delete shortcut preview ($RELEASE_TAG)" \
+            --notes-file release/RELEASE_NOTES.md \
+            --prerelease
