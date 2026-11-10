@@ -318,7 +318,8 @@ async function readWorkerJson(request) {
 
 function asError(error, phase = 'UNKNOWN') {
   const detail = String(error?.message || '');
-  if (detail.includes('daily_limit_100') || detail.includes('global_limit_1500')) {
+  if (detail.includes('daily_limit_100') || detail.includes('global_limit_1000') ||
+      detail.includes('global_limit_1500')) {
     return workerJson({error:'오늘의 호출 한도에 도달했습니다.'}, 429);
   }
   if (error instanceof ApiError) return workerJson({error: error.message}, error.status);
