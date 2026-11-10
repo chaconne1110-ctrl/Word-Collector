@@ -146,6 +146,7 @@ test('legacy Transformer analyze generates real-format response with mock Gemini
     globalThis.fetch = async (url, opts) => {
       assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
       assert.equal(opts.method, 'POST');
+      assert.equal(opts.redirect, 'manual'); // Workers do not implement redirect: error
       assert.equal(opts.headers['x-goog-api-key'], 'dummy-not-real');
       return new Response(JSON.stringify({
         candidates: [{finishReason:'STOP', content: {parts: [{text: JSON.stringify(mockGeminiOutput)}]}}]
