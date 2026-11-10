@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type">
+<link rel="stylesheet" href="./assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="./assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="./assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="./assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="./assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="./assets/styles/edit_html.css"><style>@layer base{html,body{width:100%;margin:0;padding:0;min-height:100%;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><title>단어 수정 · Word Collector</title></head><body class="bg-background text-on-background font-body antialiased flex flex-col min-h-screen" data-page="edit"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(19,27,46,0.04)]"><div class="h-16 px-4 flex items-center justify-between"><div class="flex items-center gap-1"><button aria-label="수정 취소 및 이전으로 돌아가기" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest transition-colors" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><div class="flex flex-col ml-1"><h1 class="text-base font-semibold tracking-tight text-on-surface font-headline leading-tight">단어 수정 <span class="text-xs font-normal text-on-surface-variant font-body">(플래시카드)</span></h1><span class="text-[11px] font-label text-secondary tracking-normal font-medium">FLASHCARD #EDIT MODE</span></div></div><div class="flex items-center gap-1"><button aria-label="단어 변경사항 저장" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-secondary hover:bg-secondary-container/30 active:bg-secondary-container transition-colors" type="button" onclick="saveTermChanges()"><span class="material-symbols-outlined text-[26px]">check</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1 shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 bg-background flex-1 pb-safe pb-24"><div class="flex flex-col w-full">
+<!-- Interactive sync toast (hidden by default) -->
+<div class="fixed top-20 left-4 right-4 z-50 transform -translate-y-6 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-between p-3.5 rounded-lg shadow-xl bg-primary text-on-primary" id="saveToast"><div class="flex items-center gap-2.5"><span id="toastIcon" class="material-symbols-outlined text-[20px] text-secondary-container">cloud_done</span><span id="toastMsg" class="text-xs font-medium font-body">플래시카드 암기 세션으로 이동합니다...</span></div><span id="toastTag" class="text-[11px] font-label text-inverse-primary tracking-tight">SAVED</span></div>
+<!-- Deletion Confirmation Modal -->
+<div class="fixed inset-0 z-50 hidden bg-inverse-surface/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" id="deleteModal" hidden="">
+<div class="w-full max-w-sm rounded-xl p-5 bg-surface-container-lowest text-on-surface shadow-2xl flex flex-col gap-4 animate-[fadeIn_0.2s_ease-out]">
+<div class="w-12 h-12 rounded-full flex items-center justify-center bg-error-container text-error">
+<span class="material-symbols-outlined text-[26px]">delete_forever</span>
+</div>
+<div>
+<h3 class="text-base font-semibold font-headline text-on-surface">표제어를 삭제하시겠습니까?</h3>
+<p class="text-xs font-body text-on-surface-variant mt-1 leading-relaxed">
+          'Resonance Frequency' 단어 및 연동된 학습 통계, 회로이론 북마크 목록에서 완전히 제거됩니다. 이 작업은 되돌릴 수 없습니다.
+        </p>
+</div>
+<div class="flex items-center gap-2 pt-1"><button id="modalCancelBtn" class="flex-1 h-11 rounded-lg bg-surface-container-high text-on-surface font-body text-xs font-semibold hover:bg-surface-container-highest active:scale-[0.98] transition-all" onclick="closeDeleteModal()" type="button">취소</button><button id="modalDeleteBtn" class="flex-1 h-11 rounded-lg bg-error text-on-error font-body text-xs font-semibold shadow-md active:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5" onclick="confirmDelete()" type="button"><span class="material-symbols-outlined text-[17px]">delete</span><span class="">삭제하기</span></button></div>
+</div>
+</div>
+<!-- Content Stream -->
+<div class="w-full max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3.5"><!-- Sync Status Banner -->
+<section class="rounded-lg p-3 bg-surface-container-low text-on-surface flex items-start gap-2.5 shadow-sm">
+<div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-surface-container-high text-primary">
+<span class="material-symbols-outlined text-[19px] animate-[spin_10s_linear_infinite]">sync</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-label text-primary font-semibold tracking-wide">8대 표준 학술 용어 체계 (STANDARD LEXICON)</span>
+<span class="text-[10px] font-label text-secondary font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary inline-block"></span>
+ACTIVE
+</span>
+</div>
+<p class="text-xs font-body text-on-surface-variant mt-0.5 leading-snug">
+북마크에서 수정한 내용은 해당 과목(<span class="font-semibold text-on-surface" id="edit-course-label">전자전기공학 · 회로이론</span>)의 원본 단어장에 즉시 동기화됩니다.
+</p>
+</div>
+</section>
+
+<!-- 01. 소속 및 분류 (전공 & 학술 분류 체계) -->
+<div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">01. 소속 및 분류 (DISCIPLINE &amp; CLASSIFICATION)</span>
+<span class="text-[10px] font-label text-on-surface-variant/70">항목 1-2</span>
+</div>
+<!-- 1. 전공 (Academic Discipline) -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="disciplineInput">
+<span class="">1. 전공 (Academic Discipline)</span>
+<span class="text-[11px] font-label text-primary">ENG-EE</span>
+</label>
+<input class="w-full h-11 px-3.5 text-xs font-body font-semibold rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="disciplineInput" type="text" value="전자전기공학 (Electrical &amp; Electronic Engineering)">
+</div>
+<!-- 2. 학술 분류 체계 (Academic Field) -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="subjectSelect">
+<span class="">2. 학술 분류 체계 (Academic Field)</span>
+<span class="text-[11px] font-label text-secondary font-semibold">EE-CIR-204</span>
+</label>
+<div class="relative">
+<select class="w-full h-11 px-3.5 pr-10 text-xs font-body font-medium rounded-lg bg-surface-container-low text-on-surface appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="subjectSelect">
+<option selected value="circuit">회로이론 (Circuit Theory)</option>
+<option value="electromagnetics">전자기학 (Electromagnetics)</option>
+<option value="signals">신호 및 시스템 (Signals &amp; Systems)</option>
+<option value="electronics">전자회로 (Electronic Circuits)</option>
+<option value="control">제어공학 (Control Systems)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]">
+unfold_more
+</span>
+</div>
+</div>
+</div>
+
+<!-- 02. 표제어 및 한국어 학술 역어 -->
+<div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">02. 표제어 및 학술 역어 (HEADWORD &amp; KOREAN TERM)</span>
+<span class="text-[10px] font-label text-secondary font-medium">항목 3-4</span>
+</div>
+<!-- 3. 표제어 (English Headword) -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="englishTermInput">
+<span class="">3. 표제어 (English Headword)</span>
+<span class="text-[10px] font-label text-primary font-semibold">REQUIRED</span>
+</label>
+<div class="relative flex items-center">
+<input class="w-full h-12 px-3.5 pr-11 text-base font-headline font-semibold rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="englishTermInput" placeholder="예: Resonance Frequency" type="text" value="Resonance Frequency">
+<button aria-label="발음 청취" class="absolute right-2 w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-surface-container-high transition-colors" onclick="playAudioPronunciation()" type="button">
+<span class="material-symbols-outlined text-[20px]">volume_up</span>
+</button>
+</div>
+</div>
+<!-- 4. 한국어 학술 역어 (Standard Korean Term) -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="koreanTermInput">
+<span class="">4. 한국어 학술 역어 (Standard Korean Term)</span>
+<span class="text-[10px] font-label text-on-surface-variant">대한전기학회 표준</span>
+</label>
+<input class="w-full h-11 px-3.5 text-sm font-body font-semibold rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="koreanTermInput" placeholder="표준 국문 번역어" type="text" value="공진 주파수">
+</div>
+</div>
+
+<!-- 03. 정의 및 학술 예문 -->
+<div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">03. 정의 및 학술 예문 (DEFINITIONS &amp; EXAMPLES)</span>
+<span class="text-[10px] font-label text-primary font-semibold">항목 5-7</span>
+</div>
+<!-- 5. Standard Academic Definition -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface" for="englishDefArea">5. Standard Academic Definition (영문 표준 학술 정의)</label>
+<textarea class="w-full p-3 text-xs font-body leading-relaxed rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner resize-none" id="englishDefArea" rows="3">The frequency at which the inductive reactance and capacitive reactance of an electrical circuit are equal in magnitude.</textarea>
+</div>
+<!-- 6. 국문 번역 정의 -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-body font-semibold text-on-surface" for="koreanDefArea">6. 국문 번역 정의 (Korean Academic Definition)</label>
+<textarea class="w-full p-3 text-xs font-body leading-relaxed rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner resize-none" id="koreanDefArea" rows="3">유도 리액턴스와 용량 리액턴스가 같아져 회로의 임피던스가 최소가 되고 전류가 최대가 되는 주파수.</textarea>
+</div>
+<!-- 7. 학술 예문 및 국문 번역 -->
+<div class="flex flex-col gap-2 p-3 rounded-lg bg-surface-container-low">
+<div class="flex items-center justify-between">
+<label class="text-xs font-body font-semibold text-on-surface" for="exampleSentenceEn">7. 예문 (Academic Example Sentence)</label>
+<span class="text-[10px] font-label text-secondary font-semibold">CONTEXT READY</span>
+</div>
+<div class="flex flex-col gap-1.5">
+<span class="text-[11px] font-label text-on-surface-variant">[영문 원문]</span>
+<textarea class="w-full p-2.5 text-xs font-body leading-relaxed rounded-lg bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-inner resize-none" id="exampleSentenceEn" rows="2">At the resonance frequency, the impedance of a series RLC circuit drops to its minimum resistive value.</textarea>
+</div>
+<div class="flex flex-col gap-1.5 mt-1">
+<span class="text-[11px] font-label text-on-surface-variant">[국문 번역]</span>
+<textarea class="w-full p-2.5 text-xs font-body leading-relaxed rounded-lg bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-inner resize-none" id="exampleSentenceKo" rows="2">공진 주파수에서 직렬 RLC 회로의 임피던스는 최소 순저항 값으로 떨어진다.</textarea>
+</div>
+</div>
+</div>
+
+<!-- 04. AI 생성 개념 시각화 관리 -->
+<div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-3.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[17px] text-tertiary-container" style="font-variation-settings: 'FILL' 1;">palette</span>
+<span class="text-[11px] font-label text-on-surface uppercase tracking-wider font-semibold">04. AI 개념 시각화 (AI CONCEPT VISUALIZATION)</span>
+</div>
+<button class="text-[11px] font-body text-primary font-semibold hover:underline flex items-center gap-0.5" onclick="regenerateAiDiagram()" type="button" disabled>
+<span class="material-symbols-outlined text-[13px]">auto_awesome</span>
+시각화 재생성
+</button>
+</div>
+<!-- 8. AI 생성 개념 시각화 관리 (다이어그램 미리보기) -->
+<div class="flex flex-col gap-2">
+<span class="text-xs font-body font-semibold text-on-surface">8. AI 생성 개념 시각화 관리 (Impedance &amp; Frequency Curve)</span>
+<div class="p-3.5 rounded-lg bg-surface-container flex flex-col gap-2.5 border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">schema</span>
+<span class="text-xs font-headline font-semibold text-on-surface">공진 주파수 임피던스 곡선 다이어그램</span>
+</div>
+<span class="text-[10px] font-label px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-semibold">SVG RENDERED</span>
+</div>
+<div class="w-full h-28 bg-surface-container-lowest rounded-lg p-2 flex items-center justify-center relative overflow-hidden shadow-inner">
+<svg class="w-full h-full" viewbox="0 0 300 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+<line x1="20" y1="75" x2="280" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
+<line x1="20" y1="10" x2="20" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
+<path d="M35 20 C80 68, 120 72, 150 72 C180 72, 220 68, 265 20" stroke="#00236f" stroke-width="2.5" stroke-linecap="round" fill="none"></path>
+<line x1="150" y1="15" x2="150" y2="75" stroke="#006c4a" stroke-width="1.5" stroke-dasharray="3 3"></line>
+<circle cx="150" cy="72" r="4" fill="#006c4a"></circle>
+<text x="150" y="85" font-size="9" font-family="JetBrains Mono" fill="#006c4a" text-anchor="middle" font-weight="bold">f₀ (공진점: Z_min = R)</text>
+<text x="265" y="85" font-size="8" font-family="JetBrains Mono" fill="#444651" text-anchor="end">Frequency (f)</text>
+<text x="25" y="18" font-size="8" font-family="JetBrains Mono" fill="#444651">Impedance |Z|</text>
+</svg>
+</div>
+<p class="text-[11px] font-body text-on-surface-variant leading-relaxed">
+공진점 $f_0$에서 유도 리액턴스와 용량 리액턴스가 상쇄되어 임피던스가 순저항 $R$로 극소화되며 전류가 극대화되는 특성 곡선입니다.
+</p>
+</div>
+</div>
+<!-- Revision Timestamp and Cloud State -->
+<div class="p-2.5 rounded-lg bg-surface-container-low text-on-surface-variant flex items-center justify-between text-[11px] font-label">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-secondary">cloud_done</span>
+<span class="">저장 버튼을 눌러 변경 내용을 적용하세요.</span>
+</div>
+<span class="text-[10px] text-on-surface-variant/70">REV. 05</span>
+</div><div class="p-2.5 rounded-lg bg-secondary-container/30 border border-secondary/30 flex items-center justify-between text-[11px] font-label text-secondary"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-secondary">edit_note</span><span class="font-medium">저장 버튼을 눌러 변경 내용을 적용하세요.</span></div><span class="px-1.5 py-0.5 rounded text-[10px] bg-secondary text-on-secondary font-semibold">DRAFT SAFE</span></div>
+</div>
+
+<!-- Action Center -->
+<div class="rounded-xl p-3 bg-surface-container-lowest shadow-md flex flex-col gap-2 mt-1"><div class="p-2 rounded-lg bg-surface-container-low text-on-surface-variant text-[11px] font-body flex items-start gap-1.5 leading-snug"><span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0 mt-0.5">info</span><span class="">플래시카드 상단 수정 버튼을 통해 진입한 개별 단어 편집 모드입니다. 수정 완료 시 플래시카드 및 단어장에 즉시 동기화됩니다.</span></div>
+<!-- Quick Flashcard Trigger -->
+<button class="w-full h-11 rounded-lg bg-surface-container-high text-primary font-body text-xs font-semibold flex items-center justify-center gap-2 hover:bg-surface-container-highest active:scale-[0.99] transition-all" onclick="openFlashcardDirect()" type="button">
+<span class="material-symbols-outlined text-[19px]">style</span>
+플래시카드로 열기 (암기 모드)
+</button>
+<!-- Primary Action Buttons Row -->
+<div class="flex items-center gap-2">
+<!-- Delete Button with red tint -->
+<button aria-label="단어 삭제" class="h-12 px-3.5 rounded-lg bg-error-container text-error flex items-center justify-center gap-1 text-xs font-body font-semibold active:scale-95 transition-all" onclick="openDeleteModal()" type="button">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+<span class="hidden sm:inline">삭제</span>
+</button>
+<!-- Save Button (Primary Filled) -->
+<button class="flex-1 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center gap-2 text-xs font-body font-semibold shadow-md active:bg-primary-container active:scale-[0.99] transition-all" onclick="saveTermChanges()" type="button">
+<span class="material-symbols-outlined text-[20px]">save</span>
+<span class="">수정 내용 저장 (단어장에 반영)</span>
+</button>
+</div>
+</div>
+
+<!-- Footnote Meta -->
+<div class="text-center py-2">
+<span class="text-[10px] font-label text-on-surface-variant/70">
+Lexicon Precision • 8-Standard Academic Terminology Module v4.0
+</span>
+</div></div>
+</div>
+</main>
+
+
+
+
+
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30 pb-safe shadow-lg"><div class="max-w-2xl mx-auto h-16 px-4 flex items-center justify-around"><a class="flex flex-col items-center justify-center flex-1 h-full py-1 text-on-surface-variant hover:text-primary active:scale-95 transition-all" type="button" href="index.html"><span class="material-symbols-outlined text-[22px]">home</span><span class="text-[10px] font-label font-medium mt-0.5">홈</span></a><a class="flex flex-col items-center justify-center flex-1 h-full py-1 text-on-surface-variant hover:text-primary active:scale-95 transition-all" type="button" href="quick_capture/code.html"><span class="material-symbols-outlined text-[22px]">add_circle</span><span class="text-[10px] font-label font-medium mt-0.5">단어 추가</span></a><a class="flex flex-col items-center justify-center flex-1 h-full py-1 text-on-surface-variant hover:text-primary active:scale-95 transition-all" type="button" href="bookmarks.html"><span class="material-symbols-outlined text-[22px]">bookmark</span><span class="text-[10px] font-label font-medium mt-0.5">북마크</span></a><a class="flex flex-col items-center justify-center flex-1 h-full py-1 text-on-surface-variant hover:text-primary active:scale-95 transition-all" type="button" href="_6/code.html"><span class="material-symbols-outlined text-[22px]">print</span><span class="text-[10px] font-label font-medium mt-0.5">출력</span></a></div></nav>
+
+<script src="data.js"></script><script src="app.js"></script></body></html>

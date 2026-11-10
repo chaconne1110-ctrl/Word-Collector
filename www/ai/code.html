@@ -1,0 +1,271 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><title>Academic Lexicon</title>
+<link rel="stylesheet" href="../assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="../assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="../assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="../assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="../assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="../assets/styles/ai_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate max-w-[200px]">Term Detail</h1></div><div class="flex items-center gap-space-xs"><button class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">more_vert</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface"><div class="flex flex-col w-full pb-44"><!-- Verification Stage Ribbon / Alert -->
+<div class="px-margin pt-space-md">
+<div class="p-space-md rounded-xl bg-surface-container-high shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between"><div class="flex items-center gap-1.5 text-primary font-semibold"><span class="material-symbols-outlined text-[18px]">verified</span><span class="">검수 진행 현황</span></div><span class="px-2.5 py-0.5 rounded-full bg-surface-container font-label-mono text-caption font-semibold text-primary-container">4/5 항목 검토 완료</span></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+        검수가 완료되어야 개인 단어장에 영구 저장됩니다. AI 분석 결과를 꼼꼼히 확인하고 필요한 경우 직접 편집해 주세요.
+      </p>
+<!-- Progress Track -->
+<div class="w-full bg-surface-container-lowest rounded-full h-1.5 overflow-hidden mt-1">
+<div class="bg-primary-container h-full w-4/5 rounded-full"></div>
+</div>
+
+<div class="mt-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest/80 text-on-surface-variant font-label-mono text-caption"><span class="material-symbols-outlined text-[15px] text-secondary">cloud_done</span><span class="text-[11px] text-on-surface-variant font-medium">실시간 검수/수정 내역 자동 임시 저장됨 (페이지 이동 시 안전 보존)</span></div></div>
+</div>
+<!-- Main Inspectable Container List -->
+<div class="px-margin flex flex-col gap-space-md mt-space-md"><!-- Section A: 기본 및 분류 정보 (1~4번 항목) -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
+  <div class="flex items-center justify-between pb-space-xs">
+    <div class="flex items-center gap-space-xs text-primary">
+      <span class="material-symbols-outlined text-[20px]">category</span>
+      <span class="font-headline-sm text-headline-sm">기본 및 학술 분류</span>
+      <span class="ml-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-mono text-caption">항목 1~4</span>
+    </div>
+    <button class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary-container active:scale-95 transition-transform" title="수정 토글" type="button">
+      <span class="material-symbols-outlined text-[16px]">edit</span>
+    </button>
+  </div>
+
+  <!-- 1. 전공 (Discipline) -->
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 font-caption text-caption text-on-surface-variant cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui font-semibold text-on-surface">1. 전공 (Discipline)</span>
+      </label>
+      <span class="font-label-mono text-caption text-secondary">표준 분류</span>
+    </div>
+    <div class="p-3 rounded-lg bg-surface-container-low flex items-center justify-between">
+      <span class="font-body-md text-body-md text-on-surface font-semibold">전자전기공학 (Electrical &amp; Electronic Engineering)</span>
+      <span class="material-symbols-outlined text-[16px] text-on-surface-variant">school</span>
+    </div>
+  </div>
+
+  <!-- 2. 학술 분류 체계 (Academic Field) -->
+  <div class="flex flex-col gap-1 mt-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 font-caption text-caption text-on-surface-variant cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui font-semibold text-on-surface">2. 학술 분류 체계 (Academic Field)</span>
+      </label>
+      <span class="font-label-mono text-caption text-on-surface-variant">세부 전공</span>
+    </div>
+    <div class="relative">
+      <select class="w-full h-10 px-3 pr-8 rounded-lg bg-surface-container-low text-on-surface font-label-ui text-label-ui appearance-none focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+        <option selected="">전자기학 (Electromagnetics)</option>
+        <option>반도체 공학 (Semiconductor Physics)</option>
+        <option>고전압 공학 (High Voltage Engineering)</option>
+        <option>재료과학 (Materials Science)</option>
+      </select>
+      <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2.5 top-2.5 pointer-events-none">expand_more</span>
+    </div>
+  </div>
+
+  <!-- 3. 표제어 (Academic Term) -->
+  <div class="flex flex-col gap-1 mt-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 font-caption text-caption text-on-surface-variant cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui font-semibold text-on-surface">3. 표제어 (Academic Term)</span>
+      </label>
+      <span class="font-label-mono text-caption text-secondary">표준 영문 표기</span>
+    </div>
+    <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low">
+      <div class="flex flex-col">
+        <span class="font-term-en-title text-term-en-title text-on-surface tracking-tight">Dielectric Breakdown</span>
+        <span class="font-label-mono text-caption text-on-surface-variant mt-0.5">/ˌdaɪ.ɪˈlɛk.trɪk ˈbreɪk.daʊn/</span>
+      </div>
+      <button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary-container active:scale-90 transition-transform" type="button">
+        <span class="material-symbols-outlined text-[20px]">volume_up</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. 한국어 학술 역어 (Standard Korean Term) -->
+  <div class="flex flex-col gap-1 mt-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 font-caption text-caption text-on-surface-variant cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui font-semibold text-on-surface">4. 한국어 학술 역어</span>
+      </label>
+      <span class="font-label-mono text-caption text-on-surface-variant">단어 재추천</span>
+    </div>
+    <div class="p-3 rounded-lg bg-surface-container-low flex items-center justify-between">
+      <input class="bg-transparent font-term-kr-title text-term-kr-title text-on-surface w-full focus:outline-none" type="text" value="절연 파괴">
+      <span class="material-symbols-outlined text-[16px] text-on-surface-variant">edit_note</span>
+    </div>
+  </div>
+</div>
+
+<!-- Section B: 정의 및 학술 문맥 (5~7번 항목) -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
+  <div class="flex items-center justify-between pb-space-xs">
+    <div class="flex items-center gap-space-xs text-primary">
+      <span class="material-symbols-outlined text-[20px]">menu_book</span>
+      <span class="font-headline-sm text-headline-sm">정의 및 예문 문맥</span>
+      <span class="ml-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-mono text-caption">항목 5~7</span>
+    </div>
+    <div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">
+      <span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+      <span class="font-label-mono text-caption">Dual Verified</span>
+    </div>
+  </div>
+
+  <!-- 5. Standard Academic Definition -->
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui text-label-ui text-on-surface font-semibold">5. Standard Academic Definition</span>
+      </label>
+      <span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-mono text-caption">ISO/IEEE</span>
+    </div>
+    <div class="p-3 rounded-lg bg-surface-container-low">
+      <p class="font-body-md text-body-md text-on-surface leading-relaxed">The failure of an insulating material to prevent electric current flow under high voltage.</p>
+    </div>
+  </div>
+
+  <!-- 6. 국문 번역 정의 -->
+  <div class="flex flex-col gap-1 mt-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui text-label-ui text-on-surface font-semibold">6. 국문 번역 정의</span>
+      </label>
+      <span class="font-label-mono text-caption text-secondary">재작성 가능</span>
+    </div>
+    <div class="p-3 rounded-lg bg-surface-container-low">
+      <p class="font-body-md text-body-md text-on-surface leading-relaxed">고전압 하에서 절연 물질이 전류의 흐름을 막지 못하고 파괴되는 현상</p>
+    </div>
+  </div>
+
+  <!-- 7. 학술 예문 (Example Sentence) -->
+  <div class="flex flex-col gap-1 mt-1">
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+        <span class="font-label-ui text-label-ui text-on-surface font-semibold">7. 예문 (Example Sentence)</span>
+      </label>
+      <span class="font-label-mono text-caption text-secondary">학술 코퍼스</span>
+    </div>
+    <div class="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1.5">
+      <p class="font-body-md text-body-md text-on-surface leading-relaxed font-medium">"The dielectric breakdown of the ceramic insulator occurred at 15 kV/mm during high-voltage stress testing."</p>
+      <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">고전압 스트레스 테스트 중 15 kV/mm에서 세라믹 절연체의 절연 파괴가 발생했다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Section C: AI 생성 개념 시각화 (8번 항목) -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
+  <div class="flex items-center justify-between pb-space-xs">
+    <label class="flex items-center gap-space-xs text-primary cursor-pointer">
+      <input class="w-4 h-4 rounded text-primary-container focus:ring-0 cursor-pointer" type="checkbox">
+      <span class="material-symbols-outlined text-[20px]">schema</span>
+      <span class="font-headline-sm text-headline-sm">8. AI 생성 개념 시각화</span>
+    </label>
+    <span class="font-label-mono text-caption text-secondary">SVG + AI Render</span>
+  </div>
+  <div class="rounded-xl overflow-hidden bg-surface-container-low flex flex-col">
+    <div class="relative w-full h-44 bg-surface-container-highest overflow-hidden flex items-center justify-center p-3">
+      <img class="w-full h-full object-cover rounded-lg" data-alt="Technical schematic vector diagram of dielectric breakdown between parallel metal plates under ultra high voltage. Crisp glowing electric discharge arc path fracturing through insulating polymer crystal lattice. Authoritative deep indigo blueprint background, fine geometric measurement lines, electric field direction vectors, physics technical manual aesthetics." src="../assets/images/ai-reference.jpg">
+      <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-primary-container/80 text-on-primary font-label-mono text-caption backdrop-blur-sm">E &gt; E_crit</div>
+      <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-on-surface/70 text-on-secondary font-label-mono text-caption backdrop-blur-sm">Fig. 4.2 Breakdown Vector</div>
+    </div>
+    <div class="p-3 flex items-center justify-between bg-surface-container-low">
+      <div class="flex items-center gap-1.5 text-on-surface-variant">
+        <span class="material-symbols-outlined text-[16px] text-primary">draw</span>
+        <span class="font-label-ui text-caption">AI 자동 생성 개념도 (단어별 자동 생성)</span>
+      </div>
+      <button class="flex items-center gap-1 text-primary-container font-label-ui text-caption active:opacity-75" type="button">
+        <span class="material-symbols-outlined text-[14px]">refresh</span>다시 그리기
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Checklist / Micro-interactive Validation -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
+  <span class="font-headline-sm text-headline-sm text-on-surface">최종 검수 체크리스트</span>
+  <div class="flex flex-col gap-2 mt-1">
+    <label class="flex items-center gap-3 p-2 rounded-lg bg-surface-container-low cursor-pointer">
+      <input checked="" class="w-5 h-5 rounded text-primary-container focus:ring-0" type="checkbox">
+      <span class="font-body-sm text-body-sm text-on-surface">8대 표준 항목(전공, 정의, 예문 등) 검증 완료</span>
+    </label>
+    <label class="flex items-center gap-3 p-2 rounded-lg bg-surface-container-low cursor-pointer">
+      <input checked="" class="w-5 h-5 rounded text-primary-container focus:ring-0" type="checkbox">
+      <span class="font-body-sm text-body-sm text-on-surface">국문 전문 용어 및 학술 예문 타당성 확인</span>
+    </label>
+  </div>
+</div></div>
+<!-- Bottom Floating Dual-Action Dock -->
+<div class="fixed bottom-16 left-0 right-0 z-40 bg-surface/90 backdrop-blur-xl px-margin py-2.5 shadow-lg border-t border-surface-container-high">
+<div class="max-w-md mx-auto flex items-center gap-space-sm"><!-- Prominent: Selective Re-analyze --><button class="flex-1 h-11 rounded-xl bg-primary-container text-on-primary flex items-center justify-center gap-1.5 font-label-ui text-label-ui active:scale-95 transition-transform shadow-md" id="btn-reanalyze" type="button"><span class="material-symbols-outlined text-[18px]">cached</span><span class="">선택 항목 재분석 요청</span></button><!-- Secondary: Save to Lexicon --><button class="px-4 h-11 rounded-xl bg-surface-container text-primary-container flex items-center justify-center gap-1.5 font-label-ui text-label-ui active:scale-95 transition-transform shadow-sm shrink-0" id="btn-save" type="button"><span class="material-symbols-outlined text-[18px]">bookmark_added</span><span class="">단어장에 저장</span></button></div>
+</div>
+</div>
+<script>
+  (function() {
+    const saveBtn = document.getElementById('btn-save');
+    const reanalyzeBtn = document.getElementById('btn-reanalyze');
+    
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        const originalContent = this.innerHTML;
+        this.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">refresh</span><span>영구 저장 처리 중...</span>';
+        this.disabled = true;
+        
+        setTimeout(() => {
+          this.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span><span>저장 완료!</span>';
+          this.classList.remove('bg-primary-container');
+          this.classList.add('bg-secondary');
+          setTimeout(() => {
+            alert('검수가 완료되어 [전자기학] 단어장에 성공적으로 영구 저장되었습니다.');
+            this.innerHTML = originalContent;
+            this.classList.remove('bg-secondary');
+            this.classList.add('bg-primary-container');
+            this.disabled = false;
+          }, 600);
+        }, 800);
+      });
+    }
+
+    if (reanalyzeBtn) {
+      reanalyzeBtn.addEventListener('click', function() {
+        const icon = this.querySelector('.material-symbols-outlined');
+        if (icon) {
+          icon.classList.add('animate-spin');
+          setTimeout(() => {
+            icon.classList.remove('animate-spin');
+            alert('AI가 학술 코퍼스를 재탐색하여 분석 데이터를 갱신했습니다.');
+          }, 900);
+        }
+      });
+    }
+  })();
+</script></main>
+
+
+
+
+
+
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high pb-safe"><div class="max-w-md mx-auto h-16 grid grid-cols-4 items-center"><button type="button" class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary transition-colors py-1"><span class="material-symbols-outlined text-[22px]">home</span><span class="text-[11px] font-label-ui font-medium">홈</span></button><button type="button" class="flex flex-col items-center justify-center gap-0.5 text-primary font-semibold py-1"><span class="material-symbols-outlined text-[22px] text-primary">add_circle</span><span class="text-[11px] font-label-ui font-bold text-primary">단어 추가</span></button><button type="button" class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary transition-colors py-1"><span class="material-symbols-outlined text-[22px]">bookmark</span><span class="text-[11px] font-label-ui font-medium">북마크</span></button><button type="button" class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary transition-colors py-1"><span class="material-symbols-outlined text-[22px]">ios_share</span><span class="text-[11px] font-label-ui font-medium">출력</span></button></div></nav>
+
+
+
+</body></html>

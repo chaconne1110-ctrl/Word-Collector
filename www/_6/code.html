@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_tab" name="shell-type">
+<link rel="stylesheet" href="../assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="../assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="../assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="../assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="../assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="../assets/styles/_6_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#faf8ff;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface font-body text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-4 flex items-center justify-between gap-3"><div class="flex items-center gap-2.5 min-w-0 flex-1"><div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-primary text-[22px]">table_chart</span></div><h1 class="text-base font-headline font-semibold text-on-surface truncate tracking-tight">Spreadsheet Export</h1></div><div class="flex items-center gap-1 shrink-0"><button aria-label="검색" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">search</span></button><button aria-label="더보기 옵션" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">more_vert</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1 shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-surface"><div class="flex flex-col w-full px-4 pt-2 pb-28 gap-5">
+<!-- Intro Header Block (No border, surface-container tonal contrast) -->
+<section class="flex flex-col gap-2 rounded-xl bg-surface-container-low p-4 shadow-sm">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-primary text-[11px] font-label font-medium tracking-wide">
+<span class="material-symbols-outlined text-[14px]">tune</span>
+        EXPORT CONFIGURATION
+      </span>
+<span class="text-[12px] font-label text-outline font-medium">UTF-8 ENC</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[20px] font-headline font-bold text-on-surface tracking-tight">스프레드시트 출력</h2>
+<p class="text-[13px] font-body text-on-surface-variant leading-relaxed">
+        스프레드시트로 내보낼 과목과 단어를 선택하세요. 선택한 데이터가 행(Row)과 열(Column)로 정돈되어 스프레드시트 파일로 변환됩니다.
+      </p>
+</div>
+</section>
+<!-- Global Master Control Bar -->
+<section class="flex items-center justify-between bg-surface-container-lowest rounded-xl px-4 py-3.5 shadow-sm">
+<label class="flex items-center gap-3 cursor-pointer select-none">
+<input checked="" class="sr-only peer" id="selectAllMaster" type="checkbox">
+<div class="w-5 h-5 rounded bg-surface-container-high flex items-center justify-center text-transparent peer-checked:bg-primary peer-checked:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[16px] font-bold">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[14px] font-body font-semibold text-on-surface">전체 선택</span>
+<span id="totalWords" class="text-[11px] font-label text-outline">총 0개 표제어 등록됨</span>
+</div>
+</label>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary-container text-on-secondary-container">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="text-[12px] font-label font-semibold" id="globalSelectedCount">38개 단어 선택됨</span>
+</div>
+</section>
+<section class="flex flex-col gap-3" aria-label="단어장과 단어 선택"><div id="subjectGroups" class="flex flex-col gap-3"></div></section>
+<!-- Export Options Container -->
+<section class="flex flex-col gap-4">
+<!-- 1. Column Selection -->
+<div class="flex flex-col rounded-xl bg-surface-container-lowest p-4 shadow-sm gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">view_column</span>
+<span class="text-[14px] font-headline font-bold text-on-surface">포함할 열(Column) 선택</span>
+</div>
+<span class="text-[11px] font-label text-outline"><span id="columnCount">7개 항목 활성</span></span>
+</div>
+<div class="grid grid-cols-2 gap-2"><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="discipline"><span>전공</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="course"><span>단어장 이름</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="en"><span>표제어</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="ko"><span>한글 뜻</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="enDef"><span>영어 정의</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="koDef"><span>정의 한글해석</span></label><label class="flex items-center gap-2.5 p-2 rounded-lg bg-surface-container-low"><input type="checkbox" checked data-column="exampleEn"><span>예문</span></label></div></div>
+<label>파일 형식 <select id="exportFormat"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV (.csv)</option></select></label>
+<p id="exportStatus" role="status" aria-live="polite"></p>
+</section>
+<!-- Sticky-above-tabbar Bottom CTA Bar -->
+<div class="fixed bottom-16 left-0 w-full px-4 py-2 z-40 bg-surface/90 backdrop-blur-md">
+<div class="max-w-md mx-auto w-full">
+<button class="w-full h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center gap-2 shadow-lg hover:bg-primary-container active:scale-[0.99] transition-all" id="exportActionBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">download_for_offline</span>
+<span class="text-[14px] font-headline font-bold tracking-tight">38개 단어 스프레드시트 추출 및 다운로드</span>
+</button>
+</div>
+</div>
+</div>
+</main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/85 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.05)]" data-active-classes="text-primary font-semibold"><div class="grid grid-cols-4 items-center h-16 px-2"><a class="flex flex-col items-center justify-center gap-1 h-full min-h-[44px] text-on-surface-variant hover:text-primary transition-all" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="text-[11px] font-body tracking-tight leading-none">홈</span></a><a class="flex flex-col items-center justify-center gap-1 h-full min-h-[44px] text-on-surface-variant hover:text-primary transition-all" data-path="word-add" href="../quick_capture/code.html"><span class="material-symbols-outlined text-[24px]">add_circle</span><span class="text-[11px] font-body tracking-tight leading-none">단어 추가</span></a><a class="flex flex-col items-center justify-center gap-1 h-full min-h-[44px] text-on-surface-variant hover:text-primary transition-all" data-path="bookmarks" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="text-[11px] font-body tracking-tight leading-none">북마크</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-1 h-full min-h-[44px] transition-all text-primary font-semibold" data-path="spreadsheet-export" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="text-[11px] font-body tracking-tight leading-none">출력</span></a></div></nav>
+
+
+
+
+<script src="../data.js"></script><script src="../word-export.js"></script><script src="../export-save.js"></script><script src="../export-screen.js"></script></body></html>

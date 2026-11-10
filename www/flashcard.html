@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><link rel="stylesheet" href="./assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="./assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="./assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="./assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="./assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="./assets/styles/flashcard_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    .card-perspective {
+      perspective: 1200px;
+    }
+    .card-flipper {
+      transform-style: preserve-3d;
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .card-flipper.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+    }
+    /* Hide scrollbars for snap container */
+    #cardsScrollContainer {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #cardsScrollContainer::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<title>플래시카드 · Word Collector</title></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="card"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_6px_rgba(0,0,0,0.03)]"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="backNavigationBtn"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-[19px] text-on-surface tracking-tight font-bold">플래시카드</h1></div><div class="flex items-center gap-1.5"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-16 bg-surface"><div class="flex flex-col w-full h-[calc(100dvh-120px)] max-h-[820px]">
+<!-- Subject Tracker & Sub-Header -->
+<div class="px-margin pt-2.5 pb-1 flex items-center justify-between shrink-0">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[12px] font-semibold" id="subjectBadgeKr">
+        전자기학
+      </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-ui text-[11px] font-semibold" id="subjectBadgeEn">
+        Electromagnetics
+      </span>
+</div>
+<div class="flex items-center gap-1">
+<span class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary font-label-mono text-[12px] font-bold shadow-xs tracking-wide" id="topActiveCounter">01 / 05</span>
+</div>
+</div>
+<!-- Controls / Hints: Vertical Navigation Hint & Flip Gesture Banner -->
+
+<!-- Main Flashcard Vertical Scroll Snap Container -->
+<div class="relative px-margin flex-1 min-h-0 flex flex-col items-center">
+<div class="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth space-y-4 pb-4 overscroll-y-contain rounded-2xl" id="cardsScrollContainer" style="overflow:hidden">
+<!-- CARD 1: Skin Effect (표피 효과) -->
+<!-- CARD 2: Permittivity (유전율) -->
+<!-- CARD 3: Lorentz Force (로렌츠 힘) -->
+<!-- CARD 4: Permeability (투자율) -->
+<!-- CARD 5: Poynting Vector (포인팅 벡터) -->
+</div><template data-card-template="generic"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Skin Effect</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded" data-field="pron">noun</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">표피 효과</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">정의</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The tendency of an alternating electric current (<span class="font-semibold text-primary">AC</span>) to become distributed within a conductor such that the <span class="font-semibold text-primary">current density</span> is largest near the surface and decreases exponentially with greater depths.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5"></span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">교류(AC) 전류가 도체를 흐를 때 내부 유도 기전력으로 인해 중심부 저항이 증가하여 전류가 도체 표면 근처로 집중되는 현상.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">수식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">δ = √(2ρ / ωμ)</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Skin Effect AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"At microwave frequencies, the skin effect confines RF current to a microscopic outer layer, requiring silver plating on copper waveguides to minimize attenuation."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+마이크로파 대역에서는 표피 효과로 인해 RF 전류가 미세한 도체 표면층으로만 흘러 감쇠를 줄이기 위해 구리 도파관에 은도금을 적용합니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+</div>
+</article>
+</template><template data-card-template="term_poynting_vector"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="5" data-term-id="term_poynting_vector" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Poynting Vector</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">05 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
+<span class="font-label-mono text-[11px] text-outline">[ˈpɔɪntɪŋ ˈvɛktər]</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">포인팅 벡터</span>
+</div>
+<span class="font-label-mono text-[11px] text-on-surface-variant uppercase font-medium">전자기 에너지 흐름 밀도</span>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">Formal Definition</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The vector representing the directional energy flux density (rate of energy transfer per unit area) of an <span class="font-semibold text-primary">electromagnetic field</span>.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-lowest shadow-xs border border-surface-container-low">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">한국어 학술 해설</span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">전자기파가 공간을 전파할 때 단위 시간당 단위 면적을 통과하여 전달되는 전자기 에너지의 흐름 방향과 크기를 나타내는 벡터.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">포인팅 벡터 공식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">S = E × H [W/m²]</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+<span class="font-label-mono text-outline">↑ 처음 카드로 복귀 가능</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui">
+<button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면 (정의·수식)</button>
+<button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면 (AI 예문·도해)</button>
+<button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Poynting Vector AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">05 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"By integrating the time-averaged Poynting vector over the sphere encompassing an antenna, radio engineers compute its total radiated power and beam efficiency."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+안테나를 감싸는 구면에 걸쳐 시간 평균 포인팅 벡터를 적분함으로써 무선 공학자들은 총 방사 전력과 빔 효율을 산출합니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-xs space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-[11px] text-primary font-bold tracking-wider uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">open_in_full</span> AI 직교 전파 다이어그램
+</span>
+<span class="font-label-mono text-[10px] text-outline">E × H Vector Cross</span>
+</div>
+<div class="w-full h-28 rounded-lg bg-surface-container-low flex items-center justify-center relative overflow-hidden border border-surface-container">
+<svg class="w-48 h-24" viewbox="0 0 200 95">
+<!-- Origin at (50, 70) -->
+<!-- E field (Up) -->
+<line marker-end="url(#arrowE)" stroke="#00236f" stroke-width="2.5" x1="50" x2="50" y1="70" y2="20"></line>
+<text fill="#00236f" font-family="JetBrains Mono" font-size="11" font-weight="bold" x="35" y="22">E</text>
+<!-- H field (Oblique right-down) -->
+<line stroke="#006c4a" stroke-width="2.5" x1="50" x2="20" y1="70" y2="90"></line>
+<text fill="#006c4a" font-family="JetBrains Mono" font-size="11" font-weight="bold" x="8" y="90">H</text>
+<!-- S Poynting vector (Right) -->
+<line stroke="#653400" stroke-width="3" x1="50" x2="160" y1="70" y2="70"></line>
+<polygon fill="#653400" points="160,65 175,70 160,75"></polygon>
+<text fill="#653400" font-family="JetBrains Mono" font-size="12" font-weight="bold" x="140" y="60">S = E × H</text>
+<text fill="#444651" font-family="JetBrains Mono" font-size="9" x="90" y="86">전파 에너지 진행방향</text>
+</svg>
+</div>
+<div class="flex items-center justify-between font-label-mono text-[10.5px] text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span>단위: W/m² (와트/제곱미터)</span>
+<span class="text-primary font-bold">시간평균 &lt;S&gt; = 1/2 Re(E×H*)</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 위로 스크롤</span>
+</div>
+</div>
+</div>
+</article>
+</template><template data-card-template="term_permeability"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="4" data-term-id="term_permeability" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Permeability</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">04 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
+<span class="font-label-mono text-[11px] text-outline">[ˌpɜːrmiəˈbɪləti]</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">투자율</span>
+</div>
+<span class="font-label-mono text-[11px] text-on-surface-variant uppercase font-medium">자기유도 형성 매질 척도</span>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">Formal Definition</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The measure of the ability of a material to support the formation of a <span class="font-semibold text-primary">magnetic field</span> within itself, expressed as the ratio of magnetic flux density (<span class="font-semibold text-primary">B</span>) to magnetic field strength (<span class="font-semibold text-primary">H</span>).</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">한국어 학술 해설</span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">어떤 물질이 자기장에 반응하여 자화될 때, 자기력선속을 얼마나 쉽게 통과시키고 형성할 수 있는지를 나타내는 척도.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">투자율 관계 수식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">μ = B / H [H/m]</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui">
+<button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면 (정의·수식)</button>
+<button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면 (AI 예문·도해)</button>
+<button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Permeability AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">04 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"Ferromagnetic transformer cores possess ultra-high relative permeability, concentrating magnetic flux paths and dramatically improving mutual inductance efficiency."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+강자성 변압기 코어는 매우 높은 비투자율을 가져 자기력선속 경로를 밀집시키고 상호 인덕턴스 효율을 비약적으로 개선합니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-xs space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-[11px] text-primary font-bold tracking-wider uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">grain</span> AI 자속 집중 다이어그램
+</span>
+<span class="font-label-mono text-[10px] text-outline">Magnetic Flux Guide</span>
+</div>
+<div class="w-full h-28 rounded-lg bg-surface-container-low flex items-center justify-center relative overflow-hidden border border-surface-container">
+<svg class="w-48 h-20" viewbox="0 0 200 80">
+<!-- Flux lines converging into core -->
+<path d="M 10 20 Q 50 35 100 35 Q 150 35 190 20" fill="none" stroke="#757682" stroke-width="1.5"></path>
+<path d="M 10 40 L 190 40" fill="none" stroke="#00236f" stroke-width="2.5"></path>
+<path d="M 10 60 Q 50 45 100 45 Q 150 45 190 60" fill="none" stroke="#757682" stroke-width="1.5"></path>
+<!-- Ferromagnetic Core -->
+<rect fill="#dae2fd" height="46" rx="4" stroke="#00236f" stroke-width="2" width="60" x="70" y="17"></rect>
+<text fill="#00236f" font-family="JetBrains Mono" font-size="9" font-weight="bold" text-anchor="middle" x="100" y="38">μ_core &gt;&gt; μ₀</text>
+<text fill="#444651" font-family="JetBrains Mono" font-size="8" text-anchor="middle" x="100" y="52">자속 집중 영역</text>
+</svg>
+</div>
+<div class="flex items-center justify-between font-label-mono text-[10.5px] text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span>진공 투자율 μ₀ = 4π×10⁻⁷</span>
+<span class="text-primary font-bold">B = μ₀(H + M)</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+</div>
+</article>
+</template><template data-card-template="term_lorentz_force"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="3" data-term-id="term_lorentz_force" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Lorentz Force</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">03 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
+<span class="font-label-mono text-[11px] text-outline">[ˈlɔːrənts fɔːrs]</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">로렌츠 힘</span>
+</div>
+<span class="font-label-mono text-[11px] text-on-surface-variant uppercase font-medium">전자기장 상호작용 합력</span>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">Formal Definition</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The total force exerted on a point charge moving through space that contains both an electric field (<span class="font-semibold text-primary">E</span>) and a magnetic field (<span class="font-semibold text-primary">B</span>).</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">한국어 학술 해설</span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">전자기장 내에서 운동하는 하전 입자가 받는 전기적 힘(qE)과 자기적 힘(qv×B)의 벡터적 총합.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">로렌츠 힘 방정식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">F = q(E + v × B)</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui">
+<button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면 (정의·수식)</button>
+<button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면 (AI 예문·도해)</button>
+<button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Lorentz Force AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">03 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"The magnetic component of the Lorentz force acts perpendicular to velocity, bending particle trajectories into circular orbits inside synchrotrons without changing their kinetic energy."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+로렌츠 힘의 자기력 성분은 속도 벡터에 수직으로 작용하여 운동 에너지를 바꾸지 않으면서 싱크로트론 내부 입자들을 원형 궤도로 편향시킵니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-xs space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-[11px] text-primary font-bold tracking-wider uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">rotate_right</span> AI 입자 궤적 시뮬레이션
+</span>
+<span class="font-label-mono text-[10px] text-outline">B-Field Trajectory</span>
+</div>
+<div class="w-full h-28 rounded-lg bg-surface-container-low flex items-center justify-center relative overflow-hidden border border-surface-container">
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 rounded-full border-2 border-dashed border-primary flex items-center justify-center relative">
+<div class="w-3.5 h-3.5 rounded-full bg-primary absolute -top-1.5 right-6 shadow-sm flex items-center justify-center text-[9px] text-white font-bold">q</div>
+<span class="font-label-mono text-[9.5px] text-outline">B ⊗ (수직 진입)</span>
+</div>
+<div class="space-y-1 text-left font-label-mono text-[11px]">
+<div class="text-primary font-bold">F_B = q(v × B)</div>
+<div class="text-on-surface-variant text-[10px]">구심력 = mv²/r</div>
+<div class="text-secondary font-bold text-[10.5px]">회전반경: r = mv/qB</div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-mono text-[10.5px] text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span>전기력 + 자기력 합성</span>
+<span class="text-primary font-bold">F = qE + q(v × B)</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+</div>
+</article>
+</template><template data-card-template="term_permittivity"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="2" data-term-id="term_permittivity" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Permittivity</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">02 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
+<span class="font-label-mono text-[11px] text-outline">[pɜːrmɪˈtɪvəti]</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">유전율</span>
+</div>
+<span class="font-label-mono text-[11px] text-on-surface-variant uppercase font-medium">전하 저장 매질 척도</span>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">Formal Definition</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The capability of an insulating material to polarize under an electric field and thereby reduce the total field, measuring electrical energy storage capacity per unit volume.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">한국어 학술 해설</span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">매질이 전기장에 반응하여 유전 분극을 일으키는 정도를 나타내는 물성값으로, 전하 축적 및 전계 형성 성능을 결정합니다.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">유전율 기본 관계식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">ε = D / E [F/m]</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui">
+<button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면 (정의·수식)</button>
+<button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면 (AI 예문·도해)</button>
+<button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Permittivity AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">02 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"By replacing standard air with high-k dielectric material of superior permittivity, engineers significantly enlarged the capacitance while reducing chip area."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+표준 공기 대신 고유전율(High-k) 절연 재료를 도입함으로써 엔지니어들은 반도체 면적을 줄이면서도 정전용량을 크게 확대할 수 있었습니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-xs space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-[11px] text-primary font-bold tracking-wider uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">view_in_ar</span> AI 유전 분극 개념도
+</span>
+<span class="font-label-mono text-[10px] text-outline">Dielectric Polarization</span>
+</div>
+<div class="w-full h-28 rounded-lg bg-surface-container-low flex items-center justify-center gap-3 relative overflow-hidden border border-surface-container px-2">
+<div class="flex flex-col items-center justify-between h-20 py-0.5">
+<div class="w-3.5 h-16 bg-primary/20 rounded border border-primary flex items-center justify-center font-label-mono text-[10px] font-bold text-primary">+</div>
+<span class="font-label-mono text-[8.5px] text-outline">+극판</span>
+</div>
+<div class="flex-1 h-20 rounded-lg bg-surface-container flex items-center justify-around px-2 border border-surface-container-high">
+<div class="flex flex-col items-center">
+<span class="text-primary font-bold text-[13px]">⊖ ⊕</span>
+<span class="text-[8.5px] font-label-mono text-outline">분극 쌍극자</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-primary font-bold text-[13px]">⊖ ⊕</span>
+<span class="text-[8.5px] font-label-mono text-outline">내부 전계 감소</span>
+</div>
+</div>
+<div class="flex flex-col items-center justify-between h-20 py-0.5">
+<div class="w-3.5 h-16 bg-secondary/20 rounded border border-secondary flex items-center justify-center font-label-mono text-[10px] font-bold text-secondary">-</div>
+<span class="font-label-mono text-[8.5px] text-outline">-극판</span>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-mono text-[10.5px] text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span>진공 유전율 ε₀ ≈ 8.854×10⁻¹²</span>
+<span class="text-primary font-bold">ε = εᵣ · ε₀</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+</div>
+</article>
+</template><template data-card-template="term_skin_effect"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" data-term-id="term_skin_effect" style="min-height:100%;max-height:none;touch-action:none">
+<div class="card-flipper cursor-pointer">
+<!-- FRONT SIDE -->
+<div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1.5">
+<div class="flex items-baseline justify-between">
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Skin Effect</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
+<span class="font-label-mono text-[11px] text-outline">[skɪn ɪˈfɛkt]</span>
+</div>
+</div>
+<div class="my-1.5 p-2.5 rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<span class="font-term-kr-title text-headline-sm text-primary font-bold tracking-tight" data-field="ko">표피 효과</span>
+</div>
+<span class="font-label-mono text-[11px] text-on-surface-variant uppercase font-medium">전류 집중 현상</span>
+</div>
+</div>
+<div class="space-y-2">
+<div>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">Formal Definition</span>
+<p class="font-body-md text-[13.5px] text-on-surface leading-snug" data-field="enDef">The tendency of an alternating electric current (<span class="font-semibold text-primary">AC</span>) to become distributed within a conductor such that the <span class="font-semibold text-primary">current density</span> is largest near the surface and decreases exponentially with greater depths.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container">
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider block mb-0.5">한국어 학술 해설</span>
+<p class="font-body-md text-[13px] text-on-surface leading-normal" data-field="koDef">교류(AC) 전류가 도체를 흐를 때 내부 유도 기전력으로 인해 중심부 저항이 증가하여 전류가 도체 표면 근처로 집중되는 현상.</p>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">functions</span>
+<span class="font-label-ui text-[11px] text-on-surface-variant uppercase tracking-wider">표피 침투 깊이 공식</span>
+</div>
+<div class="font-label-mono text-[13px] font-bold text-primary tracking-wide" data-field="formula">δ = √(2ρ / ωμ)</div>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+<!-- BACK SIDE -->
+<div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
+<div class="space-y-2.5 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span class="font-label-ui text-[12px] font-bold">AI 예문 및 시각화 도해</span>
+</div>
+<div class="flex items-center gap-1.5"><div class="flex items-center p-0.5 bg-surface-container rounded-lg text-[11px] font-label-ui"><button class="px-2 py-0.5 rounded-md text-on-surface-variant hover:text-primary" type="button" data-action="flip">앞면</button><button class="px-2 py-0.5 rounded-md bg-primary text-on-primary font-bold shadow-xs" type="button" data-action="flip">뒷면</button></div><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+</div>
+<div class="pt-2 pb-1 flex items-center justify-between">
+<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Skin Effect AI Synthesis</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+</div>
+</div>
+<!-- AI Example Section -->
+<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-primary font-label-ui text-[11px] font-bold tracking-wider uppercase">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> AI 생성 예문
+</span>
+<span class="font-label-mono text-[10px] text-primary bg-surface-container-lowest px-1.5 py-0.2 rounded font-semibold">Contextual</span>
+</div>
+<p class="font-body-md text-[12.5px] text-on-surface leading-snug italic font-medium" data-field="exampleEn">
+"At microwave frequencies, the skin effect confines RF current to a microscopic outer layer, requiring silver plating on copper waveguides to minimize attenuation."
+</p>
+<div class="pt-1 border-t border-surface-container/60">
+<span class="font-label-ui text-[10px] text-on-surface-variant uppercase tracking-wider block mb-0.5">국문 번역</span>
+<p class="font-body-sm text-[11.5px] text-on-surface-variant leading-tight" data-field="exampleKo">
+마이크로파 대역에서는 표피 효과로 인해 RF 전류가 미세한 도체 표면층으로만 흘러 감쇠를 줄이기 위해 구리 도파관에 은도금을 적용합니다.
+</p>
+</div>
+</div>
+<!-- Concept Visualization Diagram -->
+<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-xs space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-ui text-[11px] text-primary font-bold tracking-wider uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">donut_large</span> AI 개념 시각화 다이어그램
+</span>
+<span class="font-label-mono text-[10px] text-outline">도체 단면 전류밀도</span>
+</div>
+<div class="w-full h-28 rounded-lg bg-surface-container-low flex items-center justify-center relative overflow-hidden border border-surface-container">
+<div class="w-24 h-24 rounded-full border-4 border-primary bg-primary-fixed/25 flex items-center justify-center relative shadow-inner">
+<div class="w-16 h-16 rounded-full border border-dashed border-primary/40 bg-surface flex items-center justify-center text-center p-1">
+<span class="font-label-mono text-[8.5px] text-on-surface-variant leading-tight">중심부<br>(J ≈ 0)</span>
+</div>
+<div class="absolute -top-1 font-label-mono text-[8.5px] font-bold text-primary bg-surface-container-lowest px-1 rounded shadow-xs">J_max (표면)</div>
+<div class="absolute -bottom-1 font-label-mono text-[8.5px] font-bold text-secondary bg-surface-container-lowest px-1 rounded shadow-xs">침투깊이 δ</div>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-mono text-[10.5px] text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span>침투 깊이 δ</span>
+<span class="text-primary font-bold">주파수(f) ↑ ⇒ δ ↓</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low flex items-center justify-between text-[11px] font-label-ui text-on-surface-variant">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
+</span>
+<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+</div>
+</div>
+</div>
+</article>
+</template><!-- Vertical Quick Jump Floating Controls -->
+<div class="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-20 pointer-events-auto">
+<button aria-label="이전 단어" class="w-7 h-7 rounded-full bg-surface-container-lowest/90 backdrop-blur border border-surface-container-high shadow-sm flex items-center justify-center text-primary active:scale-90"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span></button>
+<div class="flex flex-col gap-1 py-1" id="verticalIndicators">
+<span class="w-1.5 h-3 rounded-full bg-primary transition-all duration-300" data-dot-index="1"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="2"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="3"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="4"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="5"></span>
+</div>
+<button aria-label="다음 단어" class="w-7 h-7 rounded-full bg-surface-container-lowest/90 backdrop-blur border border-surface-container-high shadow-sm flex items-center justify-center text-primary active:scale-90"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span></button>
+</div>
+</div>
+</div>
+</main>
+<nav aria-label="Global Navigation" class="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-outline-variant/30 flex justify-around items-center h-16 px-2 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.03)]"><a class="flex flex-col items-center justify-center flex-1 py-1 text-primary transition-colors" href="index.html"><span class="material-symbols-outlined text-[24px]" style='font-variation-settings: "FILL" 1;'>home</span><span class="font-label-ui text-[11px] font-bold mt-0.5">홈</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="quick_capture/code.html"><span class="material-symbols-outlined text-[24px]">add_circle</span><span class="font-label-ui text-[11px] font-medium mt-0.5">단어 추가</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-label-ui text-[11px] font-medium mt-0.5">북마크</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-label-ui text-[11px] font-medium mt-0.5">출력</span></a></nav>
+<template id="resonance-diagram"><svg class="w-full h-28" viewbox="0 0 300 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+<line x1="20" y1="75" x2="280" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
+<line x1="20" y1="10" x2="20" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
+<path d="M35 20 C80 68, 120 72, 150 72 C180 72, 220 68, 265 20" stroke="#00236f" stroke-width="2.5" stroke-linecap="round" fill="none"></path>
+<line x1="150" y1="15" x2="150" y2="75" stroke="#006c4a" stroke-width="1.5" stroke-dasharray="3 3"></line>
+<circle cx="150" cy="72" r="4" fill="#006c4a"></circle>
+<text x="150" y="85" font-size="9" font-family="JetBrains Mono" fill="#006c4a" text-anchor="middle" font-weight="bold">f₀ (공진점: Z_min = R)</text>
+<text x="265" y="85" font-size="8" font-family="JetBrains Mono" fill="#444651" text-anchor="end">Frequency (f)</text>
+<text x="25" y="18" font-size="8" font-family="JetBrains Mono" fill="#444651">Impedance |Z|</text>
+</svg>
+</template><script src="data.js"></script><script src="diagrams.js"></script><script src="app.js"></script></body></html>

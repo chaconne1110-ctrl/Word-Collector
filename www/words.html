@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="mobile_stack" name="shell-type">
+
+
+
+
+<link rel="stylesheet" href="./assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="./assets/fonts/SpaceGrotesk/local.css">
+<link rel="stylesheet" href="./assets/fonts/JetBrainsMono/local.css">
+<link rel="stylesheet" href="./assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="./assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="./assets/styles/words_html.css">
+
+<style>
+    @layer base {
+      html, body {
+        width: 100vw;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        overscroll-behavior: none;
+        font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<title>단어 목록 · Word Collector</title></head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex flex-col" data-page="words">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container-high/60 shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
+<div class="h-14 px-4 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<button aria-label="뒤로 가기" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="font-headline text-[18px] font-bold text-on-surface tracking-tight truncate max-w-[220px]">
+          전자기학 (Electromagnetics)
+        </h1>
+</div>
+<div class="flex items-center gap-1">
+<button aria-label="검색" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" id="searchToggleBtn">
+<span class="material-symbols-outlined text-[22px]">search</span>
+</button>
+<button aria-label="필터" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[22px]">tune</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col relative w-full pt-14 pb-safe bg-surface">
+<div class="flex flex-col w-full pb-24">
+<!-- Top Section -->
+<div class="px-4 pt-3 pb-2 flex flex-col gap-3">
+<!-- Live Study Progress & Quick Stats Card -->
+
+<!-- Search Input (Interactive Collapsible) -->
+<div class="hidden" id="searchContainer">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full h-11 pl-10 pr-4 bg-surface-container-low rounded-lg text-[14px] text-on-surface placeholder:text-outline focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="단어명, 수식 기호, 개념 검색..." type="text">
+</div>
+</div>
+<!-- Filter Chips Carousel -->
+<div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+<button class="filter-chip active shrink-0 px-3.5 py-1.5 rounded-full bg-primary text-on-primary text-[12px] font-semibold shadow-sm transition-colors" data-filter="all">
+            전체 (18)
+          </button>
+<button class="filter-chip shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container text-[12px] font-semibold transition-colors" data-filter="high">
+            ★ 중요도: 상 (5)
+          </button>
+<button class="filter-chip shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container text-[12px] font-semibold transition-colors" data-filter="medium">
+            ★ 중요도: 중 (8)
+          </button>
+<button class="filter-chip shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container text-[12px] font-semibold transition-colors" data-filter="saved">
+            북마크 (4)
+          </button>
+</div>
+</div>
+<!-- Lexicon Cards Stack -->
+<div class="px-4 flex flex-col gap-3 mt-1" id="term-list">
+<!-- Card 1: Skin Effect -->
+<!-- Card 2: Permittivity -->
+<!-- Card 3: Lorentz Force -->
+<!-- Card 4: Permeability -->
+<!-- Card 5: Poynting Vector -->
+</div>
+<template id="term-row"><div class="group relative bg-surface-container-lowest rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col gap-2.5 active:scale-[0.99] border border-surface-container-high/60">
+<div class="flex items-start justify-between gap-3">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline text-[19px] font-bold text-on-surface tracking-tight group-hover:text-primary transition-colors truncate" data-field="en">Skin Effect</span>
+
+</div>
+<span class="text-[15px] font-semibold text-on-surface-variant mt-0.5" data-field="ko">표피 효과</span>
+</div>
+<button aria-label="북마크 해제" class="bookmark-btn shrink-0 w-10 h-10 -mr-1.5 -mt-1.5 flex items-center justify-center rounded-full text-secondary hover:bg-secondary-fixed/30 active:scale-90 transition-all z-10" data-action="bookmark">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>
+</button>
+</div>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container font-label text-[11px] text-on-surface font-medium" data-field="formula">
+              δ = √(2ρ / ωμ)
+            </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-low font-label text-[11px] text-on-surface-variant" data-field="pron">
+              noun · [skɪn ɪˈfɛkt]
+            </span>
+</div>
+<p class="text-[13px] text-on-surface-variant leading-relaxed line-clamp-2" data-field="koDef">
+            교류 전류가 도체 내부를 흐를 때 도체 표면 근처로 전류 밀도가 집중되는 현상.
+          </p>
+<div class="flex items-center justify-between pt-1 text-[12px] text-primary font-semibold">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">psychology</span>
+              플래시카드로 학습하기 →
+            </span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</div>
+</template><!-- Bottom Action Section: Sticky Add Word Trigger -->
+
+</div>
+</main>
+
+
+
+
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-t border-surface-container-high/60 pb-safe shadow-[0_-1px_8px_rgba(0,0,0,0.03)]">
+  <div class="flex items-center justify-around h-14 max-w-md mx-auto px-2">
+    <a href="index.html" class="flex flex-col items-center justify-center flex-1 py-1 text-primary">
+      <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">home</span>
+      <span class="text-[11px] font-semibold mt-0.5 tracking-tight">홈</span>
+    </a>
+    <a href="quick_capture/code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors">
+      <span class="material-symbols-outlined text-[22px]">add_circle</span>
+      <span class="text-[11px] font-medium mt-0.5 tracking-tight">단어 추가</span>
+    </a>
+    <a href="bookmarks.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">bookmark</span><span class="text-[11px] font-medium mt-0.5 tracking-tight">북마크</span></a>
+    <a href="_6/code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors">
+      <span class="material-symbols-outlined text-[22px]">print</span>
+      <span class="text-[11px] font-medium mt-0.5 tracking-tight">출력</span>
+    </a>
+  </div>
+</nav>
+
+
+
+
+
+
+
+
+
+<script src="data.js"></script><script src="app.js"></script></body></html>
