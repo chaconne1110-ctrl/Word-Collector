@@ -324,7 +324,66 @@ function renderDeck() {
       notice.textContent = '첨부된 도해가 없습니다.';
       $('.card-back', card).append(notice);
     }
-    const bookmarkButtons = $$('[data-action="bookmark"]', card);
+    // Generated photos are explicitly requested, billed once per tap and retained offline.
+    // Existing hand-built SVG diagrams remain available independently of this feature.
+    const photoPanel = document.createElement('section');
+    photoPanel.className = 'rounded-xl border border-surface-container-high bg-surface-container-lowest p-3 space-y-2';
+    const photoHeading = document.createElement('p');
+    photoHeading.className = 'font-label-ui text-[12px] font-bold text-primary';
+    photoHeading.textContent = 'AI 생성 학습 사진';
+    const photoImage = document.createElement('img');
+    photoImage.alt = term.en + '의 AI 생성 학습 사진';
+    photoImage.className = 'w-full max-h-64 rounded-lg object-contain bg-surface-container-low';
+    photoImage.hidden = true;
+    const photoStatus = document.createElement('p');
+    photoStatus.className = 'text-[11px] text-on-surface-variant';
+    photoStatus.setAttribute('role', 'status');
+    photoStatus.textContent = '사진을 만들면 기기에 저장되고, 다음에는 인터넷 없이 표시됩니다.';
+    const photoButton = document.createElement('button');
+    photoButton.type = 'button';
+    photoButton.dataset.action = 'generate-photo';
+    photoButton.className = 'rounded-lg bg-primary text-on-primary px-3 py-2 text-xs font-bold';
+    photoButton.textContent = 'AI 사진 생성 (유료 · 1회)';
+    photoPanel.append(photoHeading, photoImage, photoStatus, photoButton);
+    $('.card-back', card).firstElementChild.append(photoPanel);
+    let hasPhoto = false;
+    let busyPhoto = false;
+    async function refreshPhoto() {
+      const blob = await WordCollectorPhoto.get(current);
+      if (!blob || !card.isConnected) return;
+      const url = URL.createObjectURL(blob);
+      photoImage.onload = () => URL.revokeObjectURL(url);
+      photoImage.onerror = () => URL.revokeObjectURL(url);
+      photoImage.src = url;
+      photoImage.hidden = false;
+      hasPhoto = true;
+      photoButton.textContent = '사진 다시 생성 (추가 과금)';
+      photoStatus.textContent = '기기에 저장된 JPG 사진입니다. 새로 생성하면 기존 사진을 교체합니다.';
+    }
+    photoButton.addEventListener('click', async () => {
+      if (busyPhoto) return;
+      if (hasPhoto && !confirm('사진을 다시 생성하면 새로운 API 요금이 발생하고 기존 사진이 교체됩니다. 진행할까요?')) return;
+      if (!hasPhoto && !confirm('사진 생성은 별도의 유료 Gemini API를 1회 호출합니다. 기기에 저장할 사진을 생성할까요?')) return;
+      busyPhoto = true;
+      photoButton.disabled = true;
+      photoStatus.textContent = 'AI가 사진을 제작 중입니다. 약간의 시간이 걸릴 수 있습니다.';
+      try {
+        const result = await WordCollectorAI.createImage({
+          word:term.en, koreanMeaning:term.ko,
+          subject:courseNames(term.course)[0],
+          definition:(term.koDef || term.enDef || term.ko).slice(0, 700)
+        });
+        await WordCollectorPhoto.save(current, result.image);
+        await refreshPhoto();
+        photoStatus.textContent = 'AI 사진 제작과 기기 저장이 완료됐습니다.';
+      } catch (error) {
+        photoStatus.textContent = error?.message || 'AI 사진을 생성하지 못했습니다.';
+      } finally {
+        photoButton.disabled = false;
+        busyPhoto = false;
+      }
+    });
+    const bookmarkButtons = $('[data-action="bookmark"]', card);
     bookmarkButtons.forEach(button => paintBookmark(button, current));
     card.addEventListener('click', event => {
       const button = event.target.closest('button');
@@ -351,6 +410,9 @@ function renderDeck() {
       else draw(y < 0 ? 1 : -1);
     });
     container.append(card);
+    void refreshPhoto().catch(error => {
+      photoStatus.textContent = error?.message || '저장된 사진을 읽지 못했습니다.';
+    });
   }
   prev.addEventListener('click', () => draw(-1));
   next.addEventListener('click', () => draw(1));
