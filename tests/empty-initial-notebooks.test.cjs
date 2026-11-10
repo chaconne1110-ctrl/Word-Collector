@@ -60,4 +60,7 @@ test('home can create empty notebooks without requiring AI usage', () => {
   const add=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   assert.match(add,/if \(!courseInput\.options\.length\)/);
   assert.match(add,/setCategoryMode\('direct'\)/);
+  const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
+  assert.doesNotMatch(capturePage,/등록된 4개 과목/);
+  assert.match(capturePage,/id="existing-notebook-count"/);
 });

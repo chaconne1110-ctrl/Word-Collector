@@ -80,6 +80,7 @@ diagramRefresh.addEventListener('click', () => {
   drawDiagram(true);
 });
 let analyzing = false;
+$('#existing-notebook-count').textContent = '등록된 ' + Object.keys(allCourses()).length + '개 단어장';
 courseInput.replaceChildren();
 for (const [id, [name]] of Object.keys(allCourses()).map(id => [id, courseNames(id)])) {
   courseInput.add(new Option(name, id));
