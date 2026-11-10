@@ -6,3 +6,21 @@ nav.bottom-navigation {
   border: 0;
   box-shadow: 0 -4px 16px rgba(19, 27, 46, 0.06);
 }
+
+.bottom-navigation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  width: 100%;
+  padding-inline: 24px;
+}
+.bottom-navigation-row > a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  gap: 2px;
+}
