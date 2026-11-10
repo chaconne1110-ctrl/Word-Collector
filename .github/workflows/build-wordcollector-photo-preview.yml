@@ -140,7 +140,7 @@ jobs:
           grep -q 'photo-store.js' android/app/src/main/assets/public/quick_capture/code.html
           grep -q 'photo-store.js' android/app/src/main/assets/public/flashcard.html
           grep -q 'generate-photo' android/app/src/main/assets/public/app.js
-          grep -q "IMAGE_GLOBAL_LIMIT = 50" cloudflare/worker.mjs
+          grep -q "IMAGE_GLOBAL_LIMIT = 1500" cloudflare/worker.mjs
           grep -q "GLOBAL_LIMIT = 1500" cloudflare/worker.mjs
           grep -q 'requestImage(payload)' android/app/src/main/assets/public/analysis-api.js
           grep -q 'const WordCollectorPhoto' android/app/src/main/assets/public/photo-store.js
@@ -170,7 +170,7 @@ jobs:
             echo "- 기존 단어장 데이터 보존, 기기 설치 및 Gemini API 실제 분석의 회귀 검증은 아직 수행하지 않았습니다. APK 설치 전 앱 백업을 권장합니다."
             echo "- Cloudflare API의 하루 전체 1,500회 한도는 서버에서 적용되며 APK 자체의 변경사항이 아닙니다."
             echo "- 신규: 검수 화면과 플래시카드 뒷면에서 사진 1장 생성 및 기기별 IndexedDB JPG 저장. **추가 유료 API 호출**이며 수동 버튼으로만 실행합니다."
-            echo "- 기존 텍스트 분석의 100회/인, 1,500회/전체 한도와 별개로 이미지 5회/인, 50회/전체 제한을 추가합니다."
+            echo "- 기존 텍스트 분석의 100회/인, 1,500회/전체 한도와 별개로 이미지 100회/인, 1,500회/전체 제한을 추가합니다."
             echo "- **중요: 운영 Worker에 이미지 API와 신규 D1 테이블을 배포하고 ENABLE_IMAGE_GENERATION=true 설정하기 전에는 이미지 생성 버튼이 작동하지 않습니다.**"
             echo "- 현재 백업 JSON에는 IndexedDB 사진이 포함되지 않습니다. 사진은 앱 제거, 저장소 초기화, 다른 기기로 백업 복원 시 사라질 수 있습니다."
             echo "- AI 분석은 서버 인증 및 Cloudflare/Google API 정상 동작에 따라 별도로 실패할 수 있습니다."
