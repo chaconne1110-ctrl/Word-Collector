@@ -122,3 +122,57 @@ test('D1 trigger rejection returns 429 and never calls Gemini', async () => {
   assert.equal(state.used, 0);
   assert.equal(state.batchCalls, 1);
 });
+
+
+test('legacy Transformer analyze generates real-format response with mock Gemini', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  const originalFetch = globalThis.fetch;
+  const mockGeminiOutput = {
+    englishTerm: 'Transformer',
+    koreanMeaning: '변압기',
+    specialization: '전기공학',
+    notebookName: '전기기기',
+    englishDefinition: 'A device that transfers electrical energy by electromagnetic induction.',
+    koreanDefinition: '전자기 유도로 전기 에너지를 전달하는 장치.',
+    exampleSentence: 'The transformer reduces AC voltage.',
+    explanation: '교류 전압을 조정합니다.',
+    recommendationReason: '선택 단어장과 참고 문장을 고려했습니다.',
+    relatedTerms: [],
+    pos: 'noun',
+    exampleKo: '그 변압기는 교류 전압을 낮춥니다.'
+  };
+  try {
+    globalThis.fetch = async (url, opts) => {
+      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+      assert.equal(opts.method, 'POST');
+      assert.equal(opts.headers['x-goog-api-key'], 'dummy-not-real');
+      return new Response(JSON.stringify({
+        candidates: [{finishReason:'STOP', content: {parts: [{text: JSON.stringify(mockGeminiOutput)}]}}]
+      }), {status: 200, headers:{'Content-Type':'application/json'}});
+    };
+    const payload = {
+      term: 'Transformer',
+      context: 'The transformer steps down AC voltage in an electrical power system.',
+      autoCourse: false,
+      course: '전기기기'
+    };
+    const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type':'application/json'
+      },
+      body: JSON.stringify(payload)
+    }), env);
+    const body = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(body));
+    assert.equal(body.model, 'gemini-3.5-flash-lite');
+    assert.equal(body.course, '전기기기');
+    assert.equal(body.en, 'Transformer');
+    assert.equal(state.used, 1);
+    assert.equal(state.batchCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
