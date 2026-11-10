@@ -20,6 +20,8 @@
 - 기존 앱/실기기에는 설치하지 않았다. 실제 Gemini·Supabase 실험 기능은 이번 작업에서 검증하지 않았다.
 - main과 PR의 기존 실험 소스에 대한 기능 통합/운영 배포까지 완료했다는 의미는 아니다. 이 작업은 Git 충돌과 현재 앱 빌드 경로를 해결한다. PR 자체를 자동 병합하지 않는다.
 
+첫 원격 CI 실행 `42792884772`는 android-actions/setup-android 단계에서 실패했다. 상세 로그는 로그인 제한으로 읽지 못했지만, 해당 액션의 기본 packages가 `tools platform-tools`이며 Google 공식 repository2-1.xml에 `tools` 패키지가 없는 것을 확인했다. 필요한 `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`을 명시하고, Ubuntu 26으로 이동 중인 ubuntu-latest 대신 ubuntu-24.04를 사용하도록 보완했다. JDK 액션은 v5로 갱신했다. 첫 실행을 PASS로 계산하지 않는다.
+
 ## Pages 외부 권한 제한
 
 기존 GitHub 인증으로 Pages 생성 API를 실제 요청했으나 Forbidden이었다. Pages 설정 화면도 접근하지 못했으며 사용할 수 있는 공유 브라우저 제어 도구가 없었다. 사용자 계정 로그인이나 관리자 권한을 대신 만들지 않았다.
