@@ -5,8 +5,8 @@
 
 const MODEL = 'gemini-3.5-flash-lite';
 const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
-const IMAGE_PERSONAL_LIMIT = 5;
-const IMAGE_GLOBAL_LIMIT = 50;
+const IMAGE_PERSONAL_LIMIT = 100;
+const IMAGE_GLOBAL_LIMIT = 1500;
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const BODY_LIMIT = 256 * 1024;
 const DEFAULT_COURSES = ['전자기학', '회로이론', '전기기기', '반도체공학'];
@@ -407,8 +407,8 @@ async function readWorkerJson(request) {
 function asError(error, phase = 'UNKNOWN') {
   const detail = String(error?.message || '');
   if (detail.includes('daily_limit_100') || detail.includes('global_limit_1000') ||
-      detail.includes('global_limit_1500') || detail.includes('image_limit_5') ||
-      detail.includes('image_global_limit_50')) {
+      detail.includes('global_limit_1500') || detail.includes('image_limit_100') ||
+      detail.includes('image_global_limit_1500')) {
     return workerJson({error:'오늘의 호출 한도에 도달했습니다.'}, 429);
   }
   if (error instanceof ApiError) return workerJson({error: error.message}, error.status);
