@@ -293,3 +293,48 @@ test('published GitHub Pages origin may preflight but still requires bearer auth
  const other=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'OPTIONS',headers:{Origin:'https://other.github.io'}}),env);
  assert.equal(other.status,403);
 });
+
+test('empty custom notebooks allow both user-selected save and provisional AI classification', async () => {
+  const {env,state} = mockEnv({live:true});
+  state.hash=await tokenHash(token);
+  const beforeFetch=globalThis.fetch;
+  const names=['새 전기공학','새 반도체'];
+  const calls=[];
+  globalThis.fetch=async (_,init)=>{
+    const body=JSON.parse(init.body);
+    calls.push(body);
+    const isAuto=JSON.parse(body.contents[0].parts[0].text).autoSubject;
+    assert.deepEqual(body.generationConfig.responseSchema.properties.notebookName.enum,
+      isAuto?names:[names[1]]);
+    const generated={
+      englishTerm:'Transformer',koreanMeaning:'변압기',specialization:'전기공학',
+      notebookName:isAuto?names[0]:names[1],englishDefinition:'Transfers electrical energy.',
+      koreanDefinition:'전력을 전달한다.',exampleSentence:'The transformer works.',
+      explanation:'전기 기기입니다.',recommendationReason:'임시 분류',
+      relatedTerms:[],pos:'noun',exampleKo:'변압기가 작동한다.'
+    };
+    return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(generated)}]}}]}),{status:200});
+  };
+  try {
+    for(const autoCourse of [false,true]){
+      const request={term:'Transformer',autoCourse,course:names[1],
+        notebooks:names.map(course=>({course,words:[]}))};
+      const res=await worker.fetch(new Request(baseUrl+'/api/analyze',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify(request)
+      }),env);
+      const body=await res.json();
+      assert.equal(res.status,200,JSON.stringify(body));
+      assert.equal(body.course,autoCourse?names[0]:names[1]);
+      if(autoCourse){
+        assert.equal(body.classification.reviewedCourses,2);
+        assert.equal(body.classification.reviewedWords,0);
+        assert.deepEqual(body.classification.relatedTerms,[]);
+        assert.match(body.classification.reason,/임시 추천/);
+      }else assert.equal(Object.hasOwn(body,'classification'),false);
+    }
+    assert.equal(calls.length,2);
+    assert.equal(state.used,2);
+  }finally {globalThis.fetch=beforeFetch;}
+});

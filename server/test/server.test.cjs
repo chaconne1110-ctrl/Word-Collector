@@ -160,3 +160,30 @@ test('server-local key file takes precedence over inherited key; blank file valu
   await fs.writeFile(file,'GEMINI_API_KEY=\n');
   assert.equal(readApiKey(file,{GEMINI_API_KEY:'inherited-fixture'}),'');
 });
+
+test('legacy client accepts user-created empty notebooks in both manual and automatic selection', async t => {
+  let calls=0;
+  const {send}=await serverFor(t,{fetchImpl:async (_,init)=>{
+    calls++;
+    const request=JSON.parse(init.body);
+    const auto=request.contents[0].parts[0].text.includes('"autoSubject":true');
+    assert.deepEqual(request.generationConfig.responseSchema.properties.notebookName.enum,
+      auto?['전력공학','반도체공정']:['반도체공정']);
+    return upstream(output({notebookName:auto?'전력공학':'반도체공정',relatedTerms:[]}));
+  }});
+  for(const autoCourse of [false,true]){
+    const res=await send({
+      term:'Transformer',context:'',autoCourse,course:'반도체공정',
+      notebooks:[{course:'전력공학',words:[]},{course:'반도체공정',words:[]}]
+    });
+    const json=await res.json();
+    assert.equal(res.status,200,JSON.stringify(json));
+    assert.equal(json.course,autoCourse?'전력공학':'반도체공정');
+    if(autoCourse){
+      assert.equal(json.classification.reviewedCourses,2);
+      assert.equal(json.classification.reviewedWords,0);
+      assert.deepEqual(json.classification.relatedTerms,[]);
+    }
+  }
+  assert.equal(calls,2);
+});

@@ -115,13 +115,15 @@ function currentNotebooks() {
 function showRecommendation(result, autoCourse, context) {
   $('#recommendation-details').hidden = !autoCourse;
   $('#review-analysis-basis').textContent = autoCourse ?
-    '분류 기준: 각 단어장에 저장된 단어와 뜻·정의' :
+    (result.classification?.reviewedWords === 0 ?
+      '저장된 단어가 없어 단어장 이름과 입력 단어·참고 문장으로 임시 추천했습니다. 아래에서 저장 위치를 직접 선택할 수 있습니다.' :
+      '분류 기준: 각 단어장에 저장된 단어와 뜻·정의') :
     context ? '분석 기준: 참고 문장 최우선 · 저장 위치: 직접 선택한 단어장' :
       '분석 기준: 직접 선택한 단어장 (참고 문장 없음)';
   if (!autoCourse) return;
   const {reason, relatedTerms, reviewedCourses, reviewedWords} = result.classification;
   $('#recommendation-summary').textContent =
-    '단어장 ' + reviewedCourses + '개 · 저장 단어 ' + reviewedWords + '개 비교';
+    '후보 단어장 ' + reviewedCourses + '개 · 분류 참고 단어 ' + reviewedWords + '개';
   $('#recommendation-reason').textContent = reason;
   $('#recommendation-terms').replaceChildren(...relatedTerms.map(word => {
     const item = document.createElement('li');
@@ -195,6 +197,14 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     return;
   }
+  if (autoCourse && !Object.keys(allCourses()).length) {
+    status.textContent = '단어장이 없습니다. 직접 입력에서 새 단어장 이름을 먼저 생성해 주세요.';
+    return;
+  }
+  if (!directCourse && !autoCourse && !selected) {
+    status.textContent = '저장할 기존 단어장을 선택하거나 직접 입력에서 새 단어장을 만들어 주세요.';
+    return;
+  }
   if (directCourse) {
     const name = customCourseInput.value.trim();
     if (!name || name.length > 60) {
@@ -227,7 +237,7 @@ analysisButton.addEventListener('click', async () => {
   try {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
-      ...(autoCourse ? {notebooks: currentNotebooks()} : {})});
+      notebooks: currentNotebooks()});
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
     const target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
