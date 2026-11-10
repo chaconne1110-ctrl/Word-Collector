@@ -201,3 +201,53 @@ test('Gemini failures are sanitized and never retried or switched', async () => 
     }
   } finally {globalThis.fetch=original;}
 });
+
+
+test('admin metadata check is authenticated, read-only, and does not call generateContent', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  const old = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls++;
+      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite');
+      assert.equal(options.method, 'GET');
+      assert.equal(options.redirect, 'manual');
+      assert.equal(options.headers['x-goog-api-key'], env.GEMINI_API_KEY);
+      assert.equal(options.body, undefined);
+      return new Response(JSON.stringify({
+        name:'models/gemini-3.5-flash-lite',
+        supportedGenerationMethods:['generateContent']
+      }), {status:200,headers:{'Content-Type':'application/json'}});
+    };
+    const res = await worker.fetch(new Request(baseUrl + '/internal/model-status',{
+      headers:{Authorization:'Bearer '+token}
+    }),env);
+    const body = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(body.upstreamHttpStatus, 200);
+    assert.equal(body.generateContentSupported, true);
+    assert.equal(state.batchCalls, 0);
+    assert.equal(calls, 1);
+    assert.ok(!JSON.stringify(body).includes(env.GEMINI_API_KEY));
+  } finally { globalThis.fetch = old; }
+});
+
+test('admin model status exposes only safe upstream status code for upstream failures', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  const old = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response('PRIVATE_API_KEY_OR_ERROR_BODY',{status:403});
+    const res = await worker.fetch(new Request(baseUrl+'/internal/model-status',{
+      headers:{Authorization:'Bearer '+token}
+    }),env);
+    const body = await res.json();
+    assert.equal(res.status,200);
+    assert.equal(body.upstreamHttpStatus,403);
+    assert.equal(body.available,false);
+    assert.equal(state.batchCalls,0);
+    assert.ok(!JSON.stringify(body).includes('PRIVATE_API_KEY_OR_ERROR_BODY'));
+  } finally { globalThis.fetch = old; }
+});
