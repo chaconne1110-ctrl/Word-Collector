@@ -1,0 +1,33 @@
+name: Verify Word Collector global daily 1500 quota
+on:
+  push:
+    branches: [feature/cloudflare-daily-global-1500]
+    paths:
+      - 'cloudflare/**'
+      - '.github/workflows/verify-daily-quota-1500.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quota-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Worker syntax and API request limits
+        run: |
+          node --check cloudflare/worker.mjs
+          node --test cloudflare/worker.test.mjs
+      - name: Verify data-preserving D1 migration and hard SQL limits
+        run: python3 cloudflare/test_quota_migration.py
+      - name: Verify no automatic Cloudflare deployment was added
+        run: |
+          grep -q 'const PERSONAL_LIMIT = 100;' cloudflare/worker.mjs
+          grep -q 'const GLOBAL_LIMIT = 1500;' cloudflare/worker.mjs
+          grep -q "global_limit_1500" cloudflare/worker.mjs
+          test -s cloudflare/migrations/0001_global_daily_quota_1500.sql
