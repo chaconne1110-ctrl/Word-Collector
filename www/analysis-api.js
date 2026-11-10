@@ -41,33 +41,62 @@
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
-    // Keep authentication separate from vocabulary data and exported backups.
-    const authKey = 'word-collector-tester-auth-v1';
+    // A tester token never enters localStorage, cookies, word records or backups.
+    // On Android, only the native AndroidKeyStore-encrypted plugin persists it.
     let token = '';
     let local = false;
-    try {
-      const saved = JSON.parse(root.localStorage.getItem(authKey));
-      if (/^wc_[a-f0-9]{64}$/.test(saved?.token)) token = saved.token;
-      local = saved?.useLocal === true;
-    } catch { /* Storage may be unavailable; registration reports write failures. */ }
+    const isAndroid = () => root.Capacitor?.getPlatform?.() === 'android';
+    const secureStore = () => root.Capacitor?.Plugins?.TesterTokenStore;
+    function requireSecureStore(method) {
+      const store = secureStore();
+      if (typeof store?.[method] !== 'function') {
+        throw new Error('인증 코드 안전 저장 기능이 포함된 최신 APK가 필요합니다.');
+      }
+      return store;
+    }
+    // Remove any plaintext credential left by an earlier preview build.
+    try { root.localStorage?.removeItem('word-collector-tester-auth-v1'); } catch { /* private storage disabled */ }
     root.WordCollectorAI = {
-      getStatus() { return {registered: !!token, useLocal: local}; },
-      configure({testerToken = token, useLocal = local}) {
-        const nextToken = testerToken.trim();
-        if (nextToken && !/^wc_[a-f0-9]{64}$/.test(nextToken)) throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
-        try {
-          if (!nextToken && !useLocal) root.localStorage.removeItem(authKey);
-          else root.localStorage.setItem(authKey, JSON.stringify({token: nextToken, useLocal}));
-        } catch { throw new Error('인증 정보를 기기에 저장하지 못했습니다. 사이트 저장 설정을 확인해 주세요.'); }
-        token = nextToken;
+      // Retained for callers that only want temporary credentials.
+      configure({testerToken = '', useLocal = false}) {
+        token = testerToken.trim();
         local = useLocal;
       },
-      request: payload => createClient({
-        baseUrl: local ? (root.Capacitor?.getPlatform?.() === 'android' ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
-        token,
-        native: root.Capacitor?.getPlatform?.() === 'android',
-        nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
-      }).request(payload)
+      async rememberTesterToken(value) {
+        const validated = String(value || '').trim();
+        if (!/^wc_[a-f0-9]{64}$/.test(validated)) {
+          throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
+        }
+        if (isAndroid()) await requireSecureStore('save').save({token: validated});
+        token = validated;
+        local = false;
+        return {persistent: isAndroid()};
+      },
+      async restoreTesterToken() {
+        if (token) return true;
+        if (!isAndroid()) return false; // Browser credentials are session-only.
+        const saved = await requireSecureStore('read').read();
+        if (saved?.token && !/^wc_[a-f0-9]{64}$/.test(saved.token)) {
+          throw new Error('저장된 인증 코드 형식을 확인해 주세요. 코드를 지우고 다시 등록하세요.');
+        }
+        token = saved?.token || '';
+        return Boolean(token);
+      },
+      async clearTesterToken() {
+        if (isAndroid()) await requireSecureStore('clear').clear();
+        token = '';
+        local = false;
+      },
+      setLocalServer(value) { local = Boolean(value); },
+      async request(payload) {
+        if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
+        return createClient({
+          baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
+          token,
+          native: isAndroid(),
+          nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
+        }).request(payload);
+      }
     };
   }
 })(globalThis);
