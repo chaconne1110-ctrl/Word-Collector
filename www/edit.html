@@ -9,20 +9,20 @@
 <!-- Interactive sync toast (hidden by default) -->
 <div class="fixed top-20 left-4 right-4 z-50 transform -translate-y-6 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-between p-3.5 rounded-lg shadow-xl bg-primary text-on-primary" id="saveToast"><div class="flex items-center gap-2.5"><span id="toastIcon" class="material-symbols-outlined text-[20px] text-secondary-container">cloud_done</span><span id="toastMsg" class="text-xs font-medium font-body">플래시카드 암기 세션으로 이동합니다...</span></div><span id="toastTag" class="text-[11px] font-label text-inverse-primary tracking-tight">SAVED</span></div>
 <!-- Deletion Confirmation Modal -->
-<div class="fixed inset-0 z-50 hidden bg-inverse-surface/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" id="deleteModal" hidden="">
+<dialog id="deleteModal" aria-labelledby="delete-word-title" style="margin:auto;width:calc(100% - 2rem);max-width:28rem;max-height:calc(100dvh - 2rem);overflow-y:auto;border:0;border-radius:1rem;padding:0;">
 <div class="w-full max-w-sm rounded-xl p-5 bg-surface-container-lowest text-on-surface shadow-2xl flex flex-col gap-4 animate-[fadeIn_0.2s_ease-out]">
 <div class="w-12 h-12 rounded-full flex items-center justify-center bg-error-container text-error">
 <span class="material-symbols-outlined text-[26px]">delete_forever</span>
 </div>
 <div>
-<h3 class="text-base font-semibold font-headline text-on-surface">표제어를 삭제하시겠습니까?</h3>
+<h3 id="delete-word-title" class="text-base font-semibold font-headline text-on-surface">표제어를 삭제하시겠습니까?</h3>
 <p class="text-xs font-body text-on-surface-variant mt-1 leading-relaxed">
           'Resonance Frequency' 단어 및 연동된 학습 통계, 회로이론 북마크 목록에서 완전히 제거됩니다. 이 작업은 되돌릴 수 없습니다.
         </p>
 </div>
 <div class="flex items-center gap-2 pt-1"><button id="modalCancelBtn" class="flex-1 h-11 rounded-lg bg-surface-container-high text-on-surface font-body text-xs font-semibold hover:bg-surface-container-highest active:scale-[0.98] transition-all" onclick="closeDeleteModal()" type="button">취소</button><button id="modalDeleteBtn" class="flex-1 h-11 rounded-lg bg-error text-on-error font-body text-xs font-semibold shadow-md active:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5" onclick="confirmDelete()" type="button"><span class="material-symbols-outlined text-[17px]">delete</span><span class="">삭제하기</span></button></div>
 </div>
-</div>
+</dialog>
 <!-- Content Stream -->
 <div class="w-full max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3.5"><!-- Sync Status Banner -->
 <section class="rounded-lg p-3 bg-surface-container-low text-on-surface flex items-start gap-2.5 shadow-sm">
