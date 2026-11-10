@@ -268,6 +268,9 @@ function renderDeck() {
   const prev = $('button[aria-label="이전 단어"]');
   const next = $('button[aria-label="다음 단어"]');
   let current = termId;
+  let wheelGesture;
+  const atEdge = (face, direction) => direction < 0 ? face.scrollTop <= 1 :
+    face.scrollTop + face.clientHeight >= face.scrollHeight - 1;
   back.addEventListener('click', () => location.href = listUrl(fromBookmark));
 
   function draw(direction = 0) {
@@ -399,21 +402,44 @@ function renderDeck() {
     });
     let start;
     card.addEventListener('touchstart', event => {
-      start = event.target.closest('button') ? null : event.changedTouches[0];
+      const face = event.target.closest('.card-front, .card-back');
+      start = event.touches.length !== 1 || event.target.closest('button') || !face ? null : {
+        x: event.touches[0].clientX, y: event.touches[0].clientY,
+        atTop: atEdge(face, -1), atBottom: atEdge(face, 1)
+      };
     }, {passive: true});
+    card.addEventListener('touchmove', event => {
+      if (!start || event.touches.length !== 1) { start = null; return; }
+      const x = event.touches[0].clientX - start.x;
+      const y = event.touches[0].clientY - start.y;
+      if (Math.max(Math.abs(x), Math.abs(y)) > 8) suppressTapUntil = Date.now() + 400;
+      // Only capture a vertical swipe that began at the relevant content edge.
+      // Other vertical gestures stay native so long definitions remain readable.
+      if (Math.abs(y) > Math.abs(x) && (y < 0 ? start.atBottom : start.atTop)) {
+        event.preventDefault();
+      }
+    }, {passive: false});
+    card.addEventListener('touchcancel', () => {
+      start = null;
+      suppressTapUntil = Date.now() + 400;
+    });
     card.addEventListener('touchend', event => {
       if (!start) return;
       const end = event.changedTouches[0];
-      const x = end.clientX - start.clientX;
-      const y = end.clientY - start.clientY;
+      const x = end.clientX - start.x;
+      const y = end.clientY - start.y;
+      const edge = y < 0 ? start.atBottom : start.atTop;
       start = null;
       if (Math.max(Math.abs(x), Math.abs(y)) < 40) return;
       suppressTapUntil = Date.now() + 400;
       if (Math.abs(x) > Math.abs(y)) {
         event.preventDefault();
         flipper.classList.toggle('is-flipped');
+      } else if (edge) {
+        event.preventDefault();
+        draw(y < 0 ? 1 : -1);
       }
-    });
+    }, {passive: false});
     container.append(card);
     container.scrollTop = 0;
     void refreshPhoto().catch(error => {
@@ -422,7 +448,27 @@ function renderDeck() {
   }
   prev.addEventListener('click', () => draw(-1));
   next.addEventListener('click', () => draw(1));
-  // Leave wheel and vertical arrow input to the card's native scroll area.
+  container.addEventListener('wheel', event => {
+    if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    const face = event.target.closest('.card-front, .card-back');
+    if (!face) return;
+    const now = performance.now();
+    const direction = Math.sign(event.deltaY);
+    if (!wheelGesture || now - wheelGesture.lastAt > 180 || direction !== wheelGesture.direction) {
+      wheelGesture = {lastAt: now, direction, distance: 0, atEdge: atEdge(face, direction), consumed: false};
+    }
+    wheelGesture.lastAt = now;
+    // One word per wheel/trackpad gesture, including its momentum events.
+    if (wheelGesture.consumed) { event.preventDefault(); return; }
+    if (!wheelGesture.atEdge || !atEdge(face, direction)) return;
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? face.clientHeight : 1;
+    wheelGesture.distance += Math.abs(event.deltaY) * unit;
+    if (wheelGesture.distance >= 50) {
+      wheelGesture.consumed = true;
+      draw(direction);
+    }
+  }, {passive: false});
   window.addEventListener('pageshow', () => { state = load(); draw(); });
 }
 
