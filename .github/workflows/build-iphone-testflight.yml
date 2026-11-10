@@ -1,0 +1,76 @@
+name: iPhone TestFlight signed build
+
+on:
+  push:
+    branches: [feature/ai-photo-generation-20261111]
+    paths:
+      - 'www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/ios/**'
+      - '.github/workflows/build-iphone-testflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check_signing:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        name: Check missing Apple credentials safely
+        env:
+          P12: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          P12_PASS: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+          APIKEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          KEYID: ${{ vars.APPSTORE_API_KEY_ID }}
+          ISSUER: ${{ vars.APPSTORE_ISSUER_ID }}
+        shell: bash
+        run: |
+          if [[ -z "$P12" || -z "$P12_PASS" || -z "$PROFILE" || -z "$TEAM" ||
+                -z "$APIKEY" || -z "$KEYID" || -z "$ISSUER" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Missing Apple Developer signing settings; TestFlight upload skipped. See scripts/ios/TESTFLIGHT_SETUP.md."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  testflight:
+    needs: check_signing
+    if: needs.check_signing.outputs.ready == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Build iPhone project from tested shared source
+        run: |
+          npm ci
+          node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+          npx --no-install cap add ios --packagemanager SPM
+          npx --no-install cap sync ios
+          python3 scripts/ios/prepare.py
+      - name: Sign and export iPhone IPA
+        id: signed
+        shell: bash
+        env:
+          P12: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          P12_PASS: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+        run: bash scripts/ios/sign-and-export.sh
+      - name: Upload to Apple TestFlight
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ steps.signed.outputs.ipa_path }}
+          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
