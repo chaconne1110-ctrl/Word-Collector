@@ -182,7 +182,7 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '분석 완료. 아래 결과를 검토하세요.';
   } catch (error) {
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.' : error instanceof TypeError || error instanceof SyntaxError ?
-      'AI 분석 서버에 연결할 수 없습니다. PC 서버와 USB 포트 연결을 확인하세요.' : error.message;
+      'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
   } finally {
     analyzing = false;
     for (const item of inputControls) item.disabled = false;
@@ -219,3 +219,21 @@ reviewForm.addEventListener('submit', event => {
     location.href = '../' + route('words.html', {course: word.course});
   }
 });
+
+const testerToken = $('#tester-token');
+const testerStatus = $('#tester-status');
+function configureTester(clear = false) {
+  if (clear) testerToken.value = '';
+  const token = testerToken.value.trim();
+  const useLocal = $('#ai-server-mode').value === 'local';
+  if (!clear && !useLocal && !/^wc_[a-f0-9]{64}$/.test(token)) {
+    testerStatus.textContent = '발급받은 테스터 인증 코드 형식을 확인해 주세요.';
+    return;
+  }
+  WordCollectorAI.configure({testerToken: token, useLocal});
+  testerToken.value = '';
+  testerStatus.textContent = clear ? '인증 코드를 지웠습니다.' : useLocal ? 'PC 로컬 개발 서버를 선택했습니다.' : '인증 코드가 등록되었습니다. 이 화면에서만 유지됩니다.';
+}
+$('#register-tester').addEventListener('click', () => configureTester());
+$('#clear-tester').addEventListener('click', () => configureTester(true));
+$('#ai-server-mode').addEventListener('change', () => configureTester(true));

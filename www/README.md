@@ -1,5 +1,9 @@
 # Word Collector 웹 프로토타입
 
+웹 배포 대상 주소: **https://chaconne1110-ctrl.github.io/Word-Collector/**
+
+최초 GitHub Pages 활성화와 배포 확인 방법은 저장소의 [WEB_DEPLOYMENT.md](../WEB_DEPLOYMENT.md)를 참고하세요. 배포 완료 전에는 위 주소가 열리지 않을 수 있습니다. 기존 화면과 데이터 저장 방식은 유지됩니다.
+
 압축을 풀고 `stitch_ui_ux` 폴더에서 터미널을 연 뒤 로컬 서버를 실행하세요.
 
 - Windows에서 Python을 설치한 경우 `py -m http.server 8000`
