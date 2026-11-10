@@ -384,7 +384,7 @@ function renderDeck() {
         busyPhoto = false;
       }
     });
-    const bookmarkButtons = $('[data-action="bookmark"]', card);
+    const bookmarkButtons = $$('[data-action="bookmark"]', card);
     bookmarkButtons.forEach(button => paintBookmark(button, current));
     let suppressTapUntil = 0;
     card.addEventListener('click', event => {
