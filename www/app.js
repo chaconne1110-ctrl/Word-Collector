@@ -187,7 +187,6 @@ function renderList() {
       deleteDialog.showModal();
     }
     $('#delete-notebook').addEventListener('click', openNotebookDelete);
-    $('#delete-notebook-shortcut').addEventListener('click', openNotebookDelete);
     $('#cancel-notebook-delete').addEventListener('click', () => deleteDialog.close());
     $('#confirm-notebook-delete').addEventListener('click', () => {
       state = load();
