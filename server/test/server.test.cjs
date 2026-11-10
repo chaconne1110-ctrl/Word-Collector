@@ -169,7 +169,7 @@ test('legacy client accepts user-created empty notebooks in both manual and auto
     const auto=request.contents[0].parts[0].text.includes('"autoSubject":true');
     assert.deepEqual(request.generationConfig.responseSchema.properties.notebookName.enum,
       auto?['전력공학','반도체공정']:['반도체공정']);
-    return upstream(output({notebookName:auto?'전력공학':'반도체공정',relatedTerms:[]}));
+    return upstream(output({notebookName:auto?'전력공학':'반도체공정',relatedTerms:[], pos:'noun', exampleKo:'변압기가 작동한다.'}));
   }});
   for(const autoCourse of [false,true]){
     const res=await send({
