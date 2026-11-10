@@ -1,3 +1,4 @@
+# Source snapshot build: include latest README, safe Cloudflare config, and verified Gemini imageConfig fix.
 name: Build Word Collector AI photo quota 1500 preview APK
 
 on:
