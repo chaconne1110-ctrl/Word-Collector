@@ -19,7 +19,8 @@ CREATE TABLE tester_daily_usage (
 );
 CREATE TABLE global_daily_usage (
  usage_date TEXT PRIMARY KEY,
- request_count INTEGER NOT NULL CHECK (request_count BETWEEN 0 AND 1000)
+ request_count INTEGER NOT NULL CHECK (request_count BETWEEN 0 AND 1000),
+ updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TRIGGER wc_personal_insert BEFORE INSERT ON tester_daily_usage
 WHEN NEW.request_count > 100 BEGIN SELECT RAISE(ABORT,'daily_limit_100'); END;
@@ -45,7 +46,7 @@ class D1QuotaMigrationTest(unittest.TestCase):
             db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'wc_global_%'").fetchone()[0],
             2,
         )
-        db.execute("INSERT INTO global_daily_usage VALUES ('2026-11-11', 1499)")
+        db.execute("INSERT INTO global_daily_usage (usage_date, request_count) VALUES ('2026-11-11', 1499)")
         db.execute("UPDATE global_daily_usage SET request_count=1500 WHERE usage_date='2026-11-11'")
         self.assertEqual(
             db.execute("SELECT request_count FROM global_daily_usage WHERE usage_date='2026-11-11'").fetchone(),
@@ -54,7 +55,7 @@ class D1QuotaMigrationTest(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             db.execute("UPDATE global_daily_usage SET request_count=1501 WHERE usage_date='2026-11-11'")
         with self.assertRaises(sqlite3.IntegrityError):
-            db.execute("INSERT INTO global_daily_usage VALUES ('2026-11-12', 1501)")
+            db.execute("INSERT INTO global_daily_usage (usage_date, request_count) VALUES ('2026-11-12', 1501)")
         self.assertEqual(
             db.execute("SELECT request_count FROM global_daily_usage WHERE usage_date='2026-11-11'").fetchone(),
             (1500,),
@@ -72,8 +73,8 @@ class D1QuotaMigrationTest(unittest.TestCase):
         db = self.connect(OLD_SCHEMA)
         db.execute("INSERT INTO testers(tester_id,token_hash,is_active) VALUES ('tester-01','safe-hash',1)")
         db.execute("INSERT INTO tester_daily_usage(tester_id,usage_date,request_count) VALUES ('tester-01','2026-11-10',99)")
-        db.execute("INSERT INTO global_daily_usage VALUES ('2026-11-10',1000)")
-        db.execute("INSERT INTO global_daily_usage VALUES ('2026-11-09',735)")
+        db.execute("INSERT INTO global_daily_usage (usage_date, request_count, updated_at) VALUES ('2026-11-10',1000,'2026-11-10 23:58:02')")
+        db.execute("INSERT INTO global_daily_usage (usage_date, request_count, updated_at) VALUES ('2026-11-09',735,'2026-11-09 01:24:00')")
         before = {
             "testers": db.execute("SELECT * FROM testers").fetchall(),
             "personal": db.execute("SELECT tester_id,usage_date,request_count FROM tester_daily_usage").fetchall(),
