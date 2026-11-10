@@ -134,7 +134,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     let response;
     try {
     response = await fetchImpl(ENDPOINT, {
-      method: 'POST', signal: controller.signal, redirect: 'error',
+      method: 'POST', signal: controller.signal, redirect: 'manual',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
         systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? '\n추가 항목 pos는 영어 품사, exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.' : '')}]},
