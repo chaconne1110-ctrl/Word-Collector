@@ -36,7 +36,7 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
     async batch(stmts) {
       state.batchCalls++;
       assert.equal(stmts.length, 2);
-      if (rejectBatch) throw new Error('daily_limit_100');
+      if (rejectBatch) throw new Error(rejectBatch === true ? 'daily_limit_100' : rejectBatch);
       state.used++;
       return [
         {success: true, meta: {changes: 1}},
@@ -109,6 +109,23 @@ test('D1 reservation rejection never calls Gemini', async () => {
     const res=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({term:'전압',course:'회로이론',autoCourse:false})}),env);
     assert.equal(res.status,429); assert.equal(state.used,0);
   } finally {globalThis.fetch=previous;}
+});
+
+test('global 1500 limit blocks requests before Gemini is called', async () => {
+  const {env,state}=mockEnv({live:true,rejectBatch:'global_limit_1500'});
+  state.hash=await tokenHash(token);
+  const before=globalThis.fetch;
+  globalThis.fetch=()=>assert.fail('Quota failures must never call Gemini');
+  try {
+    const res=await worker.fetch(new Request(baseUrl+'/api/analyze',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({term:'변압기',course:'전기기기',autoCourse:false})
+    }),env);
+    assert.equal(res.status,429);
+    assert.equal(state.batchCalls,1);
+    assert.equal(state.used,0);
+  } finally { globalThis.fetch=before; }
 });
 
 test('legacy Transformer analyze generates real-format response with mock Gemini', async () => {
