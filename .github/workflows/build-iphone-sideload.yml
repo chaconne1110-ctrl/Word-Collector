@@ -1,0 +1,86 @@
+name: Build iPhone unsigned IPA for AltStore
+
+on:
+  push:
+    branches: [feature/ai-photo-generation-20261111]
+    paths:
+      - 'www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/ios/**'
+      - '.github/workflows/build-iphone-sideload.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  iphone-unsigned:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify source and generate iOS project
+        run: |
+          npm ci
+          node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+          npx --no-install cap add ios --packagemanager SPM
+          npx --no-install cap sync ios
+          python3 scripts/ios/prepare.py
+      - name: Build iPhoneOS app (unsigned for personal sideload signing)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App -configuration Debug \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath ios-iphone-build \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Create clearly labeled unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="ios-iphone-build/Build/Products/Debug-iphoneos/App.app"
+          test -s "$APP/App"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          if [[ "$BUNDLE_ID" != 'com.yechan.wordcollector' ]]; then
+            echo "::error::Unexpected bundle identifier: $BUNDLE_ID"
+            exit 1
+          fi
+          mkdir -p package/Payload release
+          ditto "$APP" package/Payload/App.app
+          VERSION="$(git rev-parse --short=7 HEAD)"
+          (cd package && zip -qry "../release/WordCollector_iPhone_Unsigned_$VERSION.ipa" Payload)
+          test -s "release/WordCollector_iPhone_Unsigned_$VERSION.ipa"
+          shasum -a 256 "release/WordCollector_iPhone_Unsigned_$VERSION.ipa" > release/SHA256.txt
+          printf '%s\n' \
+            'UNSIGNED iPhoneOS IPA. NOT directly installable on iPhone.' \
+            'Sign with a personal Apple ID using AltStore Classic/AltServer on Windows or Mac.' \
+            'Free Apple account installations generally expire after 7 days.' \
+            'Back up existing data before upgrading. IndexedDB photos are not in JSON backup.' \
+            > release/INSTALL_README.txt
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordcollector-iphone-unsigned-ipa
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish unsigned IPA to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(git rev-parse --short=7 HEAD)"
+          TAG="v1.1.11-iphone-unsigned-$VERSION"
+          gh release create "$TAG" \
+            "release/WordCollector_iPhone_Unsigned_$VERSION.ipa" \
+            release/SHA256.txt release/INSTALL_README.txt \
+            --target "$GITHUB_SHA" \
+            --title "Word Collector iPhone UNSIGNED IPA ($VERSION; AltStore required)" \
+            --notes "Unsigned iPhoneOS test IPA, NOT directly installable. Sign with personal Apple ID in AltStore / AltServer (Windows supported). Free Apple ID installations may expire after 7 days." \
+            --prerelease
