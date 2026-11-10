@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/build-download-apk.yml'
+      - 'www/quick_capture/**'
   workflow_dispatch:
 
 permissions:
@@ -55,6 +56,8 @@ jobs:
           test -s android/app/src/main/assets/public/index.html
           test -s android/app/src/main/assets/public/analysis-api.js
           test -s android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'id="ai-auth-settings"' android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'flex: 0 0 auto' android/app/src/main/assets/public/quick_capture/code.html
 
       - name: Build Android debug APK (not production signed)
         run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
