@@ -326,6 +326,7 @@ function renderDeck() {
     }
     // Generated photos are explicitly requested, billed once per tap and retained offline.
     // Existing hand-built SVG diagrams remain available independently of this feature.
+    const photoTermId = current;
     const photoPanel = document.createElement('section');
     photoPanel.className = 'rounded-xl border border-surface-container-high bg-surface-container-lowest p-3 space-y-2';
     const photoHeading = document.createElement('p');
@@ -349,7 +350,7 @@ function renderDeck() {
     let hasPhoto = false;
     let busyPhoto = false;
     async function refreshPhoto() {
-      const blob = await WordCollectorPhoto.get(current);
+      const blob = await WordCollectorPhoto.get(photoTermId);
       if (!blob || !card.isConnected) return;
       const url = URL.createObjectURL(blob);
       photoImage.onload = () => URL.revokeObjectURL(url);
@@ -373,7 +374,7 @@ function renderDeck() {
           subject:courseNames(term.course)[0],
           definition:(term.koDef || term.enDef || term.ko).slice(0, 700)
         });
-        await WordCollectorPhoto.save(current, result.image);
+        await WordCollectorPhoto.save(photoTermId, result.image);
         await refreshPhoto();
         photoStatus.textContent = 'AI 사진 제작과 기기 저장이 완료됐습니다.';
       } catch (error) {
