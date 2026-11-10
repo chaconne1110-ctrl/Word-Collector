@@ -85,6 +85,11 @@ for (const [id, [name]] of Object.keys(allCourses()).map(id => [id, courseNames(
   courseInput.add(new Option(name, id));
   reviewCourse.add(new Option(name, id));
 }
+if (!courseInput.options.length) {
+  $('#btn-mode-existing').disabled = true;
+  $('#btn-mode-existing').setAttribute('aria-label', '먼저 단어장을 만들어 주세요');
+  setCategoryMode('direct');
+}
 
 function supportsEddyDiagram(en, selected) {
   return ['eddy current', 'eddy currents'].includes(normalize(en)) &&

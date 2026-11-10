@@ -36,163 +36,38 @@
 </div>
 </section>
 <!-- Subject Filter Pills (Horizontal Scrollable) -->
-<section class="mt-space-sm"><div class="flex items-center justify-between px-margin py-1"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary-container">folder_open</span><span class="font-label-ui text-label-ui text-on-surface font-semibold">내 전공 단어장</span></div><span class="font-caption text-caption text-outline">과목을 탭하여 과목별 단어 목록 화면으로 이동</span></div></section>
+<section class="mt-space-sm"><div class="flex items-center justify-between px-margin py-1"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary-container">folder_open</span><span class="font-label-ui text-label-ui text-on-surface font-semibold">내 전공 단어장</span></div><button id="create-notebook" type="button" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-ui text-sm font-semibold inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-[19px]">create_new_folder</span>새 단어장</button></div></section>
 <!-- Word Count & Sort Row -->
-<section class="px-margin mt-space-md mb-space-xs flex items-center justify-between"><div class="flex items-center gap-1.5"><span class="font-caption text-caption text-outline">정렬:</span><span class="font-caption text-caption font-semibold text-on-surface">최근 학습순</span></div><span class="font-caption text-caption text-on-surface-variant" id="rendered-count">총 4개 과목 등록됨</span></section>
+<section class="px-margin mt-space-md mb-space-xs flex items-center justify-between"><div class="flex items-center gap-1.5"><span class="font-caption text-caption text-outline">정렬:</span><span class="font-caption text-caption font-semibold text-on-surface">최근 학습순</span></div><span class="font-caption text-caption text-on-surface-variant" id="rendered-count">총 0개 단어장 등록됨</span></section>
 <!-- Word Cards Container -->
 <section class="px-margin flex flex-col gap-space-sm" id="word-list">
-<!-- Subject 1: Electromagnetics -->
-<article class="word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]" data-subject="electromagnetics" id="card-electromagnetics">
-  <div class="flex items-start justify-between gap-space-sm">
-    <div class="flex items-center gap-space-sm">
-      <div class="w-12 h-12 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center shrink-0">
-        <span class="material-symbols-outlined text-[26px]">electric_bolt</span>
-      </div>
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-2">
-          <h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold tracking-tight truncate">전자기학</h2>
-          <span class="font-label-mono text-caption text-outline font-medium">Electromagnetics</span>
-        </div>
-        <p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate">맥스웰 방정식, 유전율, 정전계 및 자계 전공 용어</p>
-      </div>
-    </div>
-    
-  </div>
-  <div class="mt-space-md pt-2.5 flex items-center justify-between border-t-0 bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-container/10 text-primary-container font-label-ui text-caption font-semibold group-hover:bg-primary-container group-hover:text-on-primary transition-colors whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-        <span class="">18개 단어 저장됨</span>
-        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-      </div>
-      <span class="font-caption text-caption text-outline">·</span>
-      <div class="flex items-center gap-1 text-on-surface-variant whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px] text-primary-container">bookmark</span>
-        <span class="font-label-ui text-caption font-medium">북마크 3개</span>
-      </div>
-    </div>
-    
-  </div>
-</article>
-
-<!-- Subject 2: Circuit Theory -->
-<article class="word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]" data-subject="circuit-theory" id="card-circuit-theory">
-  <div class="flex items-start justify-between gap-space-sm">
-    <div class="flex items-center gap-space-sm">
-      <div class="w-12 h-12 rounded-xl bg-secondary-container/60 text-secondary flex items-center justify-center shrink-0">
-        <span class="material-symbols-outlined text-[26px]">schema</span>
-      </div>
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-2">
-          <h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold tracking-tight truncate">회로이론</h2>
-          <span class="font-label-mono text-caption text-outline font-medium">Circuit Theory</span>
-        </div>
-        <p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate">임피던스, 키르히호프 법칙, 과도현상 및 RLC</p>
-      </div>
-    </div>
-    
-  </div>
-  <div class="mt-space-md pt-2.5 flex items-center justify-between border-t-0 bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high/80 text-primary-container font-label-ui text-caption font-semibold group-hover:bg-primary-container group-hover:text-on-primary transition-colors whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-        <span class="">24개 단어 저장됨</span>
-        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-      </div>
-      <span class="font-caption text-caption text-outline">·</span>
-      <div class="flex items-center gap-1 text-on-surface-variant whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px] text-primary-container">bookmark</span>
-        <span class="font-label-ui text-caption font-medium">북마크 4개</span>
-      </div>
-    </div>
-    
-  </div>
-</article>
-
-<!-- Subject 3: Electrical Machinery -->
-<article class="word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]" data-subject="electrical-machines" id="card-electrical-machines">
-  <div class="flex items-start justify-between gap-space-sm">
-    <div class="flex items-center gap-space-sm">
-      <div class="w-12 h-12 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
-        <span class="material-symbols-outlined text-[26px]">precision_manufacturing</span>
-      </div>
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-2">
-          <h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold tracking-tight truncate">전기기기</h2>
-          <span class="font-label-mono text-caption text-outline font-medium">Electrical Machinery</span>
-        </div>
-        <p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate">동기기, 변압기, 유도전동기, 계자권선 전공 어휘</p>
-      </div>
-    </div>
-    
-  </div>
-  <div class="mt-space-md pt-2.5 flex items-center justify-between border-t-0 bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high/80 text-primary-container font-label-ui text-caption font-semibold group-hover:bg-primary-container group-hover:text-on-primary transition-colors whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-        <span class="">15개 단어 저장됨</span>
-        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-      </div>
-      <span class="font-caption text-caption text-outline">·</span>
-      <div class="flex items-center gap-1 text-on-surface-variant whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px] text-primary-container">bookmark</span>
-        <span class="font-label-ui text-caption font-medium">북마크 2개</span>
-      </div>
-    </div>
-    
-  </div>
-</article>
-
-<!-- Subject 4: Semiconductor Engineering -->
-<article class="word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]" data-subject="semiconductor" id="card-semiconductor">
-  <div class="flex items-start justify-between gap-space-sm">
-    <div class="flex items-center gap-space-sm">
-      <div class="w-12 h-12 rounded-xl bg-surface-container-high text-primary flex items-center justify-center shrink-0">
-        <span class="material-symbols-outlined text-[26px]">memory</span>
-      </div>
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-2">
-          <h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold tracking-tight truncate">반도체공학</h2>
-          <span class="font-label-mono text-caption text-outline font-medium">Semiconductor</span>
-        </div>
-        <p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate">에너지 밴드갭, 페르미 준위, MOSFET 소자 구조</p>
-      </div>
-    </div>
-    
-  </div>
-  <div class="mt-space-md pt-2.5 flex items-center justify-between border-t-0 bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high/80 text-primary-container font-label-ui text-caption font-semibold group-hover:bg-primary-container group-hover:text-on-primary transition-colors whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-        <span class="">8개 단어 저장됨</span>
-        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-      </div>
-      <span class="font-caption text-caption text-outline">·</span>
-      <div class="flex items-center gap-1 text-on-surface-variant whitespace-nowrap">
-        <span class="material-symbols-outlined text-[16px] text-primary-container">bookmark</span>
-        <span class="font-label-ui text-caption font-medium">북마크 1개</span>
-      </div>
-    </div>
-    
-  </div>
-</article></section>
+</section>
+<dialog id="create-notebook-dialog" aria-labelledby="create-notebook-title" style="margin:auto;width:calc(100% - 2rem);max-width:24rem;padding:1.5rem;background:#fff;color:#131b2e;border:1px solid #dbe1f0;border-radius:1rem;">
+<form id="create-notebook-form" style="display:flex;flex-direction:column;gap:1rem;">
+<h2 id="create-notebook-title" style="font-weight:700;font-size:1.15rem;">새 단어장 만들기</h2>
+<label for="new-notebook-name">단어장 이름</label>
+<input id="new-notebook-name" name="notebook" type="text" maxlength="60" required autocomplete="off" placeholder="예: 전력공학" style="min-height:44px;padding:.75rem;border:1px solid #c4cbe0;border-radius:.5rem;">
+<div style="display:flex;gap:.75rem;">
+<button id="cancel-create-notebook" type="button" style="flex:1;min-height:44px;background:#eef0fa;border-radius:.5rem;">취소</button>
+<button type="submit" style="flex:1;min-height:44px;background:#00236f;color:#fff;border-radius:.5rem;font-weight:650;">만들기</button>
+</div></form></dialog>
 <!-- Empty State (Hidden by default, shown when filtering yields 0 results) -->
 <div class="hidden flex-col items-center justify-center text-center px-margin py-12" id="empty-state">
 <div class="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant mb-space-md">
 <span class="material-symbols-outlined text-[32px]">menu_book</span>
 </div>
-<h3 class="font-headline-sm text-headline-sm text-on-surface">해당하는 단어가 없습니다</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-[240px]">
-      선택한 과목 또는 검색어에 일치하는 단어가 없습니다. 새로운 단어를 추가해보세요.
+<h3 id="empty-state-title" class="font-headline-sm text-headline-sm text-on-surface">아직 단어장이 없습니다</h3>
+<p id="empty-state-description" class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-[240px]">
+      새 단어장을 만든 뒤 원하는 전공 단어를 추가할 수 있습니다.
     </p>
-<button class="mt-space-md h-10 px-4 rounded-lg bg-surface-container-high text-primary-container font-label-ui text-label-ui active:scale-95 transition-transform">
-      전체 단어 보기
+<button id="empty-state-action" type="button" class="mt-space-md h-10 px-4 rounded-lg bg-primary text-on-primary font-label-ui text-label-ui active:scale-95 transition-transform">
+      새 단어장 만들기
     </button>
 </div>
 <!-- Interactive Toast Feedback for Bookmark & Flashcard Trigger -->
 <aside aria-live="polite" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-4 py-2.5 rounded-full bg-inverse-surface text-inverse-on-surface font-body-sm text-body-sm shadow-xl flex items-center gap-2 pointer-events-none transition-all duration-300 opacity-0 translate-y-3" id="toast-notification" role="status">
 <span class="material-symbols-outlined text-[18px] text-secondary-fixed" id="toast-icon">folder_open</span>
-<span class="" id="toast-message">반도체공학 단어 목록으로 이동합니다</span>
+<span class="" id="toast-message">단어장을 선택하세요</span>
 </aside>
 </div></main><nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-primary-container font-semibold" data-path="home" href="index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="quick-capture" href="quick_capture/code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
 

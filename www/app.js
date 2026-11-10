@@ -24,14 +24,14 @@ function commit(next) {
   }
 }
 
-const courseNames = id => state.courses?.[id] || seed.courses[id];
-const allCourses = () => Object.fromEntries(Object.entries({...seed.courses, ...state.courses})
+const courseNames = id => state.courses?.[id] || [id || '단어장', ''];
+const allCourses = () => Object.fromEntries(Object.entries(state.courses || {})
   .filter(([id]) => !(state.deletedCourses || []).includes(id)));
 const hasCourse = id => Object.hasOwn(allCourses(), id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
 const course = hasCourse(params.get('course')) ? params.get('course') :
-  hasTerm(termId) ? state.terms[termId].course : 'electromagnetics';
+  hasTerm(termId) ? state.terms[termId].course : Object.keys(allCourses())[0] || '';
 const fromBookmark = params.get('from') === 'bookmark';
 const listFilter = params.get('filter') || 'all';
 const query = params.get('q') || '';
@@ -101,51 +101,92 @@ function rowLink(row, url) {
 function renderHome() {
   const input = $('#term-search-input');
   const clear = $('#clear-search-btn');
-  const rows = $$('[data-subject]');
-  function syncCourses() {
-    for (const [id, names] of Object.entries(allCourses())) {
-      if (rows.some(row => row.dataset.subject === id)) continue;
-      const row = rows[0].cloneNode(true);
-      row.id = 'card-' + id;
-      row.dataset.subject = id;
-      $('h2', row).textContent = names[0];
-      const subtitle = $('h2', row).parentElement.nextElementSibling;
-      if (subtitle) subtitle.textContent = '직접 만든 단어장';
-      $('h2', row).nextElementSibling.textContent = names[1] || '';
-      $('.material-symbols-outlined', row).textContent = 'menu_book';
-      rows[0].parentElement.append(row);
-      rows.push(row);
-      rowLink(row, route('words.html', {course: id}));
-    }
+  const container = $('#word-list');
+  const empty = $('#empty-state');
+  const dialog = $('#create-notebook-dialog');
+  const nameInput = $('#new-notebook-name');
+
+  function openCreate() {
+    nameInput.value = '';
+    nameInput.setCustomValidity('');
+    dialog.showModal();
+    nameInput.focus();
   }
-  for (const row of rows) rowLink(row, route('words.html', {course: row.dataset.subject}));
-  function render() {
-    syncCourses();
-    let visible = 0;
-    const q = input.value.trim().toLowerCase();
-    for (const row of rows) {
-      const id = row.dataset.subject;
-      if (!hasCourse(id)) { row.hidden = true; continue; }
-      $('h2', row).textContent = courseNames(id)[0];
-      const ids = idsFor(false, id, 'all', '');
-      const shown = courseNames(id).some(name => name.toLowerCase().includes(q)) ||
-        ids.some(term => matches(state.terms[term], q));
-      row.hidden = !shown;
-      visible += Number(shown);
-      $$('span', row).forEach(span => {
-        if (/^\d+개 단어 저장됨$/.test(span.textContent.trim())) span.textContent = ids.length + '개 단어 저장됨';
-        if (/^북마크 \d+개$/.test(span.textContent.trim())) span.textContent = '북마크 ' + ids.filter(id => state.saved.includes(id)).length + '개';
-      });
+  $('#create-notebook').addEventListener('click', openCreate);
+  $('#cancel-create-notebook').addEventListener('click', () => dialog.close());
+  $('#create-notebook-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = nameInput.value.trim().replace(/\s+/g, ' ');
+    nameInput.setCustomValidity(name && name.length <= 60 ? '' : '단어장 이름을 1~60자로 입력하세요.');
+    if (!nameInput.reportValidity()) return;
+    state = load();
+    const exists = Object.values(allCourses()).some(names =>
+      names[0].normalize('NFKC').toLocaleLowerCase() === name.normalize('NFKC').toLocaleLowerCase());
+    if (exists) {
+      nameInput.setCustomValidity('같은 이름의 단어장이 이미 있습니다.');
+      nameInput.reportValidity();
+      return;
     }
-    $('#rendered-count').textContent = '총 ' + visible + '개 과목 등록됨';
-    $('#empty-state').classList.toggle('hidden', visible > 0);
+    const id = 'notebook_' + crypto.randomUUID();
+    if (commit({...state, courses:{...state.courses, [id]:[name, '']}})) {
+      dialog.close();
+      location.href = route('words.html', {course:id});
+    }
+  });
+  nameInput.addEventListener('input', () => nameInput.setCustomValidity(''));
+
+  function createCard(id, names) {
+    const row = document.createElement('article');
+    row.className = 'word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]';
+    row.dataset.subject = id;
+    row.innerHTML =
+      '<div class="flex items-start gap-space-sm">' +
+      '<div class="w-12 h-12 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[26px]">menu_book</span></div>' +
+      '<div class="flex flex-col min-w-0"><h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold truncate"></h2>' +
+      '<p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate"></p></div></div>' +
+      '<div class="mt-space-md pt-2.5 flex items-center justify-between bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">' +
+      '<span data-word-count class="font-label-ui text-caption font-semibold text-primary-container"></span>' +
+      '<span data-bookmark-count class="font-label-ui text-caption text-on-surface-variant"></span></div>';
+    $('h2', row).textContent = names[0];
+    $('p', row).textContent = names[1] || '내가 만든 단어장';
+    const ids = idsFor(false, id, 'all', '');
+    $('[data-word-count]', row).textContent = ids.length + '개 단어 저장됨';
+    $('[data-bookmark-count]', row).textContent =
+      '북마크 ' + ids.filter(termId => state.saved.includes(termId)).length + '개';
+    rowLink(row, route('words.html', {course:id}));
+    return row;
+  }
+
+  function render() {
+    state = load();
+    const courses = Object.entries(allCourses());
+    const q = input.value.trim().toLowerCase();
+    const visible = courses.filter(([id, names]) =>
+      names.some(name => name.toLowerCase().includes(q)) ||
+      idsFor(false, id, 'all', '').some(termId => matches(state.terms[termId], q)));
+    container.replaceChildren(...visible.map(([id, names]) => createCard(id, names)));
+    $('#rendered-count').textContent = q ? '검색 결과 ' + visible.length + '개 단어장' :
+      '총 ' + courses.length + '개 단어장 등록됨';
+    empty.classList.toggle('hidden', visible.length > 0);
+    if (!visible.length) {
+      $('#empty-state-title').textContent = courses.length && q ? '검색 결과가 없습니다' : '아직 단어장이 없습니다';
+      $('#empty-state-description').textContent = courses.length && q ?
+        '검색어를 변경하거나 전체 단어장을 확인해 주세요.' :
+        '새 단어장을 만든 뒤 원하는 전공 단어를 추가할 수 있습니다.';
+      $('#empty-state-action').textContent = courses.length && q ? '검색어 초기화' : '새 단어장 만들기';
+    }
     clear.classList.toggle('hidden', !input.value);
   }
+  $('#empty-state-action').addEventListener('click', () => {
+    if (input.value.trim() && Object.keys(allCourses()).length) {
+      input.value = '';
+      render();
+    } else openCreate();
+  });
   input.addEventListener('input', render);
-  function reset() { input.value = ''; render(); }
-  clear.addEventListener('click', reset);
-  $('#empty-state button').addEventListener('click', reset);
-  window.addEventListener('pageshow', () => { state = load(); render(); });
+  clear.addEventListener('click', () => { input.value = ''; render(); });
+  window.addEventListener('pageshow', render);
+  render();
 }
 
 function renderList() {
@@ -156,23 +197,16 @@ function renderList() {
   let filter = listFilter;
   if (bookmark) {
     const filters = $('#bookmark-filters');
-    for (const chip of $$('[data-filter]', filters)) {
-      if (chip.dataset.filter === 'circuit') chip.dataset.filter = 'circuit-theory';
-      if (chip.dataset.filter === 'electromag') chip.dataset.filter = 'electromagnetics';
-      if (chip.dataset.filter === 'machines') chip.dataset.filter = 'electrical-machines';
-    }
-    const semiconductor = filters.lastElementChild.cloneNode(true);
-    semiconductor.dataset.filter = 'semiconductor';
-    semiconductor.firstElementChild.textContent = '반도체공학';
-    filters.append(semiconductor);
-    for (const id of Object.keys(allCourses())) {
-      if ($$('[data-filter]', filters).some(chip => chip.dataset.filter === id)) continue;
-      const chip = semiconductor.cloneNode(true);
+    const allChip = filters.querySelector('[data-filter="all"]');
+    filters.replaceChildren(allChip);
+    for (const [id, names] of Object.entries(allCourses())) {
+      const chip = allChip.cloneNode(true);
       chip.dataset.filter = id;
-      chip.firstElementChild.textContent = courseNames(id)[0];
+      chip.firstElementChild.textContent = names[0];
       filters.append(chip);
     }
   } else {
+    if (!hasCourse(course)) { location.replace('index.html'); return; }
     $('header h1').textContent = courseNames(course)[0];
     $('header button[aria-label="뒤로 가기"]').addEventListener('click', () => location.href = 'index.html');
     const search = $('#searchContainer');
@@ -485,7 +519,7 @@ const fields = {
 
 function renderEditor() {
   if (!hasTerm(termId)) {
-    location.replace(listUrl(fromBookmark));
+    location.replace('index.html');
     return;
   }
   const term = state.terms[termId];
