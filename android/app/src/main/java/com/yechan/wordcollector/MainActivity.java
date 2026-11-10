@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WordExportPlugin.class);
+        registerPlugin(TesterTokenStorePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
