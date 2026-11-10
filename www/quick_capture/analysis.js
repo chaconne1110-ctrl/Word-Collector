@@ -23,6 +23,38 @@ let draft;
 const diagramChoice = $('#diagram-choice');
 const diagramRefresh = $('#diagram-refresh');
 const diagramStatus = $('#diagram-status');
+const reviewPhotoButton = $('#review-photo-generate');
+const reviewPhotoImage = $('#review-photo-image');
+const reviewPhotoStatus = $('#review-photo-status');
+let photoDraft = null;
+let photoBusy = false;
+reviewPhotoButton.addEventListener('click', async () => {
+  if (!draft || photoBusy) return;
+  if (photoDraft && !confirm('새 사진을 생성하면 다시 과금됩니다. 기존 미저장 사진을 교체할까요?')) return;
+  if (!photoDraft && !confirm('Gemini 이미지 생성 API에 별도 요금이 발생합니다. 사진을 만들까요?')) return;
+  photoBusy = true;
+  reviewPhotoButton.disabled = true;
+  reviewPhotoStatus.textContent = 'AI 학습 사진을 제작 중입니다.';
+  try {
+    const r = await WordCollectorAI.createImage({
+      word:reviewForm.elements.en.value.trim(),
+      koreanMeaning:reviewForm.elements.ko.value.trim(),
+      subject:courseNames(draft.selected)[0],
+      definition:(reviewForm.elements.koDef.value || reviewForm.elements.enDef.value).slice(0,700)
+    });
+    photoDraft = r.image;
+    reviewPhotoImage.src = 'data:' + r.image.mimeType + ';base64,' + r.image.data;
+    reviewPhotoImage.hidden = false;
+    reviewPhotoButton.textContent = '사진 다시 생성 (추가 과금)';
+    reviewPhotoStatus.textContent = '사진 제작 완료. 단어장에 저장하면 사진도 함께 저장됩니다.';
+  } catch (error) {
+    reviewPhotoStatus.textContent = error?.message || '사진을 생성하지 못했습니다.';
+  } finally {
+    reviewPhotoButton.disabled = false;
+    photoBusy = false;
+  }
+});
+
 const normalize = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
 function drawDiagram(selected = false) {
@@ -123,6 +155,10 @@ reviewForm.elements.en.addEventListener('input', () => {
 
 function invalidateReview() {
   draft = null;
+  photoDraft = null;
+  reviewPhotoImage.hidden = true;
+  reviewPhotoImage.removeAttribute('src');
+  reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   status.textContent = '';
 }
@@ -173,6 +209,10 @@ analysisButton.addEventListener('click', async () => {
   }
   analyzing = true;
   draft = null;
+  photoDraft = null;
+  reviewPhotoImage.hidden = true;
+  reviewPhotoImage.removeAttribute('src');
+  reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   for (const item of inputControls) item.disabled = true;
   analysisButton.disabled = true;
@@ -211,7 +251,7 @@ analysisButton.addEventListener('click', async () => {
   }
 });
 
-reviewForm.addEventListener('submit', event => {
+reviewForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (!draft) return;
   state = load();
@@ -235,6 +275,14 @@ reviewForm.addEventListener('submit', event => {
   delete word.diagram;
   if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
   if (commit({...state, terms: {...state.terms, [id]: word}})) {
+    if (photoDraft) {
+      try {
+        await WordCollectorPhoto.save(id, photoDraft);
+      } catch (error) {
+        status.textContent = '단어는 저장됐지만 사진 저장에 실패했습니다: ' + error.message;
+        return;
+      }
+    }
     draft = null;
     location.href = '../' + route('words.html', {course: word.course});
   }
