@@ -1,4 +1,4 @@
-name: Build Word Collector AI photo preview APK
+name: Build Word Collector AI photo quota 1500 preview APK
 
 on:
   push:
@@ -17,6 +17,7 @@ on:
       - 'www/flashcard.html'
       - 'cloudflare/worker.mjs'
       - 'cloudflare/image.test.mjs'
+      - 'cloudflare/worker.test.mjs'
       - 'www/quick_capture/analysis.js'
       - 'android/app/src/main/java/com/yechan/wordcollector/TesterTokenStorePlugin.java'
   workflow_dispatch:
@@ -155,7 +156,7 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           VERSION="${GITHUB_SHA:0:7}"
-          TAG="v1.1.9-ai-photo-preview-${VERSION}"
+          TAG="v1.1.10-ai-photo-quota-preview-${VERSION}"
           NAME="WordCollector_AIPhoto_${VERSION}_Preview_Debug.apk"
           mkdir -p release
           cp "$APK" "release/$NAME"
