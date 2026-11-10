@@ -1,5 +1,6 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
+const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/?$/, '/');
 (async()=>{
  const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
  try {
@@ -14,7 +15,7 @@ const assert=require('node:assert/strict');
    await route.fulfill({json:{model:'gemini-3.5-flash-lite',en:'Transformer',ko:'트랜스포머',discipline:'인공지능',pos:'noun',
     enDef:'A neural network architecture.',koDef:'신경망 구조.',exampleEn:'A transformer processes language.',exampleKo:'트랜스포머는 언어를 처리한다.',course:'전기기기'}});
   });
-  await page.goto('http://127.0.0.1:8000/');
+  await page.goto(base);
   const original=await page.evaluate(()=>{
    const fixture=structuredClone(state);
    const first=Object.keys(fixture.terms)[0];fixture.terms[first].ko='사용자가 수정한 뜻';fixture.saved=[first];
@@ -41,10 +42,10 @@ const assert=require('node:assert/strict');
   if(original){const before=JSON.parse(original);for(const [id,word]of Object.entries(before.terms))assert.deepEqual(saved.terms[id],word);assert.deepEqual(saved.saved,before.saved);}
   assert.ok(!JSON.stringify(saved).includes('wc_'+'b'.repeat(64)));
   for(const path of ['bookmarks.html','_6/code.html']) {
-   await page.goto('http://127.0.0.1:8000/'+path);await page.locator('nav a').first().waitFor();
+   await page.goto(base+path);await page.locator('nav a').first().waitFor();
    assert.equal(await page.locator('nav a').count(),4);
   }
-  await page.goto('http://127.0.0.1:8000/quick_capture/code.html');
+  await page.goto(base+'quick_capture/code.html');
   await page.locator('#btn-mode-existing').click();await page.locator('#term-unified-input').fill('Voltage');
   await page.locator('#submit-action-btn').click();
   await page.waitForFunction(()=>document.querySelector('#analysis-status').textContent.includes('인증 코드'));

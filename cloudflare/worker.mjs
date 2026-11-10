@@ -446,7 +446,8 @@ const handler = {
   }
 };
 
-const WEB_ORIGINS = new Set(['http://localhost:8000', 'http://127.0.0.1:8000',
+const WEB_ORIGINS = new Set(['https://chaconne1110-ctrl.github.io',
+  'http://localhost:8000', 'http://127.0.0.1:8000',
   'http://localhost:8787', 'http://127.0.0.1:8787', 'https://localhost', 'capacitor://localhost']);
 export default {
   async fetch(request, env) {

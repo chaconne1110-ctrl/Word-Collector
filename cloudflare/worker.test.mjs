@@ -278,3 +278,15 @@ test('owner model diagnostic categorizes Google 400 location error without sensi
     assert.equal(state.batchCalls,0);
   } finally {globalThis.fetch=oldFetch;}
 });
+
+test('published GitHub Pages origin may preflight but still requires bearer authentication', async () => {
+ const {env,state}=mockEnv({live:true});
+ const origin='https://chaconne1110-ctrl.github.io';
+ const preflight=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'}}),env);
+ assert.equal(preflight.status,204);assert.equal(preflight.headers.get('Access-Control-Allow-Origin'),origin);
+ assert.match(preflight.headers.get('Access-Control-Allow-Headers'),/Authorization/);
+ const denied=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Origin:origin}}),env);
+ assert.equal(denied.status,401);assert.equal(denied.headers.get('Access-Control-Allow-Origin'),origin);assert.equal(state.batchCalls,0);
+ const other=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'OPTIONS',headers:{Origin:'https://other.github.io'}}),env);
+ assert.equal(other.status,403);
+});
