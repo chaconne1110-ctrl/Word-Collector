@@ -78,7 +78,9 @@ test('successful photo generation returns only validated original image bytes',a
     assert.equal(options.headers['x-goog-api-key'],'test-api-key-not-real');
     const body=JSON.parse(options.body);
     assert.deepEqual(body.generationConfig.responseModalities,['IMAGE']);
-    assert.equal(body.generationConfig.responseFormat.image.aspectRatio,'1:1');
+    assert.equal(body.generationConfig.imageConfig.aspectRatio,'1:1');
+    assert.equal(body.generationConfig.imageConfig.imageSize,'1K');
+    assert.ok(!Object.hasOwn(body.generationConfig,'responseFormat'));
     return new Response(JSON.stringify({candidates:[{content:{parts:[{
       inlineData:{mimeType:'image/png',data:Buffer.alloc(150,42).toString('base64')}
     }]}}]}),{status:200});
