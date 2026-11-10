@@ -1,6 +1,8 @@
 # Word Collector — 7-field MVP (2026-11-04)
 
-This is a separate, experimental MVP entry point. Existing `lib/main.dart` and team branches remain intact.
+> **보관된 실험 문서입니다.** 현재 main은 HTML/CSS/JavaScript와 Capacitor 8을 사용하며 `pubspec.yaml`과 Flutter 앱 진입점은 제거되었습니다. 아래 Flutter/Supabase 설명은 과거 실험의 기록이며 현재 앱의 설치·배포 방법이 아닙니다. 이 checkout에서 아래 Flutter 명령을 실행하지 마세요. 현재 사용법은 `www/README.md`, `CLOUDFLARE_GEMINI_VALIDATION.md`, `WEB_DEPLOYMENT.md`를 참고하세요.
+
+PR #3의 Android Manifest 충돌은 현재 main의 Capacitor 설정을 보존하여 해결했습니다. 기존 파일명 `mvp-android.yml`의 자동 빌드도 현재 Capacitor debug APK를 검사하도록 바꿨습니다. 과거 `lib/mvp` 및 Supabase 실험 소스는 현재 앱이나 배포 workflow에 연결하지 않았으며, 동작·보안·실제 통신을 검증하지 않았습니다.
 
 ## Seven fields
 
@@ -45,7 +47,7 @@ This is a separate, experimental MVP entry point. Existing `lib/main.dart` and t
    - `WC_ANON_KEY`: the project's publishable/anon key, **never a service_role key**.
    These variables are baked into the APK by `--dart-define` and are not secret. Never put private API credentials here.
 
-## Local development
+## Archived Flutter local development (현재 checkout에서 실행 금지)
 
 With Flutter 3.47.9 and the project's checked-in lockfile:
 
@@ -56,9 +58,7 @@ flutter run -t lib/mvp/main.dart --dart-define=WC_API_URL=https://YOUR-PROJECT.s
 
 ## Android APK from GitHub
 
-Open **Actions → Word Collector MVP Android APK → latest successful run → Artifacts → word-collector-mvp-android-apk**. Download the zip and extract `app-release.apk`. Install only builds from a trusted repository and verify Android installation warnings.
-
-This workflow compiles a Flutter release APK using the current Android signing configuration; it does not publish a signed, versioned production Release. Existing source and any team branches remain untouched.
+현재 빌드: **Actions → Word Collector Capacitor Android APK → 성공한 실행 → Artifacts → word-collector-capacitor-debug-apk**. 이 artifact는 Capacitor debug APK이며 기존 설치 앱과 같은 서명이라고 가정하면 안 됩니다. 설치를 위해 기존 앱을 삭제하거나 데이터를 초기화하지 마세요. 이 workflow는 release 배포나 과거 Flutter MVP 빌드를 수행하지 않습니다.
 
 ## AI prompt adaptation
 

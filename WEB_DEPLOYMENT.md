@@ -8,12 +8,12 @@
 
 1. 저장소의 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 선택한다.
 2. **Settings → Environments → github-pages**에 배포 브랜치 제한이 있다면 `feature/cloudflare-gemini35`를 허용한다. 기존 제한을 모두 해제하지 않는다.
-3. **Actions → Deploy Word Collector web → Run workflow**에서 `feature/cloudflare-gemini35`를 선택하여 실행한다. 최초 push 때 이미 성공했다면 다시 실행할 필요 없다.
+3. **Actions → Deploy Word Collector web → Run workflow**에서 `feature/cloudflare-gemini35`를 선택하여 실행한다. PR #3의 수정이 병합된 후에는 `main`도 선택할 수 있다. 최초 push 때 이미 성공했다면 다시 실행할 필요 없다.
 4. 성공한 실행의 `github-pages` 배포 주소를 열어 홈 화면을 확인한다. 기본 주소는 위 링크이며 커스텀 도메인이 설정되어 있으면 Actions가 반환한 주소를 사용한다.
 
 GitHub 요금제/저장소 공개 범위가 Pages를 지원해야 한다. Pages를 활성화하기 위해 저장소를 임의로 공개로 변경하지 않는다. 이 작업에서는 GitHub 설정 API가 Forbidden이므로 Pages를 직접 활성화하지 못했다. 원격 Actions 실행 결과는 GitHub 웹 페이지에서 확인했다.
 
-이후 해당 작업 브랜치에서 `www` 또는 배포 workflow가 변경되어 push되면 자동 배포한다. main과 기존 Android 앱 배포는 변경하지 않는다.
+이후 `main` 또는 `feature/cloudflare-gemini35`에서 `www` 또는 배포 workflow가 변경되어 push되면 자동 웹 배포한다. Android 앱 설치·서명·배포는 별도다. PR #3에 포함된 main 배포 설정은 해당 PR을 병합한 뒤 main에 적용된다.
 
 ## Gemini 분석 연결
 
@@ -36,3 +36,5 @@ Worker CORS에 `https://chaconne1110-ctrl.github.io`를 정확한 출처로 추�
 커밋 `bc74d79`를 push하여 자동 배포가 실행됐다. [실행 #1](https://github.com/chaconne1110-ctrl/Word-Collector/actions/runs/42791531208)은 `Configure Pages` 단계에서 `Get Pages site failed: Not Found`로 실패했다. Pages가 활성화되고 Source가 GitHub Actions로 설정되어 있어야 한다는 오류를 확인했다. 공개 사이트 배포 완료 상태가 아니다.
 
 재개 지점: [저장소 Pages 설정](https://github.com/chaconne1110-ctrl/Word-Collector/settings/pages)에서 Source를 GitHub Actions로 선택한 뒤, 위 실행에서 **Re-run all jobs**를 누르거나 Deploy Word Collector web을 수동 실행한다. `configure-pages`의 자동 활성화 옵션은 일반 GITHUB_TOKEN 이외의 관리자 권한 토큰을 요구하므로 권한을 임의로 추가하거나 새 비밀값을 요청하지 않았다.
+
+PR #3 수정 작업에서도 Pages 활성화 API `POST /repos/chaconne1110-ctrl/Word-Collector/pages` (`build_type=workflow`)를 시도했지만 Forbidden으로 거부됐다. 설정 화면도 인증된 관리자 세션이 없어 접근하지 못했다. 저장소 공개 범위를 변경하거나 추가 토큰을 저장하지 않았다. Pages 활성화는 여전히 저장소 관리자가 Source를 GitHub Actions로 선택해야 한다.

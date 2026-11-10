@@ -1,13 +1,14 @@
-name: Word Collector MVP Android APK
+name: Word Collector Capacitor Android APK
 on:
   workflow_dispatch:
   push:
     branches:
       - feature/word-collector-mvp-20261104
     paths:
-      - "lib/mvp/**"
-      - "pubspec.yaml"
-      - "pubspec.lock"
+      - "www/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
       - "android/**"
       - ".github/workflows/mvp-android.yml"
 jobs:
@@ -17,27 +18,28 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/setup-node@v4
         with:
-          channel: stable
-          flutter-version: '3.47.9'
-          cache: true
-      - name: Get locked dependencies
-        run: flutter pub get --enforce-lockfile
-      - name: Analyze MVP source
-        run: dart analyze lib/mvp/main.dart
-      - name: Build Android APK
-        env:
-          WC_API_URL: ${{ vars.WC_API_URL }}
-          WC_ANON_KEY: ${{ vars.WC_ANON_KEY }}
-        run: |
-          flutter build apk --release \
-            --target lib/mvp/main.dart \
-            --dart-define=WC_API_URL="$WC_API_URL" \
-            --dart-define=WC_ANON_KEY="$WC_ANON_KEY"
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install locked application dependencies
+        run: npm ci
+      - name: Verify current application contracts
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/worker.test.mjs
+      - name: Synchronize bundled web application
+        run: npx --no-install cap sync android
+      - name: Build Capacitor debug APK
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
       - name: Upload APK for download
         uses: actions/upload-artifact@v4
         with:
-          name: word-collector-mvp-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: word-collector-capacitor-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           retention-days: 30

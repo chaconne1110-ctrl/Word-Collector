@@ -3,6 +3,7 @@ name: Deploy Word Collector web
 on:
   push:
     branches:
+      - main
       - feature/cloudflare-gemini35
     paths:
       - 'www/**'
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/feature/cloudflare-gemini35'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/cloudflare-gemini35'
     runs-on: ubuntu-latest
     permissions:
       contents: read
