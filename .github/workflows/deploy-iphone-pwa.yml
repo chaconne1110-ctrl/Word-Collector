@@ -1,0 +1,64 @@
+name: Deploy iPhone Word Collector PWA
+
+on:
+  push:
+    branches: [feature/ai-photo-generation-20261111]
+    paths:
+      - 'www/**'
+      - 'tests/iphone-web-pwa.test.cjs'
+      - '.github/workflows/deploy-iphone-pwa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test current Android and browser behavior
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+      - name: Validate PWA public assets
+        run: |
+          node --check www/analysis-api.js
+          node --check www/sw.js
+          node --check www/pwa-register.js
+          test -s www/index.html
+          test -s www/manifest.webmanifest
+          test -s www/icons/apple-touch-icon.png
+          test -f www/.nojekyll
+      - name: Upload portable web site files
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordcollector-iphone-pwa-public-site
+          path: www/
+          retention-days: 14
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: iphone-pwa-preview
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload latest public application
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: www/
+      - name: Deploy Word Collector iPhone PWA
+        id: deployment
+        uses: actions/deploy-pages@v4
