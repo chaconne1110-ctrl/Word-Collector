@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="../assets/fonts/JetBrainsMono/local.css">
 <link rel="stylesheet" href="../assets/fonts/NotoSansKR/local.css">
 <link rel="stylesheet" href="../assets/fonts/MaterialSymbols/local.css">
-<link rel="stylesheet" href="../assets/styles/quick_capture_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+<link rel="stylesheet" href="../assets/styles/quick_capture_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
     body {
       min-height: max(884px, 100dvh);
     }
@@ -18,6 +18,21 @@
 <style>
   [hidden] { display: none !important; }
   #analysis-review { scroll-margin-top: 5rem; }
+  /* Reserve the header's actual height, including the device safe area. */
+  body > header {
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+  }
+  body > main {
+    padding-top: 0;
+  }
+  #ai-auth-settings {
+    scroll-margin-top: calc(5rem + env(safe-area-inset-top, 0px));
+  }
+  #tester-token {
+    scroll-margin-block: calc(5rem + env(safe-area-inset-top, 0px)) 12rem;
+  }
   /* Keep tester authentication visible above the long scrollable input form. */
   #ai-auth-settings {
     flex: 0 0 auto;
@@ -141,6 +156,6 @@ function pasteClipboard() {
 }
 </script><script class="">function setCategoryMode(mode) { const btnAi = document.getElementById('btn-mode-ai'); const btnExisting = document.getElementById('btn-mode-existing'); const btnDirect = document.getElementById('btn-mode-direct'); const secAi = document.getElementById('section-mode-ai'); const secExisting = document.getElementById('section-mode-existing'); const secDirect = document.getElementById('section-mode-direct'); const badgeText = document.getElementById('cat-mode-badge-text'); const activeClass = 'py-2 px-1 rounded-md font-label-ui text-label-ui text-on-primary bg-primary shadow-sm text-center flex items-center justify-center gap-1 transition-all duration-200'; const inactiveClass = 'py-2 px-1 rounded-md font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface text-center flex items-center justify-center gap-1 transition-all duration-200'; [btnAi, btnExisting, btnDirect].forEach(btn => { if(btn) btn.className = inactiveClass; }); if (secAi) secAi.classList.add('hidden'); if (secExisting) secExisting.classList.add('hidden'); if (secDirect) secDirect.classList.add('hidden'); if (mode === 'ai') { if (btnAi) btnAi.className = activeClass; if (secAi) secAi.classList.remove('hidden'); if (badgeText) badgeText.textContent = 'AI 자동 분류 모드'; showToast('AI 자동 분류가 적용됩니다.'); } else if (mode === 'existing') { if (btnExisting) btnExisting.className = activeClass; if (secExisting) secExisting.classList.remove('hidden'); if (badgeText) badgeText.textContent = '기존 과목 선택 모드'; showToast('기존 과목 목록에서 선택합니다.'); } else if (mode === 'direct') { if (btnDirect) btnDirect.className = activeClass; if (secDirect) secDirect.classList.remove('hidden'); const directInput = document.getElementById('custom-subject-input'); if (directInput) directInput.focus(); if (badgeText) badgeText.textContent = '직접 입력 생성 모드'; showToast('새 과목명을 직접 입력하세요.'); } } function handleExistingSubjectChange(val) { showToast(`'${val}' 과목이 선택되었습니다.`); }</script>
 
-<nav class="fixed bottom-0 left-0 right-0 h-16 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/30 flex items-center justify-around z-50 px-2 pb-safe shadow-lg"><a href="../index.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-ui text-[12px]">홈</span></a><a href="code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">add_circle</span><span class="font-label-ui text-[12px] font-semibold">단어 추가</span></a><a href="../bookmarks.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-label-ui text-[12px]">북마크</span></a><a href="../_6/code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-label-ui text-[12px]">출력</span></a></nav>
+<nav class="fixed bottom-0 left-0 right-0 h-16 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/30 flex items-center justify-around z-50 px-2 pb-safe shadow-lg"><a href="../index.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-ui text-[12px]">홈</span></a><a href="code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-label-ui text-[12px] font-semibold">단어 추가</span></a><a href="../bookmarks.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-label-ui text-[12px]">북마크</span></a><a href="../_6/code.html" class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-label-ui text-[12px]">출력</span></a></nav>
 
 <script src="../data.js"></script><script src="../app.js"></script><script src="../diagrams.js"></script><script src="../analysis-api.js"></script><script src="analysis.js"></script></body></html>
