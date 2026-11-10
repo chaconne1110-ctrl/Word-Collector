@@ -72,9 +72,13 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
     // A tester token never enters localStorage, cookies, word records or backups.
-    // Native AndroidKeyStore / iOS Keychain plugins persist it; browsers are session-only.
+    // Native AndroidKeyStore / iOS Keychain plugins persist it. Browsers use tab-scoped sessionStorage only, never localStorage.
     let token = '';
     let local = false;
+    const WEB_SESSION_KEY = 'word-collector-web-tester-session-v1';
+    const session = () => {
+      try { return root.sessionStorage; } catch { return undefined; }
+    };
     const isAndroid = () => root.Capacitor?.getPlatform?.() === 'android';
     const isIOS = () => root.Capacitor?.getPlatform?.() === 'ios';
     const isNative = () => isAndroid() || isIOS();
@@ -100,13 +104,26 @@
           throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
         }
         if (isNative()) await requireSecureStore('save').save({token: validated});
+        else {
+          try { session()?.setItem(WEB_SESSION_KEY, validated); }
+          catch { /* Private browsing can disable session storage; token remains in memory. */ }
+        }
         token = validated;
         local = false;
         return {persistent: isNative()};
       },
       async restoreTesterToken() {
         if (token) return true;
-        if (!isNative()) return false; // Browser credentials are session-only.
+        if (!isNative()) {
+          const candidate = session()?.getItem(WEB_SESSION_KEY) || '';
+          if (!candidate) return false;
+          if (!/^wc_[a-f0-9]{64}$/.test(candidate)) {
+            try { session()?.removeItem(WEB_SESSION_KEY); } catch {}
+            return false;
+          }
+          token = candidate;
+          return true;
+        }
         const saved = await requireSecureStore('read').read();
         if (saved?.token && !/^wc_[a-f0-9]{64}$/.test(saved.token)) {
           throw new Error('저장된 인증 코드 형식을 확인해 주세요. 코드를 지우고 다시 등록하세요.');
@@ -116,10 +133,16 @@
       },
       async clearTesterToken() {
         if (isNative()) await requireSecureStore('clear').clear();
+        else {
+          try { session()?.removeItem(WEB_SESSION_KEY); } catch {}
+        }
         token = '';
         local = false;
       },
-      setLocalServer(value) { local = isIOS() ? false : Boolean(value); }, // iOS uses Cloudflare HTTPS only.
+      setLocalServer(value) {
+        const hostedWeb = !isNative() && root.location?.protocol === 'https:';
+        local = isIOS() || hostedWeb ? false : Boolean(value);
+      },
       async createImage(payload) {
         if (!token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({

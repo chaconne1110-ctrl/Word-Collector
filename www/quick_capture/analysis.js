@@ -291,6 +291,12 @@ reviewForm.addEventListener('submit', async event => {
 const testerToken = $('#tester-token');
 const testerStatus = $('#tester-status');
 const testerMode = $('#ai-server-mode');
+const isHostedWeb = location.protocol === 'https:' && !['android', 'ios'].includes(window.Capacitor?.getPlatform?.());
+if (isHostedWeb) {
+  const localOption = testerMode.querySelector('option[value="local"]');
+  if (localOption) localOption.disabled = true;
+  testerMode.value = 'cloud';
+}
 const registerTesterButton = $('#register-tester');
 const clearTesterButton = $('#clear-tester');
 let testerBusy = false;
@@ -317,7 +323,7 @@ async function configureTester(clear = false) {
     testerToken.value = '';
     testerStatus.textContent = result.persistent ?
       '인증 코드를 기기에 암호화해 저장했습니다. 다음 실행부터 자동으로 사용됩니다.' :
-      '인증 코드가 등록되었습니다. 웹에서는 현재 화면에서만 유지됩니다.';
+      '인증 코드를 웹 브라우저 세션에 등록했습니다. 브라우저 저장소를 정리하면 다시 등록해야 합니다.';
   } catch (error) {
     testerStatus.textContent = error?.message || '인증 코드를 저장하지 못했습니다.';
   } finally {
@@ -337,7 +343,7 @@ testerMode.addEventListener('change', async () => {
   try {
     const stored = await WordCollectorAI.restoreTesterToken();
     testerStatus.textContent = stored ?
-      '기기에 저장된 인증 코드가 자동 등록되어 있습니다.' :
+      '인증 코드가 현재 브라우저 세션에 등록되어 있습니다.' :
       'Cloudflare HTTPS를 선택했습니다. 인증 코드를 등록해 주세요.';
   } catch (error) {
     testerStatus.textContent = error?.message || '저장된 인증 코드를 불러오지 못했습니다.';
@@ -345,7 +351,7 @@ testerMode.addEventListener('change', async () => {
 });
 void WordCollectorAI.restoreTesterToken().then(stored => {
   if (stored && testerMode.value === 'cloud') {
-    testerStatus.textContent = '기기에 저장된 인증 코드가 자동 등록되어 있습니다.';
+    testerStatus.textContent = '인증 코드가 현재 브라우저 세션에 등록되어 있습니다.';
   }
 }).catch(error => {
   testerStatus.textContent = error?.message || '인증 코드 자동 등록에 실패했습니다.';

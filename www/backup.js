@@ -40,7 +40,9 @@
     try {
       const c = counts(readCurrent().data);
       $('current').textContent = `단어장 ${c.courses}개 · 단어 ${c.terms}개 · 북마크 ${c.saved}개\n저장 주소: ${location.origin}`;
-      $('export').disabled = false; $('pc-export').disabled = window.Capacitor?.getPlatform?.() === 'ios';
+      $('export').disabled = false;
+      $('pc-export').disabled = !['localhost', '127.0.0.1'].includes(location.hostname) ||
+        window.Capacitor?.getPlatform?.() === 'ios';
     } catch (error) {
       $('current').textContent = error.message + '\n저장 주소: ' + location.origin;
       $('export').disabled = true; $('pc-export').disabled = true;
@@ -48,7 +50,8 @@
   }
   async function download(data, name) {
     const content = JSON.stringify(data, null, 2);
-    if (window.Capacitor?.getPlatform?.() === 'ios') {
+    if (window.Capacitor?.getPlatform?.() === 'ios' ||
+        /iPhone|iPad|iPod/.test(navigator.userAgent)) {
       if (typeof window.WordCollectorSave !== 'function') throw new Error('iPhone 파일 저장 기능을 찾지 못했습니다.');
       return window.WordCollectorSave(new TextEncoder().encode(content), name, 'application/json');
     }

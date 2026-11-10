@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/cloudflare-gemini35
+      - feature/ai-photo-generation-20261111
     paths:
       - 'www/**'
       - '.github/workflows/deploy-web.yml'
@@ -19,7 +20,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/cloudflare-gemini35'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/cloudflare-gemini35' || github.ref == 'refs/heads/feature/ai-photo-generation-20261111'
     runs-on: ubuntu-latest
     permissions:
       contents: read
