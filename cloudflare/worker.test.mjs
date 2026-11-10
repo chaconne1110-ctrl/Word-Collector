@@ -247,7 +247,34 @@ test('admin model status exposes only safe upstream status code for upstream fai
     assert.equal(res.status,200);
     assert.equal(body.upstreamHttpStatus,403);
     assert.equal(body.available,false);
+    assert.match(body.keyFingerprint,/^[a-f0-9]{16}$/);
+    assert.equal(body.googleStatus,'UNKNOWN');
+    assert.equal(body.category,'OTHER');
     assert.equal(state.batchCalls,0);
     assert.ok(!JSON.stringify(body).includes('PRIVATE_API_KEY_OR_ERROR_BODY'));
   } finally { globalThis.fetch = old; }
+});
+
+
+test('owner model diagnostic categorizes Google 400 location error without sensitive text', async () => {
+  const {env,state}=mockEnv({live:true});
+  state.hash=await tokenHash(token);
+  const oldFetch=globalThis.fetch;
+  const upstreamText='User location is not supported for the API use.';
+  try {
+    globalThis.fetch=async () => new Response(JSON.stringify({
+      error:{code:400,status:'FAILED_PRECONDITION',message:upstreamText}
+    }),{status:400,headers:{'Content-Type':'application/json'}});
+    const res=await worker.fetch(new Request(baseUrl+'/internal/model-status',{
+      headers:{Authorization:'Bearer '+token}
+    }),env);
+    const result=await res.json();
+    assert.equal(result.upstreamHttpStatus,400);
+    assert.equal(result.googleStatus,'FAILED_PRECONDITION');
+    assert.equal(result.category,'REGION_UNSUPPORTED');
+    assert.match(result.keyFingerprint,/^[a-f0-9]{16}$/);
+    assert.ok(!JSON.stringify(result).includes(upstreamText));
+    assert.ok(!JSON.stringify(result).includes(env.GEMINI_API_KEY));
+    assert.equal(state.batchCalls,0);
+  } finally {globalThis.fetch=oldFetch;}
 });
