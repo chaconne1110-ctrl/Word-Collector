@@ -4,11 +4,12 @@
 
 CREATE TABLE global_daily_usage_new_1500 (
   usage_date TEXT PRIMARY KEY,
-  request_count INTEGER NOT NULL CHECK (request_count BETWEEN 0 AND 1500)
+  request_count INTEGER NOT NULL CHECK (request_count BETWEEN 0 AND 1500),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO global_daily_usage_new_1500 (usage_date, request_count)
-SELECT usage_date, request_count FROM global_daily_usage;
+INSERT INTO global_daily_usage_new_1500 (usage_date, request_count, updated_at)
+SELECT usage_date, request_count, updated_at FROM global_daily_usage;
 
 DROP TRIGGER IF EXISTS wc_global_insert;
 DROP TRIGGER IF EXISTS wc_global_update;
