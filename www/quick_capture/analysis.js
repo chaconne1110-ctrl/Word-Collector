@@ -6,8 +6,9 @@ const analysisLabel = $('#submit-btn-text');
 const termInput = $('#term-unified-input');
 const courseInput = $('#subject-select');
 const reviewCourse = $('#review-course');
+const customCourseInput = $('#custom-subject-input');
 const contextInput = $('#context-sentence-input');
-const inputControls = [termInput, courseInput, contextInput, ...$$('[id^="btn-mode-"], [id^="tab-ref-"]')];
+const inputControls = [termInput, courseInput, contextInput, customCourseInput, ...$$('[id^="btn-mode-"], [id^="tab-ref-"]')];
 const resultFields = {
   discipline: '전공',
   en: '영어 표제어',
@@ -48,7 +49,7 @@ diagramRefresh.addEventListener('click', () => {
 });
 let analyzing = false;
 courseInput.replaceChildren();
-for (const [id, [name]] of Object.keys(seed.courses).map(id => [id, courseNames(id)])) {
+for (const [id, [name]] of Object.keys(allCourses()).map(id => [id, courseNames(id)])) {
   courseInput.add(new Option(name, id));
   reviewCourse.add(new Option(name, id));
 }
@@ -66,7 +67,7 @@ function updateReviewTarget() {
 
 function currentNotebooks() {
   const latest = load();
-  return Object.keys(seed.courses).map(id => [id, courseNames(id)]).map(([id, [course]]) => ({
+  return Object.keys(allCourses()).map(id => [id, courseNames(id)]).map(([id, [course]]) => ({
     course,
     words: Object.values(latest.terms).filter(word => word.course === id).map(word =>
       Object.fromEntries(['en', 'ko', 'enDef', 'koDef'].map(field => [field, word[field] ?? ''])))
@@ -133,24 +134,42 @@ function showToast(message) {
 captureScreen.addEventListener('input', event => {
   if (!analyzing && inputControls.includes(event.target)) invalidateReview();
 });
-for (const control of inputControls.slice(3)) {
+for (const control of inputControls.filter(control => control.tagName === 'BUTTON')) {
   control.addEventListener('click', invalidateReview, {capture: true});
 }
 
 analysisButton.addEventListener('click', async () => {
   if (analyzing) return;
   const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
-  if ((!autoCourse && $('#section-mode-existing').classList.contains('hidden')) ||
-      $('#ref-section-sentence').classList.contains('hidden')) {
-    status.textContent = 'AI 자동 분류 또는 기존 과목 선택을 사용하고, 참고 문장 탭에서 분석해 주세요.';
+  const directCourse = !$('#section-mode-direct').classList.contains('hidden');
+  if ($('#ref-section-sentence').classList.contains('hidden')) {
+    status.textContent = '참고 문장 탭에서 분석해 주세요.';
     return;
   }
   const term = termInput.value.trim();
-  const selected = courseInput.value;
+  let selected = courseInput.value;
   const context = contextInput.value.trim();
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     return;
+  }
+  if (directCourse) {
+    const name = customCourseInput.value.trim();
+    if (!name || name.length > 60) {
+      status.textContent = '새 단어장 이름을 1~60자로 입력하세요.';
+      customCourseInput.focus();
+      return;
+    }
+    state = load();
+    selected = Object.keys(allCourses()).find(id => normalize(courseNames(id)[0]) === normalize(name));
+    if (!selected) {
+      selected = 'notebook_' + crypto.randomUUID();
+      if (!commit({...state, courses: {...allCourses(), [selected]: [name, '']}})) return;
+    }
+    for (const select of [courseInput, reviewCourse]) {
+      if (![...select.options].some(option => option.value === selected)) select.add(new Option(courseNames(selected)[0], selected));
+    }
+    courseInput.value = selected;
   }
   analyzing = true;
   draft = null;
@@ -165,12 +184,12 @@ analysisButton.addEventListener('click', async () => {
       ...(autoCourse ? {notebooks: currentNotebooks()} : {})});
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
     const target = autoCourse ?
-      Object.keys(seed.courses).find(id => courseNames(id)[0] === result.course) : selected;
+      Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
     if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, model: result.model, recommended: autoCourse ? target : null, selected: target,
+    draft = {term, referenceSentence: context, model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     reviewCourse.value = target;
     $('#review-course-row').hidden = !autoCourse;
@@ -211,7 +230,7 @@ reviewForm.addEventListener('submit', event => {
     item.course === draft.selected && normalize(item.en) === normalize(result.en));
   if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
   const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
-  const word = {...previous, ...result, course: draft.selected, pron: result.pos, analysisModel: draft.model};
+  const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
   delete word.diagram;
   if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
   if (commit({...state, terms: {...state.terms, [id]: word}})) {

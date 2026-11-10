@@ -25,7 +25,8 @@ function commit(next) {
 }
 
 const courseNames = id => state.courses?.[id] || seed.courses[id];
-const hasCourse = id => Object.hasOwn(seed.courses, id);
+const allCourses = () => ({...seed.courses, ...state.courses});
+const hasCourse = id => Object.hasOwn(allCourses(), id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
 const course = hasCourse(params.get('course')) ? params.get('course') :
@@ -100,8 +101,25 @@ function renderHome() {
   const input = $('#term-search-input');
   const clear = $('#clear-search-btn');
   const rows = $$('[data-subject]');
+  function syncCourses() {
+    for (const [id, names] of Object.entries(allCourses())) {
+      if (rows.some(row => row.dataset.subject === id)) continue;
+      const row = rows[0].cloneNode(true);
+      row.id = 'card-' + id;
+      row.dataset.subject = id;
+      $('h2', row).textContent = names[0];
+      const subtitle = $('h2', row).parentElement.nextElementSibling;
+      if (subtitle) subtitle.textContent = '직접 만든 단어장';
+      $('h2', row).nextElementSibling.textContent = names[1] || '';
+      $('.material-symbols-outlined', row).textContent = 'menu_book';
+      rows[0].parentElement.append(row);
+      rows.push(row);
+      rowLink(row, route('words.html', {course: id}));
+    }
+  }
   for (const row of rows) rowLink(row, route('words.html', {course: row.dataset.subject}));
   function render() {
+    syncCourses();
     let visible = 0;
     const q = input.value.trim().toLowerCase();
     for (const row of rows) {
@@ -145,6 +163,13 @@ function renderList() {
     semiconductor.dataset.filter = 'semiconductor';
     semiconductor.firstElementChild.textContent = '반도체공학';
     filters.append(semiconductor);
+    for (const id of Object.keys(allCourses())) {
+      if ($$('[data-filter]', filters).some(chip => chip.dataset.filter === id)) continue;
+      const chip = semiconductor.cloneNode(true);
+      chip.dataset.filter = id;
+      chip.firstElementChild.textContent = courseNames(id)[0];
+      filters.append(chip);
+    }
   } else {
     $('header h1').textContent = courseNames(course)[0];
     $('header button[aria-label="뒤로 가기"]').addEventListener('click', () => location.href = 'index.html');
@@ -254,7 +279,21 @@ function renderDeck() {
     const card = template.content.firstElementChild.cloneNode(true);
     card.dataset.termId = current;
     const flipper = $('.card-flipper', card);
-    bindFields(card, {...term, counter, backTitle: term.en + ' · 예문'});
+    const referenceSentence = typeof term.referenceSentence === 'string' ? term.referenceSentence.trim() : '';
+    bindFields(card, {...term, exampleEn: referenceSentence || term.exampleEn,
+      counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문')});
+    if (referenceSentence) {
+      const sentence = $('[data-field="exampleEn"]', card);
+      sentence.style.whiteSpace = 'pre-wrap';
+      const translation = $('[data-field="exampleKo"]', card);
+      if (translation) translation.parentElement.hidden = true;
+      const section = sentence.parentElement;
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        walker.currentNode.textContent = walker.currentNode.textContent
+          .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력');
+      }
+    }
     const savedImage = term.diagram ? diagramImage(term.diagram) : null;
     if (savedImage) {
       const imageSection = document.createElement('div');
@@ -330,7 +369,7 @@ function renderEditor() {
   }
   const term = state.terms[termId];
   const select = $('#subjectSelect');
-  select.replaceChildren(...Object.entries(seed.courses).map(([id, names]) =>
+  select.replaceChildren(...Object.entries(allCourses()).map(([id, names]) =>
     new Option(courseNames(id).join(' · '), id)));
   for (const [id, key] of Object.entries(fields)) {
     const input = document.getElementById(id);
