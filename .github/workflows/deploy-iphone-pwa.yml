@@ -8,6 +8,8 @@ on:
       - 'cloudflare/worker.mjs'
       - 'server/server.cjs'
       - 'tests/empty-course-user-choice.test.cjs'
+      - 'tests/empty-notebook-worker-compat.test.cjs'
+      - 'tests/empty-initial-notebooks.test.cjs'
       - 'tests/iphone-web-pwa.test.cjs'
       - '.github/workflows/deploy-iphone-pwa.yml'
   workflow_dispatch:
