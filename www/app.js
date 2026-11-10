@@ -25,7 +25,8 @@ function commit(next) {
 }
 
 const courseNames = id => state.courses?.[id] || seed.courses[id];
-const allCourses = () => ({...seed.courses, ...state.courses});
+const allCourses = () => Object.fromEntries(Object.entries({...seed.courses, ...state.courses})
+  .filter(([id]) => !(state.deletedCourses || []).includes(id)));
 const hasCourse = id => Object.hasOwn(allCourses(), id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
@@ -124,6 +125,7 @@ function renderHome() {
     const q = input.value.trim().toLowerCase();
     for (const row of rows) {
       const id = row.dataset.subject;
+      if (!hasCourse(id)) { row.hidden = true; continue; }
       $('h2', row).textContent = courseNames(id)[0];
       const ids = idsFor(false, id, 'all', '');
       const shown = courseNames(id).some(name => name.toLowerCase().includes(q)) ||
@@ -178,6 +180,21 @@ function renderList() {
       search.classList.toggle('hidden');
       if (!search.classList.contains('hidden')) input.focus();
     });
+    const deleteDialog = $('#delete-notebook-dialog');
+    $('#delete-notebook').addEventListener('click', () => {
+      const count = Object.values(state.terms).filter(term => term.course === course).length;
+      $('#delete-notebook-description').textContent = '“' + courseNames(course)[0] + '” 단어장과 저장된 단어 ' + count + '개, 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
+      deleteDialog.showModal();
+    });
+    $('#cancel-notebook-delete').addEventListener('click', () => deleteDialog.close());
+    $('#confirm-notebook-delete').addEventListener('click', () => {
+      state = load();
+      const courses = {...allCourses()};
+      delete courses[course];
+      const terms = Object.fromEntries(Object.entries(state.terms).filter(([, term]) => term.course !== course));
+      const saved = state.saved.filter(id => Object.hasOwn(terms, id));
+      if (commit({...state, courses, terms, saved, deletedCourses: [...new Set([...(state.deletedCourses || []), course])]})) location.replace('index.html');
+    });
     const renameDialog = $('#rename-notebook-dialog');
     const nameInput = $('#notebook-name');
     $('#notebook-settings').addEventListener('click', () => {
@@ -193,7 +210,7 @@ function renderList() {
       nameInput.setCustomValidity(name ? '' : '단어장 이름을 입력해 주세요.');
       if (!nameInput.reportValidity()) return;
       const names = [name, courseNames(course)[1]];
-      if (!commit({...state, courses: {...seed.courses, ...state.courses, [course]: names}})) return;
+      if (!commit({...state, courses: {...allCourses(), [course]: names}})) return;
       $('header h1').textContent = name;
       renameDialog.close();
     });
@@ -402,12 +419,12 @@ function saveTermChanges() {
 }
 
 function openDeleteModal() {
-  $('#deleteModal').hidden = false;
-  $('#deleteModal').classList.remove('hidden');
+  const modal = $('#deleteModal');
+  $('p', modal).textContent = '“' + state.terms[termId].en + '” 단어와 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
+  modal.showModal();
 }
 function closeDeleteModal() {
-  $('#deleteModal').hidden = true;
-  $('#deleteModal').classList.add('hidden');
+  $('#deleteModal').close();
 }
 function confirmDelete() {
   const terms = {...state.terms};
