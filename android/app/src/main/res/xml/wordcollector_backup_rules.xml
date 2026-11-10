@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Preserve existing app data but never transfer the tester credential. -->
+    <exclude domain="sharedpref" path="wordcollector_secure_tester_auth.xml" />
+</full-backup-content>
