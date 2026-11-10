@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261111-iphone-v1';
+const CACHE_NAME = PREFIX + '20261111-empty-v2';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
