@@ -170,7 +170,6 @@ analysisButton.addEventListener('click', async () => {
       if (![...select.options].some(option => option.value === selected)) select.add(new Option(courseNames(selected)[0], selected));
     }
     courseInput.value = selected;
-    setCategoryMode('existing');
   }
   analyzing = true;
   draft = null;
@@ -200,6 +199,7 @@ analysisButton.addEventListener('click', async () => {
     reviewForm.hidden = false;
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = '분석 완료. 아래 결과를 검토하세요.';
+    if (directCourse) reviewForm.requestSubmit();
   } catch (error) {
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.' : error instanceof TypeError || error instanceof SyntaxError ?
       'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
