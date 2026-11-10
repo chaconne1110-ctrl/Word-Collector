@@ -46,12 +46,12 @@ test('workerd + D1: authentication, single fetch, atomic concurrent quotas and K
   assert.equal(results.filter(r=>r.status===200).length,1);
   assert.equal(results.filter(r=>r.status===429).length,7); assert.equal(calls,1);
   assert.equal((await db.prepare('SELECT request_count FROM global_daily_usage WHERE usage_date=?').bind(date).first()).request_count,100);
-  await db.prepare('UPDATE global_daily_usage SET request_count=999 WHERE usage_date=?').bind(date).run();
+  await db.prepare('UPDATE global_daily_usage SET request_count=1499 WHERE usage_date=?').bind(date).run();
   results=await Promise.all(tokens.slice(1,9).map(token=>send(token)));
   assert.equal(results.filter(r=>r.status===200).length,1);
   assert.equal(results.filter(r=>r.status===429).length,7); assert.equal(calls,2);
   assert.equal((await db.prepare('SELECT SUM(request_count) AS total FROM tester_daily_usage WHERE usage_date=?').bind(date).first()).total,101);
-  assert.equal((await db.prepare('SELECT request_count FROM global_daily_usage WHERE usage_date=?').bind(date).first()).request_count,1000);
+  assert.equal((await db.prepare('SELECT request_count FROM global_daily_usage WHERE usage_date=?').bind(date).first()).request_count,1500);
   // Old day records do not block a new KST usage bucket.
   await db.prepare('UPDATE global_daily_usage SET request_count=0 WHERE usage_date=?').bind(date).run();
   await db.prepare('INSERT INTO tester_daily_usage(tester_id,usage_date,request_count) VALUES (?,?,100)').bind('tester-9','2000-01-01').run();
