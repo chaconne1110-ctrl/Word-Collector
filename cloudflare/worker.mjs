@@ -149,6 +149,9 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       }
       throw new ApiError(502, 'GEMINI_NETWORK: Gemini HTTPS 연결에 실패했습니다.');
     }
+    if (response.status >= 300 && response.status < 400) {
+      throw new ApiError(502, 'GEMINI_REDIRECT: Gemini가 예상하지 않은 리디렉션을 반환했습니다.');
+    }
     if (!response.ok) {
       // Never return the upstream body: it can include request details or credentials.
       if (response.status === 429) throw new ApiError(429, 'Gemini 호출 한도를 초과했습니다. 잠시 후 다시 분석해 주세요.');
@@ -216,7 +219,7 @@ function workerJson(data, status = 200) {
   });
 }
 
-function todayKST() {
+export function todayKST() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
@@ -328,7 +331,7 @@ function asError(error, phase = 'UNKNOWN') {
   }, 503);
 }
 
-export default {
+const handler = {
   async fetch(request, env) {
     const pathname = new URL(request.url).pathname;
 
@@ -358,8 +361,7 @@ export default {
 
     const isUsage = pathname === '/api/usage';
     const isAnalyze = pathname === '/api/analyze';
-    const isQuotaTest = pathname === '/internal/quota-test';
-    if (!(isUsage || isAnalyze || isQuotaTest)) {
+    if (!(isUsage || isAnalyze)) {
       return workerJson({error:'요청한 경로가 없습니다.'}, 404);
     }
     if (request.method !== (isUsage ? 'GET' : 'POST')) {
@@ -374,18 +376,6 @@ export default {
       const tester = await authenticate(request, env);
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
       if (isUsage) return workerJson(await usage(env, tester.tester_id));
-
-      if (isQuotaTest) {
-        if (tester.tester_id !== 'owner-test-01' ||
-            request.headers.get('X-Quota-Test') !== 'reserve-once') {
-          return workerJson({error:'테스트 권한이 없습니다.'}, 403);
-        }
-        const day = await reserveAnalysis(env, tester.tester_id);
-        return workerJson({
-          ok: true, geminiCalled: false, testReservation: 1,
-          usage: await usage(env, tester.tester_id, day)
-        });
-      }
 
       if (env.ENABLE_LIVE_ANALYSIS !== 'true') {
         return workerJson({error:'AI 분석 기능은 아직 준비 중입니다.'}, 503);
@@ -406,5 +396,27 @@ export default {
     } catch (error) {
       return asError(error, phase);
     }
+  }
+};
+
+const WEB_ORIGINS = new Set(['http://localhost:8000', 'http://127.0.0.1:8000',
+  'http://localhost:8787', 'http://127.0.0.1:8787', 'https://localhost', 'capacitor://localhost']);
+export default {
+  async fetch(request, env) {
+    const origin = request.headers.get('Origin');
+    if (origin && !WEB_ORIGINS.has(origin)) return workerJson({error:'허용되지 않은 출처입니다.'}, 403);
+    let response;
+    if (request.method === 'OPTIONS') {
+      response = new Response(null, {status:204});
+    } else {
+      response = await handler.fetch(request, env);
+    }
+    if (origin) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Vary', 'Origin');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    }
+    return response;
   }
 };

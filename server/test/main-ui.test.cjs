@@ -48,9 +48,9 @@ test('only public www files are served and DNS rebind hostnames are refused',asy
 test('Capacitor HTTP transport uses USB-local server without exposing a key or using browser fetch',async()=>{
   let call;
   const result={en:'eddy current',ko:'와전류',discipline:'전기공학',pos:'noun',enDef:'definition',koDef:'정의',exampleEn:'A sentence.',exampleKo:'예문.',course:'전자기학',model:'gemini-3.5-flash-lite'};
-  const client=createClient({native:true,nativeHttp:{request:async options=>{call=options;return {status:200,data:JSON.stringify(result)};}},fetchImpl:()=>assert.fail('must use native bridge')});
+  const client=createClient({baseUrl:'http://127.0.0.1:8787',native:true,nativeHttp:{request:async options=>{call=options;return {status:200,data:JSON.stringify(result)};}},fetchImpl:()=>assert.fail('must use native bridge')});
   const input={term:'와전류',autoCourse:true};assert.deepEqual(await client.request(input),result);
   assert.equal(call.url,'http://127.0.0.1:8787/api/analyze');assert.deepEqual(call.data,input);assert.ok(!JSON.stringify(call).includes('api-key'));
-  await assert.rejects(()=>createClient({native:true,nativeHttp:{request:async()=>({status:200,data:{...result,model:'other'}})}}).request(input),/모델 설정/);
-  await assert.rejects(()=>createClient({native:true}).request(input),/최신 APK/);
+  await assert.rejects(()=>createClient({baseUrl:'http://127.0.0.1:8787',native:true,nativeHttp:{request:async()=>({status:200,data:{...result,model:'other'}})}}).request(input),/모델 설정/);
+  await assert.rejects(()=>createClient({baseUrl:'http://127.0.0.1:8787',native:true}).request(input),/최신 APK/);
 });

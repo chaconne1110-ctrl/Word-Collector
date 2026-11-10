@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
-import worker from './worker.mjs';
+import worker, {todayKST} from './worker.mjs';
 
 globalThis.crypto ??= webcrypto;
 const token = 'wc_' + 'a'.repeat(64);
@@ -94,35 +94,22 @@ test('authenticated analyze remains blocked until explicit enable', async () => 
   assert.equal(state.batchCalls, 0);
 });
 
-test('admin quota test reserves exactly once without Gemini', async () => {
-  const {env, state} = mockEnv();
-  state.hash = await tokenHash(token);
-  const res = await worker.fetch(new Request(baseUrl + '/internal/quota-test', {
-    method:'POST', headers:{
-      Authorization:'Bearer ' + token, 'X-Quota-Test':'reserve-once'
-    }
-  }), env);
-  const body = await res.json();
-  assert.equal(res.status, 200);
-  assert.equal(state.batchCalls, 1);
-  assert.equal(body.geminiCalled, false);
-  assert.equal(body.usage.used, 1);
-  assert.equal(body.usage.remaining, 99);
+test('quota test route is absent in production', async () => {
+  const {env,state} = mockEnv();
+  const res = await worker.fetch(new Request(baseUrl + '/internal/quota-test', {method:'POST'}),env);
+  assert.equal(res.status,404); assert.equal(state.batchCalls,0);
 });
 
-test('D1 trigger rejection returns 429 and never calls Gemini', async () => {
-  const {env, state} = mockEnv({rejectBatch: true});
-  state.hash = await tokenHash(token);
-  const res = await worker.fetch(new Request(baseUrl + '/internal/quota-test', {
-    method:'POST', headers:{
-      Authorization:'Bearer ' + token, 'X-Quota-Test':'reserve-once'
-    }
-  }), env);
-  assert.equal(res.status, 429);
-  assert.equal(state.used, 0);
-  assert.equal(state.batchCalls, 1);
+test('D1 reservation rejection never calls Gemini', async () => {
+  const {env,state}=mockEnv({live:true,rejectBatch:true});
+  state.hash=await tokenHash(token);
+  const previous=globalThis.fetch;
+  globalThis.fetch=()=>assert.fail('Gemini must not be called');
+  try {
+    const res=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({term:'전압',course:'회로이론',autoCourse:false})}),env);
+    assert.equal(res.status,429); assert.equal(state.used,0);
+  } finally {globalThis.fetch=previous;}
 });
-
 
 test('legacy Transformer analyze generates real-format response with mock Gemini', async () => {
   const {env, state} = mockEnv({live: true});
@@ -176,4 +163,41 @@ test('legacy Transformer analyze generates real-format response with mock Gemini
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('quota date changes exactly at Korean midnight', () => {
+ const original=Date.now;
+ try {
+  Date.now=()=>Date.parse('2026-11-10T14:59:59.999Z');assert.equal(todayKST(),'2026-11-10');
+  Date.now=()=>Date.parse('2026-11-10T15:00:00.000Z');assert.equal(todayKST(),'2026-11-11');
+ } finally {Date.now=original;}
+});
+
+test('CORS preflight has a fixed origin allowlist and never reserves usage', async () => {
+ const {env,state}=mockEnv();
+ const good=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'OPTIONS',headers:{Origin:'http://127.0.0.1:8000'}}),env);
+ assert.equal(good.status,204);assert.equal(good.headers.get('Access-Control-Allow-Origin'),'http://127.0.0.1:8000');
+ const bad=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Origin:'https://untrusted.example'}}),env);
+ assert.equal(bad.status,403);assert.equal(bad.headers.get('Access-Control-Allow-Origin'),null);assert.equal(state.batchCalls,0);
+});
+
+test('Gemini failures are sanitized and never retried or switched', async () => {
+  const {env,state}=mockEnv({live:true}); state.hash=await tokenHash(token);
+  const original=globalThis.fetch;
+  try {
+    for (const mode of ['network','redirect','limited','upstream','json']) {
+      let calls=0;
+      globalThis.fetch=async url=>{
+        calls++; assert.match(url,/gemini-3\.5-flash-lite:generateContent$/);
+        if(mode==='network') throw new TypeError('private-upstream-detail');
+        if(mode==='redirect') return new Response('private-upstream-detail',{status:302,headers:{Location:'https://untrusted.example'}});
+        if(mode==='limited') return new Response('private-upstream-detail',{status:429});
+        if(mode==='upstream') return new Response('private-upstream-detail',{status:503});
+        return new Response('private-upstream-detail');
+      };
+      const res=await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({term:'와전류',course:'전자기학',autoCourse:false})}),env);
+      assert.equal(res.status,mode==='limited'?429:502);assert.equal(calls,1);
+      const body=await res.text();assert.ok(!body.includes('private-upstream-detail'));assert.ok(!body.includes(token));assert.ok(!body.includes(env.GEMINI_API_KEY));
+    }
+  } finally {globalThis.fetch=original;}
 });

@@ -78,3 +78,5 @@ WordCollector_SafeBackups/
 *.apk
 *.aab
 dist/
+cloudflare/wrangler.local.jsonc
+.wrangler/
