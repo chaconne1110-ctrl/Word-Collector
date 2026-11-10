@@ -60,7 +60,10 @@ test('health is available without exposing secrets', async () => {
   assert.equal(body.model, 'gemini-3.5-flash-lite');
   assert.equal(body.status, 'disabled-for-review');
   assert.equal(body.dailyLimitPerTester, 100);
-  assert.equal(body.dailyGlobalLimit, 1000);
+  assert.equal(body.dailyGlobalLimit, 1500);
+  assert.equal(body.imageGenerationEnabled, false);
+  assert.equal(body.dailyImageLimitPerTester, 5);
+  assert.equal(body.dailyImageGlobalLimit, 50);
   assert.ok(!JSON.stringify(body).includes('dummy-not-real'));
 });
 
