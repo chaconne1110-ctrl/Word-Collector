@@ -131,7 +131,9 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     }, timeoutMs);
   });
   const request = (async () => {
-    const response = await fetchImpl(ENDPOINT, {
+    let response;
+    try {
+    response = await fetchImpl(ENDPOINT, {
       method: 'POST', signal: controller.signal, redirect: 'error',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
@@ -141,12 +143,23 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
           responseMimeType: 'application/json', responseSchema: responseSchema(input)}
       })
     });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new ApiError(504, 'Gemini HTTPS 응답 시간이 초과되었습니다.');
+      }
+      throw new ApiError(502, 'GEMINI_NETWORK: Gemini HTTPS 연결에 실패했습니다.');
+    }
     if (!response.ok) {
       // Never return the upstream body: it can include request details or credentials.
       if (response.status === 429) throw new ApiError(429, 'Gemini 호출 한도를 초과했습니다. 잠시 후 다시 분석해 주세요.');
       throw new ApiError(502, 'Gemini 분석 요청에 실패했습니다. 서버의 키 설정과 서비스 상태를 확인해 주세요.');
     }
-    const payload = await response.json();
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new ApiError(502, 'GEMINI_UPSTREAM_JSON: Gemini 응답을 읽지 못했습니다.');
+    }
     const finishReason = payload?.candidates?.[0]?.finishReason;
     if (finishReason && finishReason !== 'STOP') {
       throw new ApiError(502, 'AI 응답이 정상적으로 완료되지 않았습니다. 내용을 저장하지 말고 다시 분석해 주세요.');
@@ -300,13 +313,19 @@ async function readWorkerJson(request) {
   }
 }
 
-function asError(error) {
+function asError(error, phase = 'UNKNOWN') {
   const detail = String(error?.message || '');
   if (detail.includes('daily_limit_100') || detail.includes('global_limit_1000')) {
     return workerJson({error:'오늘의 호출 한도에 도달했습니다.'}, 429);
   }
   if (error instanceof ApiError) return workerJson({error: error.message}, error.status);
-  return workerJson({error: 'AI 서버 연결 또는 응답 처리에 실패했습니다.'}, 503);
+  // Safe diagnostic only: never expose exception messages, input text, or credentials.
+  const kind = ['TypeError','ReferenceError','SyntaxError','RangeError','AbortError']
+    .includes(error?.name) ? error.name.toUpperCase() : 'UNEXPECTED';
+  return workerJson({
+    error: 'AI 서버 연결 또는 응답 처리에 실패했습니다.',
+    diagnosticCode: phase + '_' + kind
+  }, 503);
 }
 
 export default {
@@ -350,6 +369,7 @@ export default {
       return workerJson({error:'서버 설정을 확인해 주세요.'}, 503);
     }
 
+    let phase = 'AUTH';
     try {
       const tester = await authenticate(request, env);
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
@@ -370,17 +390,21 @@ export default {
       if (env.ENABLE_LIVE_ANALYSIS !== 'true') {
         return workerJson({error:'AI 분석 기능은 아직 준비 중입니다.'}, 503);
       }
+      phase = 'INPUT';
       const input = validateInput(await readWorkerJson(request));
 
       // Charge once per accepted analysis attempt, including upstream failures.
       // No automatic retry or model switch. Gemini is called exactly once per attempt.
+      phase = 'QUOTA';
       await reserveAnalysis(env, tester.tester_id);
+      phase = 'GEMINI';
       const output = await analyze(input, {
         apiKey: env.GEMINI_API_KEY, fetchImpl: fetch, timeoutMs: 30000
       });
+      phase = 'OUTPUT';
       return workerJson(output);
     } catch (error) {
-      return asError(error);
+      return asError(error, phase);
     }
   }
 };
