@@ -385,22 +385,42 @@ const handler = {
         if (tester.tester_id !== 'owner-test-01') {
           return workerJson({error: '관리자 전용 요청입니다.'}, 403);
         }
+        const digest = await crypto.subtle.digest(
+          'SHA-256', new TextEncoder().encode(env.GEMINI_API_KEY)
+        );
+        const keyFingerprint = Array.from(new Uint8Array(digest)).slice(0, 8)
+          .map(n => n.toString(16).padStart(2, '0')).join('');
         try {
           const r = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`,
             {method: 'GET', redirect: 'manual', headers: {'x-goog-api-key': env.GEMINI_API_KEY}}
           );
-          if (!r.ok) return workerJson({model: MODEL, upstreamHttpStatus: r.status, available: false});
+          if (!r.ok) {
+            let googleStatus = 'UNKNOWN';
+            let category = 'OTHER';
+            try {
+              const e = (await r.json())?.error;
+              if (typeof e?.status === 'string' && /^[A-Z_]{1,50}$/.test(e.status)) googleStatus = e.status;
+              const msg = String(e?.message || '');
+              if (/location is not supported|region is not supported|country is not supported/i.test(msg)) category = 'REGION_UNSUPPORTED';
+              else if (/API key not valid|invalid API key|API_KEY_INVALID/i.test(msg)) category = 'KEY_INVALID';
+              else if (/API key.*restrict|IP address.*restrict|HTTP referrer.*restrict/i.test(msg)) category = 'KEY_RESTRICTED';
+              else if (/billing|payment account/i.test(msg)) category = 'BILLING_REQUIRED';
+              else if (/disabled|not enabled/i.test(msg)) category = 'API_DISABLED';
+              else if (/model.*not found|model.*not supported/i.test(msg)) category = 'MODEL_UNAVAILABLE';
+            } catch {}
+            return workerJson({model: MODEL, upstreamHttpStatus:r.status, available:false, googleStatus, category, keyFingerprint});
+          }
           const info = await r.json();
           return workerJson({
-            model: MODEL,
-            upstreamHttpStatus: r.status,
+            model: MODEL, upstreamHttpStatus:r.status,
             available: info?.name === `models/${MODEL}`,
             generateContentSupported: Array.isArray(info?.supportedGenerationMethods)
-              ? info.supportedGenerationMethods.includes('generateContent') : null
+              ? info.supportedGenerationMethods.includes('generateContent') : null,
+            keyFingerprint
           });
         } catch {
-          return workerJson({error: 'GEMINI_MODEL_STATUS_NETWORK'}, 502);
+          return workerJson({error:'GEMINI_MODEL_STATUS_NETWORK'},502);
         }
       }
 
