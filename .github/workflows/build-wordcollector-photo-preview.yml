@@ -1,3 +1,4 @@
+# Rebuild request: 2026-11-11 newest Word Collector source snapshot (no app source changes)
 # Source snapshot build: include latest README, safe Cloudflare config, and verified Gemini imageConfig fix.
 name: Build Word Collector AI photo quota 1500 preview APK
 
