@@ -77,6 +77,7 @@ test('Browser credentials remain temporary and are not persisted', async () => {
   const calls = [];
   function makeBrowser() {
     const scope = {
+      AbortSignal,
       fetch: async (url, data) => {
         calls.push({url, data});
         return {status: 200, json: async () => response};
