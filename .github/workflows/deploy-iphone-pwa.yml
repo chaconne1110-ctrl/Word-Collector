@@ -5,6 +5,9 @@ on:
     branches: [feature/ai-photo-generation-20261111]
     paths:
       - 'www/**'
+      - 'cloudflare/worker.mjs'
+      - 'server/server.cjs'
+      - 'tests/empty-course-user-choice.test.cjs'
       - 'tests/iphone-web-pwa.test.cjs'
       - '.github/workflows/deploy-iphone-pwa.yml'
   workflow_dispatch:
