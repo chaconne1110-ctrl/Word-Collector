@@ -13,14 +13,14 @@ CREATE TABLE IF NOT EXISTS global_daily_image_usage (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TRIGGER IF NOT EXISTS wc_image_personal_insert
-BEFORE INSERT ON tester_daily_image_usage WHEN NEW.request_count > 5
-BEGIN SELECT RAISE(ABORT, 'image_limit_5'); END;
+BEFORE INSERT ON tester_daily_image_usage WHEN NEW.request_count > 100
+BEGIN SELECT RAISE(ABORT, 'image_limit_100'); END;
 CREATE TRIGGER IF NOT EXISTS wc_image_personal_update
-BEFORE UPDATE OF request_count ON tester_daily_image_usage WHEN NEW.request_count > 5
-BEGIN SELECT RAISE(ABORT, 'image_limit_5'); END;
+BEFORE UPDATE OF request_count ON tester_daily_image_usage WHEN NEW.request_count > 100
+BEGIN SELECT RAISE(ABORT, 'image_limit_100'); END;
 CREATE TRIGGER IF NOT EXISTS wc_image_global_insert
-BEFORE INSERT ON global_daily_image_usage WHEN NEW.request_count > 50
-BEGIN SELECT RAISE(ABORT, 'image_global_limit_50'); END;
+BEFORE INSERT ON global_daily_image_usage WHEN NEW.request_count > 1500
+BEGIN SELECT RAISE(ABORT, 'image_global_limit_1500'); END;
 CREATE TRIGGER IF NOT EXISTS wc_image_global_update
-BEFORE UPDATE OF request_count ON global_daily_image_usage WHEN NEW.request_count > 50
-BEGIN SELECT RAISE(ABORT, 'image_global_limit_50'); END;
+BEFORE UPDATE OF request_count ON global_daily_image_usage WHEN NEW.request_count > 1500
+BEGIN SELECT RAISE(ABORT, 'image_global_limit_1500'); END;
