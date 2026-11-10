@@ -181,11 +181,13 @@ function renderList() {
       if (!search.classList.contains('hidden')) input.focus();
     });
     const deleteDialog = $('#delete-notebook-dialog');
-    $('#delete-notebook').addEventListener('click', () => {
+    function openNotebookDelete() {
       const count = Object.values(state.terms).filter(term => term.course === course).length;
       $('#delete-notebook-description').textContent = '“' + courseNames(course)[0] + '” 단어장과 저장된 단어 ' + count + '개, 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
       deleteDialog.showModal();
-    });
+    }
+    $('#delete-notebook').addEventListener('click', openNotebookDelete);
+    $('#delete-notebook-shortcut').addEventListener('click', openNotebookDelete);
     $('#cancel-notebook-delete').addEventListener('click', () => deleteDialog.close());
     $('#confirm-notebook-delete').addEventListener('click', () => {
       state = load();
