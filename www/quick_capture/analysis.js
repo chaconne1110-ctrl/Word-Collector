@@ -48,7 +48,7 @@ diagramRefresh.addEventListener('click', () => {
 });
 let analyzing = false;
 courseInput.replaceChildren();
-for (const [id, [name]] of Object.entries(seed.courses)) {
+for (const [id, [name]] of Object.keys(seed.courses).map(id => [id, courseNames(id)])) {
   courseInput.add(new Option(name, id));
   reviewCourse.add(new Option(name, id));
 }
@@ -60,13 +60,13 @@ function supportsEddyDiagram(en, selected) {
 
 function updateReviewTarget() {
   $('#review-target').textContent = draft.term +
-    (draft.recommended ? ' · AI 추천: ' + seed.courses[draft.recommended][0] : '') +
-    ' · 저장: ' + seed.courses[draft.selected][0];
+    (draft.recommended ? ' · AI 추천: ' + courseNames(draft.recommended)[0] : '') +
+    ' · 저장: ' + courseNames(draft.selected)[0];
 }
 
 function currentNotebooks() {
   const latest = load();
-  return Object.entries(seed.courses).map(([id, [course]]) => ({
+  return Object.keys(seed.courses).map(id => [id, courseNames(id)]).map(([id, [course]]) => ({
     course,
     words: Object.values(latest.terms).filter(word => word.course === id).map(word =>
       Object.fromEntries(['en', 'ko', 'enDef', 'koDef'].map(field => [field, word[field] ?? ''])))
@@ -161,11 +161,11 @@ analysisButton.addEventListener('click', async () => {
   status.textContent = 'Gemini에 분석을 요청하고 있어요.';
   try {
     const result = await WordCollectorAI.request({term,
-      course: autoCourse ? undefined : seed.courses[selected][0], context, autoCourse,
+      course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
       ...(autoCourse ? {notebooks: currentNotebooks()} : {})});
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
     const target = autoCourse ?
-      Object.keys(seed.courses).find(id => seed.courses[id][0] === result.course) : selected;
+      Object.keys(seed.courses).find(id => courseNames(id)[0] === result.course) : selected;
     if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');

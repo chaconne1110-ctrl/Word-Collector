@@ -24,6 +24,7 @@ function commit(next) {
   }
 }
 
+const courseNames = id => state.courses?.[id] || seed.courses[id];
 const hasCourse = id => Object.hasOwn(seed.courses, id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
@@ -105,8 +106,9 @@ function renderHome() {
     const q = input.value.trim().toLowerCase();
     for (const row of rows) {
       const id = row.dataset.subject;
+      $('h2', row).textContent = courseNames(id)[0];
       const ids = idsFor(false, id, 'all', '');
-      const shown = seed.courses[id].some(name => name.toLowerCase().includes(q)) ||
+      const shown = courseNames(id).some(name => name.toLowerCase().includes(q)) ||
         ids.some(term => matches(state.terms[term], q));
       row.hidden = !shown;
       visible += Number(shown);
@@ -144,14 +146,33 @@ function renderList() {
     semiconductor.firstElementChild.textContent = '반도체공학';
     filters.append(semiconductor);
   } else {
-    $('header h1').textContent = seed.courses[course][0];
+    $('header h1').textContent = courseNames(course)[0];
     $('header button[aria-label="뒤로 가기"]').addEventListener('click', () => location.href = 'index.html');
     const search = $('#searchContainer');
     $('#searchToggleBtn').addEventListener('click', () => {
       search.classList.toggle('hidden');
       if (!search.classList.contains('hidden')) input.focus();
     });
-    $('header button[aria-label="필터"]').addEventListener('click', () => $('.filter-chip').focus());
+    const renameDialog = $('#rename-notebook-dialog');
+    const nameInput = $('#notebook-name');
+    $('#notebook-settings').addEventListener('click', () => {
+      nameInput.value = courseNames(course)[0];
+      renameDialog.showModal();
+      nameInput.focus();
+      nameInput.select();
+    });
+    $('#cancel-notebook-rename').addEventListener('click', () => renameDialog.close());
+    $('#rename-notebook-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      nameInput.setCustomValidity(name ? '' : '단어장 이름을 입력해 주세요.');
+      if (!nameInput.reportValidity()) return;
+      const names = [name, courseNames(course)[1]];
+      if (!commit({...state, courses: {...seed.courses, ...state.courses, [course]: names}})) return;
+      $('header h1').textContent = name;
+      renameDialog.close();
+    });
+    nameInput.addEventListener('input', () => nameInput.setCustomValidity(''));
     input.value = query;
     if (query) search.classList.remove('hidden');
     input.addEventListener('input', draw);
@@ -188,7 +209,10 @@ function renderList() {
       }
       chip.classList.add(...(active ? ['bg-primary', 'text-on-primary'] : ['bg-surface-container-low', 'text-on-surface-variant']));
       const count = idsFor(bookmark, course, chip.dataset.filter, q).length;
-      if (bookmark) chip.lastElementChild.textContent = count;
+      if (bookmark) {
+        if (hasCourse(chip.dataset.filter)) chip.firstElementChild.textContent = courseNames(chip.dataset.filter)[0];
+        chip.lastElementChild.textContent = count;
+      }
       else chip.textContent = ({all: '전체', high: '★ 중요도: 상', medium: '★ 중요도: 중', saved: '북마크'})[chip.dataset.filter] + ' (' + count + ')';
     }
   }
@@ -213,8 +237,8 @@ function renderDeck() {
     const position = ids.indexOf(current);
     const counter = [position + 1, ids.length].map(n => String(n).padStart(2, '0')).join(' / ');
     $('#topActiveCounter').textContent = counter;
-    $('#subjectBadgeKr').textContent = fromBookmark ? '북마크' : seed.courses[course][0];
-    $('#subjectBadgeEn').textContent = term ? seed.courses[term.course][1] : '';
+    $('#subjectBadgeKr').textContent = fromBookmark ? '북마크' : courseNames(course)[0];
+    $('#subjectBadgeEn').textContent = term ? courseNames(term.course)[1] : '';
     prev.disabled = position <= 0;
     next.disabled = position < 0 || position >= ids.length - 1;
     const dots = $('#verticalIndicators');
@@ -307,12 +331,12 @@ function renderEditor() {
   const term = state.terms[termId];
   const select = $('#subjectSelect');
   select.replaceChildren(...Object.entries(seed.courses).map(([id, names]) =>
-    new Option(names.join(' · '), id)));
+    new Option(courseNames(id).join(' · '), id)));
   for (const [id, key] of Object.entries(fields)) {
     const input = document.getElementById(id);
     input.value = term[key] ?? (key === 'discipline' ? '전자전기공학' : '');
   }
-  $('#edit-course-label').textContent = seed.courses[term.course][0];
+  $('#edit-course-label').textContent = courseNames(term.course)[0];
   $('header button[aria-label^="수정 취소"]').onclick = openFlashcardDirect;
   const diagramButton = $('[onclick="regenerateAiDiagram()"]');
   diagramButton.removeAttribute('onclick');
