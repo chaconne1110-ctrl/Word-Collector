@@ -18,8 +18,52 @@
 <style>
   [hidden] { display: none !important; }
   #analysis-review { scroll-margin-top: 5rem; }
+  /* Keep tester authentication visible above the long scrollable input form. */
+  #ai-auth-settings {
+    flex: 0 0 auto;
+    min-height: 3.25rem;
+    margin: 1rem 1rem .5rem;
+    padding: .8rem 1rem;
+    border: 1px solid #dbe1f0;
+    border-radius: .75rem;
+    background: #f2f3ff;
+    color: #12213e;
+  }
+  #ai-auth-settings > summary {
+    cursor: pointer;
+    padding: .25rem 0;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  #ai-auth-settings[open] > summary { margin-bottom: .75rem; }
+  #ai-auth-settings label { display: block; margin: .75rem 0; font-weight: 600; }
+  #ai-auth-settings select, #ai-auth-settings input {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    margin-top: .35rem;
+    padding: .5rem .75rem;
+    border: 1px solid #c4cbe0;
+    border-radius: .5rem;
+    background: white;
+    color: #12213e;
+    font-weight: 400;
+  }
+  #ai-auth-settings button {
+    margin: .25rem .5rem .5rem 0;
+    padding: .6rem 1.1rem;
+    border-radius: .5rem;
+    background: #00236f;
+    color: white;
+    font-weight: 700;
+  }
+  #ai-auth-settings #clear-tester { background: #e2e7f4; color: #00236f; }
+  #ai-auth-settings #tester-status { font-size: .8rem; line-height: 1.5; }
 </style>
-</head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight whitespace-nowrap">Quick Capture</h1></div><div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-caption text-caption"><span class="material-symbols-outlined text-[14px]">auto_awesome</span><span class="whitespace-nowrap">AI 어시스턴트 활성</span></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface overflow-y-auto"><details class="mx-4 mt-4 p-3 rounded-lg bg-surface-container-low"><summary>AI 서버 · 테스터 인증</summary>
+</head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight whitespace-nowrap">Quick Capture</h1></div><div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-caption text-caption"><span class="material-symbols-outlined text-[14px]">auto_awesome</span><span class="whitespace-nowrap">AI 어시스턴트 활성</span></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface overflow-y-auto"><details id="ai-auth-settings" class="mx-4 mt-4 p-3 rounded-lg bg-surface-container-low"><summary>AI 서버 · 테스터 인증</summary>
 <label class="block">서버 <select id="ai-server-mode"><option value="cloud">Cloudflare HTTPS</option><option value="local">PC 로컬 개발 서버</option></select></label>
 <label class="block">테스터 인증 코드 <input id="tester-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="67" class="w-full rounded p-2" /></label>
 <button id="register-tester" type="button">등록</button> <button id="clear-tester" type="button">지우기</button>
