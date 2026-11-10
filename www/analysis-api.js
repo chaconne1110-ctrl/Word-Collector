@@ -37,6 +37,36 @@
         if (typeof result[key] !== 'string' || !result[key].trim()) throw new Error('필수 분석 항목을 받지 못했습니다. 다시 분석해 주세요.');
       }
       return result;
+    }, async requestImage(payload) {
+      if (!cloud) throw new Error('사진 생성은 Cloudflare HTTPS 서버에서만 사용할 수 있습니다.');
+      let status, result;
+      if (native) {
+        if (typeof nativeHttp?.request !== 'function') throw new Error('이미지 생성 기능이 포함된 APK가 필요합니다.');
+        let response;
+        try {
+          response = await nativeHttp.request({
+            url:baseUrl + '/api/image', method:'POST', headers, data:payload,
+            connectTimeout:10000, readTimeout:65000, disableRedirects:true
+          });
+        } catch {
+          throw new Error('사진 생성 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
+        }
+        status = response.status;
+        result = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      } else {
+        const response = await fetchImpl(baseUrl + '/api/image', {
+          method:'POST', headers, body:JSON.stringify(payload),
+          signal:AbortSignal.timeout(65000), redirect:'error'
+        });
+        status = response.status;
+        result = await response.json();
+      }
+      if (!(status >= 200 && status < 300)) throw new Error(result?.error || '사진 생성 요청이 실패했습니다.');
+      if (!['image/png','image/jpeg','image/webp'].includes(result?.image?.mimeType) ||
+          typeof result?.image?.data !== 'string' || result.image.data.length < 100) {
+        throw new Error('사진 생성 결과가 올바르지 않습니다.');
+      }
+      return result;
     }};
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
@@ -88,6 +118,13 @@
         local = false;
       },
       setLocalServer(value) { local = Boolean(value); },
+      async createImage(payload) {
+        if (!token) await root.WordCollectorAI.restoreTesterToken();
+        return createClient({
+          baseUrl:CLOUD_URL, token, native:isAndroid(),
+          nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
+        }).requestImage(payload);
+      },
       async request(payload) {
         if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
