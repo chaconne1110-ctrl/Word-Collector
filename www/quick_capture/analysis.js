@@ -140,8 +140,8 @@ for (const control of inputControls.filter(control => control.tagName === 'BUTTO
 
 analysisButton.addEventListener('click', async () => {
   if (analyzing) return;
-  const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
   const directCourse = !$('#section-mode-direct').classList.contains('hidden');
+  const autoCourse = !directCourse && !$('#section-mode-ai').classList.contains('hidden');
   if ($('#ref-section-sentence').classList.contains('hidden')) {
     status.textContent = '참고 문장 탭에서 분석해 주세요.';
     return;
@@ -170,6 +170,7 @@ analysisButton.addEventListener('click', async () => {
       if (![...select.options].some(option => option.value === selected)) select.add(new Option(courseNames(selected)[0], selected));
     }
     courseInput.value = selected;
+    setCategoryMode('existing');
   }
   analyzing = true;
   draft = null;
