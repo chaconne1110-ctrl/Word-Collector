@@ -370,7 +370,7 @@ function renderDeck() {
     photoHeading.className = 'font-label-ui text-[12px] font-bold text-primary';
     photoHeading.textContent = 'AI 생성 학습 사진';
     const photoImage = document.createElement('img');
-    photoImage.alt = term.en + '의 AI 생성 학습 사진';
+    photoImage.alt = (term.en || term.ko) + '의 AI 생성 학습 사진';
     photoImage.className = 'w-full max-h-64 rounded-lg object-contain bg-surface-container-low';
     photoImage.hidden = true;
     const photoStatus = document.createElement('p');
@@ -407,9 +407,9 @@ function renderDeck() {
       photoStatus.textContent = 'AI가 사진을 제작 중입니다. 약간의 시간이 걸릴 수 있습니다.';
       try {
         const result = await WordCollectorAI.createImage({
-          word:term.en, koreanMeaning:term.ko,
+          word:term.en || term.ko, koreanMeaning:term.ko,
           subject:courseNames(term.course)[0],
-          definition:(term.koDef || term.enDef || term.ko).slice(0, 700)
+          definition:(term.koDef || term.enDef || term.ko || term.en).slice(0, 700)
         });
         await WordCollectorPhoto.save(photoTermId, result.image);
         await refreshPhoto();
@@ -545,8 +545,9 @@ function openFlashcardDirect() {
 function saveTermChanges() {
   const updated = {...state.terms[termId]};
   for (const [id, key] of Object.entries(fields)) updated[key] = document.getElementById(id).value.trim();
-  if (!updated.en || !updated.ko) {
-    alert('영어 표제어와 한국어 뜻을 입력해 주세요.');
+  const validation = WordCollectorPartialTerm.validate(updated);
+  if (!validation.ok) {
+    alert(validation.message);
     return;
   }
   const moved = updated.course !== state.terms[termId].course;

@@ -94,7 +94,7 @@
 <!-- Bottom Floating Action Bar & Microcopy -->
 <form id="analysis-review" hidden class="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/30 space-y-3">
   <h2 class="font-bold text-lg">분석 결과 검토</h2>
-  <p>뜻과 예문을 확인하고 필요한 부분을 수정한 뒤 저장하세요.</p>
+  <p>빈 항목이 있어도 저장할 수 있습니다. 영어 표제어와 한국어 뜻 중 하나만 입력하면 됩니다. 비어 있는 항목은 나중에 수정할 수 있습니다.</p>
   <p id="review-target" class="font-semibold"></p>
   <p id="review-analysis-basis" class="text-sm text-on-surface-variant"></p>
   <section id="recommendation-details" hidden class="rounded-lg p-3 bg-surface-container-low space-y-2">
@@ -171,4 +171,4 @@ function pasteClipboard() {
 
 <nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-on-surface-variant hover:text-on-surface" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-primary-container font-semibold transition-colors" data-path="quick-capture" href="code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
 
-<script src="../data.js"></script><script src="../app.js"></script><script src="../diagrams.js"></script><script src="../analysis-api.js"></script><script src="../photo-store.js"></script><script src="analysis.js"></script><script defer src="../pwa-register.js"></script></body></html>
+<script src="../data.js"></script><script src="../app.js"></script><script src="../diagrams.js"></script><script src="../analysis-api.js"></script><script src="../photo-store.js"></script><script src="../partial-term.js"></script><script src="analysis.js"></script><script defer src="../pwa-register.js"></script></body></html>

@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261111-notebook-fix-v4';
+const CACHE_NAME = PREFIX + '20261111-partial-save-v5';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -46,6 +46,7 @@ const APP_SHELL = [
   "manifest.webmanifest",
   "pdf/code.html",
   "photo-store.js",
+  "partial-term.js",
   "pwa-register.js",
   "quick_capture/analysis.js",
   "quick_capture/code.html",

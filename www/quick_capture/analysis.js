@@ -37,7 +37,7 @@ reviewPhotoButton.addEventListener('click', async () => {
   reviewPhotoStatus.textContent = 'AI 학습 사진을 제작 중입니다.';
   try {
     const r = await WordCollectorAI.createImage({
-      word:reviewForm.elements.en.value.trim(),
+      word:reviewForm.elements.en.value.trim() || reviewForm.elements.ko.value.trim(),
       koreanMeaning:reviewForm.elements.ko.value.trim(),
       subject:courseNames(draft.selected)[0],
       definition:(reviewForm.elements.koDef.value || reviewForm.elements.enDef.value).slice(0,700)
@@ -166,7 +166,7 @@ for (const [key, title] of Object.entries(resultFields)) {
   label.textContent = title;
   const input = document.createElement('textarea');
   input.name = key;
-  input.required = true;
+  input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
   input.rows = ['en', 'ko', 'pos'].includes(key) ? 1 : 2;
   input.className = 'block w-full rounded-lg p-2 bg-surface-container-low';
@@ -273,7 +273,7 @@ analysisButton.addEventListener('click', async () => {
     reviewForm.hidden = false;
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
-      '분석은 완료됐지만 서버 호환 모드에서 품사와 예문 번역은 제공되지 않습니다. 아래 두 항목을 직접 입력한 다음 저장해 주세요.' :
+      '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
     if (directCourse && !result.needsManualCompletion) reviewForm.requestSubmit();
   } catch (error) {
@@ -293,18 +293,17 @@ reviewForm.addEventListener('submit', async event => {
   state = load();
   const result = Object.fromEntries(Object.keys(resultFields).map(key =>
     [key, reviewForm.elements[key].value.trim()]));
-  if (Object.values(result).some(value => !value)) {
-    status.textContent = '검토 항목을 모두 입력하세요.';
+  const validation = WordCollectorPartialTerm.validate(result);
+  if (!validation.ok) {
+    status.textContent = validation.message;
     status.scrollIntoView({block: 'center'});
     return;
   }
-  if (!/[a-z]/i.test(result.en) || /\p{Script=Hangul}/u.test(result.en) || result.en.length > 120) {
-    status.textContent = '영어 표제어를 확인해 주세요.';
-    status.scrollIntoView({block: 'center'});
+  if (!hasCourse(draft.selected)) {
+    status.textContent = '저장할 단어장이 삭제됐습니다. 단어장을 다시 선택해 주세요.';
     return;
   }
-  const existing = Object.entries(state.terms).find(([, item]) =>
-    item.course === draft.selected && normalize(item.en) === normalize(result.en));
+  const existing = WordCollectorPartialTerm.findExisting(state.terms, draft.selected, result);
   if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
   const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
   const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
