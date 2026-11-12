@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261111-partial-save-v5';
+const CACHE_NAME = PREFIX + '20261112-web-requests-v6';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -50,6 +50,7 @@ const APP_SHELL = [
   "pwa-register.js",
   "quick_capture/analysis.js",
   "quick_capture/code.html",
+  "request-gate.js",
   "word-export.js",
   "words.html"
 ];

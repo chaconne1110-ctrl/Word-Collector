@@ -302,12 +302,15 @@ function renderDeck() {
   const prev = $('button[aria-label="이전 단어"]');
   const next = $('button[aria-label="다음 단어"]');
   let current = termId;
+  let cancelActivePhoto = () => {};
+  window.addEventListener('pagehide', () => cancelActivePhoto());
   let wheelGesture;
   const atEdge = (face, direction) => direction < 0 ? face.scrollTop <= 1 :
     face.scrollTop + face.clientHeight >= face.scrollHeight - 1;
   back.addEventListener('click', () => location.href = listUrl(fromBookmark));
 
   function draw(direction = 0) {
+    cancelActivePhoto();
     const ids = idsFor(fromBookmark, course, listFilter, query);
     const index = ids.indexOf(current);
     const target = index < 0 ? (direction < 0 ? ids.at(-1) : ids[0]) : ids[index + direction];
@@ -386,6 +389,8 @@ function renderDeck() {
     $('.card-back', card).firstElementChild.append(photoPanel);
     let hasPhoto = false;
     let busyPhoto = false;
+    const photoGate = WordCollectorRequestGate.create();
+    cancelActivePhoto = () => photoGate.cancel();
     async function refreshPhoto() {
       const blob = await WordCollectorPhoto.get(photoTermId);
       if (!blob || !card.isConnected) return;
@@ -396,29 +401,48 @@ function renderDeck() {
       photoImage.hidden = false;
       hasPhoto = true;
       photoButton.textContent = '사진 다시 생성 (추가 과금)';
-      photoStatus.textContent = '기기에 저장된 JPG 사진입니다. 새로 생성하면 기존 사진을 교체합니다.';
+      photoStatus.textContent = '기기에 저장된 JPG 사진입니다. 새로 생성하면 인터넷 없이 표시됩니다.';
     }
     photoButton.addEventListener('click', async () => {
-      if (busyPhoto) return;
-      if (hasPhoto && !confirm('사진을 다시 생성하면 새로운 API 요금이 발생하고 기존 사진이 교체됩니다. 진행할까요?')) return;
-      if (!hasPhoto && !confirm('사진 생성은 별도의 유료 Gemini API를 1회 호출합니다. 기기에 저장할 사진을 생성할까요?')) return;
+      const remaining = photoGate.remainingMs();
+      if (remaining > 0) {
+        photoStatus.textContent = '3초 이내 중복 사진 생성 요청을 차단했습니다. ' +
+          Math.ceil(remaining / 1000) + '초 후에도 미완료면 다시 요청할 수 있습니다.';
+        return;
+      }
+      if (busyPhoto) {
+        if (!confirm('이전 사진 생성이 아직 처리 중입니다. 재요청 시 추가 요금이 발생할 수 있습니다. 재요청할까요?')) return;
+      } else if (hasPhoto) {
+        if (!confirm('사진을 다시 생성하면 새로운 API 요금이 발생하고 기존 사진이 교체됩니다. 진행할까요?')) return;
+      } else if (!confirm('사진 생성은 별도 유료 Gemini API를 1회 호출합니다. 기기에 저장할 사진을 생성할까요?')) {
+        return;
+      }
+      const ticket = photoGate.begin();
+      if (!ticket.allowed) return;
       busyPhoto = true;
-      photoButton.disabled = true;
-      photoStatus.textContent = 'AI가 사진을 제작 중입니다. 약간의 시간이 걸릴 수 있습니다.';
+      photoButton.textContent = '생성 중 · 3초 후 재요청 가능';
+      photoStatus.textContent = ticket.replaced ?
+        '이전 브라우저 요청을 중단하고 다시 요청했습니다. 서버에서 이미 처리된 호출은 과금될 수 있습니다.' :
+        'AI 사진을 생성 중입니다. 처음 3초간 중복 클릭은 차단됩니다.';
       try {
         const result = await WordCollectorAI.createImage({
           word:term.en || term.ko, koreanMeaning:term.ko,
           subject:courseNames(term.course)[0],
           definition:(term.koDef || term.enDef || term.ko || term.en).slice(0, 700)
-        });
+        }, {signal:ticket.signal});
+        if (!photoGate.isCurrent(ticket.id) || !card.isConnected) return;
         await WordCollectorPhoto.save(photoTermId, result.image);
+        if (!photoGate.isCurrent(ticket.id) || !card.isConnected) return;
         await refreshPhoto();
         photoStatus.textContent = 'AI 사진 제작과 기기 저장이 완료됐습니다.';
       } catch (error) {
+        if (!photoGate.isCurrent(ticket.id)) return;
         photoStatus.textContent = error?.message || 'AI 사진을 생성하지 못했습니다.';
       } finally {
-        photoButton.disabled = false;
-        busyPhoto = false;
+        if (photoGate.finish(ticket.id)) {
+          busyPhoto = false;
+          photoButton.textContent = hasPhoto ? '사진 다시 생성 (추가 과금)' : 'AI 사진 생성 (유료 · 1회)';
+        }
       }
     });
     const bookmarkButtons = $$('[data-action="bookmark"]', card);
