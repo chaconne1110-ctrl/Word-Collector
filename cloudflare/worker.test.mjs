@@ -18,6 +18,7 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
   const db = {
     prepare(sql) {
       const stmt = {
+        sql,
         args: [],
         bind(...args) { this.args = args; return this; },
         async first() {
