@@ -177,3 +177,18 @@ test('failed photo generation refunds the personal image quota only', async()=>{
     assert.equal(updates[0].p[0],'owner-test-01');
   } finally { globalThis.fetch=priorFetch; }
 });
+
+test('photo generation re-sends a "location not supported" rejection', async()=>{
+  const f=await fixture({photoEnabled:true});
+  const priorFetch=globalThis.fetch;
+  let calls=0;
+  globalThis.fetch=async()=>++calls===1
+    ? new Response(JSON.stringify({error:{status:'FAILED_PRECONDITION',message:'User location is not supported for the API use.'}}),{status:400})
+    : new Response(JSON.stringify({candidates:[{content:{parts:[{inlineData:{mimeType:'image/png',data:'iVBORw0KGgo='}}]}}]}));
+  try {
+    const res=await worker.fetch(request(),f.env);
+    assert.equal(res.status,200, await res.clone().text());
+    assert.equal(calls,2);
+    assert.equal(f.used(),1);
+  } finally { globalThis.fetch=priorFetch; }
+});

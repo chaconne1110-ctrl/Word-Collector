@@ -535,3 +535,53 @@ test('a refund failure never hides the original Gemini error', async () => {
     assert.equal(state.used, 1);
   } finally { globalThis.fetch = previous; }
 });
+
+const LOCATION_ERROR = () => new Response(JSON.stringify({error:{code:400,status:'FAILED_PRECONDITION',
+  message:'User location is not supported for the API use.'}}), {status:400});
+const OK_ANALYSIS = () => new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({englishTerm:'Transformer',koreanMeaning:'변압기',specialization:'전기공학',notebookName:'회로이론',englishDefinition:'An electrical device.',koreanDefinition:'전기 장치.',exampleSentence:'A transformer changes voltage.',explanation:'전압 변환',recommendationReason:'전력 분야',relatedTerms:[],pos:'noun',exampleKo:'변압기가 전압을 바꾼다.'})}]}}]}));
+function sendAnalyze(env, device) {
+  return worker.fetch(new Request(baseUrl + '/api/analyze', {
+    method:'POST', headers:{'X-WC-Device':'wd_' + device.repeat(64),'Content-Type':'application/json'},
+    body: JSON.stringify({term:'Transformer', course:'회로이론', autoCourse:false})
+  }), env);
+}
+
+test('a Gemini "location not supported" rejection is re-sent and the success is charged once', async () => {
+  const {env, state} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => (++calls <= 2 ? LOCATION_ERROR() : OK_ANALYSIS());
+  try {
+    const res = await sendAnalyze(env, '6');
+    assert.equal(res.status, 200, await res.clone().text());
+    assert.equal(calls, 3);
+    assert.equal(state.batchCalls, 1);
+    assert.equal(state.used, 1);
+    assert.equal(state.refunds || 0, 0);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('location retries stop after 3 attempts and the quota is refunded', async () => {
+  const {env, state} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return LOCATION_ERROR(); };
+  try {
+    const res = await sendAnalyze(env, '7');
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).error, /GEMINI_UPSTREAM_HTTP_400/);
+    assert.equal(calls, 3);
+    assert.equal(state.used, 0);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('other Gemini 400 errors are not retried', async () => {
+  const {env} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response(JSON.stringify({error:{status:'INVALID_ARGUMENT',message:'bad schema'}}), {status:400}); };
+  try {
+    assert.equal((await sendAnalyze(env, '8')).status, 502);
+    assert.equal(calls, 1);
+  } finally { globalThis.fetch = previous; }
+});
