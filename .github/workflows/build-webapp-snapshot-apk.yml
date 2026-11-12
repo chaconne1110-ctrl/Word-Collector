@@ -1,0 +1,63 @@
+name: Build webapp snapshot Android test APK
+
+on:
+  push:
+    branches:
+      - feature/webapp-only-20261112
+    paths:
+      - '.github/workflows/build-webapp-snapshot-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-debug-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Synchronize webapp into Android project
+        run: npx --no-install cap sync android
+      - name: Verify app identity and bundled files
+        run: |
+          grep -Eq '"appId"[[:space:]]*:[[:space:]]*"com.yechan.wordcollector"' capacitor.config.json
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/app/src/main/assets/public/analysis-api.js
+      - name: Build debug APK
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
+      - name: Name and verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release/WordCollector_Webapp_${GITHUB_SHA:0:8}_Debug.apk"
+          cd release
+          sha256sum *.apk > SHA256.txt
+      - name: Upload downloadable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordcollector-webapp-snapshot-debug-apk
+          path: release/
+          retention-days: 30
+          if-no-files-found: error
