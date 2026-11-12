@@ -238,6 +238,96 @@ export function todayKST() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+const AUTO_AUTH_ORIGIN = 'https://chaconne1110-ctrl.github.io';
+const AUTO_REGISTRATION_LIMIT = 2;
+const AUTO_AUTH_TTL_DAYS = 90;
+const AUTO_IP_LIMIT = 400;
+
+function autoAuthReady(env) {
+  return Boolean(env.DB) && env.AUTO_AUTH_ENABLED === 'true' &&
+    typeof env.TURNSTILE_SECRET === 'string' && env.TURNSTILE_SECRET.length > 10 &&
+    typeof env.TURNSTILE_SITE_KEY === 'string' && env.TURNSTILE_SITE_KEY.length > 10 &&
+    typeof env.AUTO_AUTH_IP_SECRET === 'string' && env.AUTO_AUTH_IP_SECRET.length >= 32;
+}
+function bytesToHex(bytes) {
+  return Array.from(bytes, byte => byte.toString(16).padStart(2,'0')).join('');
+}
+async function sha256Hex(value) {
+  return bytesToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))));
+}
+async function registrationIpHash(env, ip) {
+  const secret = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.AUTO_AUTH_IP_SECRET),
+    {name:'HMAC', hash:'SHA-256'}, false, ['sign']);
+  return bytesToHex(new Uint8Array(await crypto.subtle.sign('HMAC', secret, new TextEncoder().encode(ip))));
+}
+async function issueAnonymousToken(request, env) {
+  // Fail closed: no public anonymous enrollment unless all secrets and migrations are installed.
+  if (!autoAuthReady(env)) throw new ApiError(503, '자동 인증이 아직 활성화되지 않았습니다.');
+  if (!new Set([AUTO_AUTH_ORIGIN,'https://localhost','capacitor://localhost']).has(request.headers.get('Origin'))) throw new ApiError(403, '인증 요청의 출처가 올바르지 않습니다.');
+  const ip = request.headers.get('CF-Connecting-IP');
+  if (!ip || ip.length > 64) throw new ApiError(403, '사용자 네트워크를 확인하지 못했습니다.');
+  const body = await readWorkerJson(request);
+  const challenge = typeof body?.turnstileToken === 'string' ? body.turnstileToken.trim() : '';
+  if (!challenge || challenge.length > 2048) throw new ApiError(400, '자동 인증 보안 검증이 필요합니다.');
+  const challengeBody = new FormData();
+  challengeBody.set('secret',env.TURNSTILE_SECRET);
+  challengeBody.set('response',challenge);
+  challengeBody.set('remoteip',ip);
+  let verified;
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method:'POST', body:challengeBody, redirect:'error', signal:AbortSignal.timeout(10000)
+    });
+    if (!response.ok) throw new Error('turnstile-unavailable');
+    verified = await response.json();
+  } catch { throw new ApiError(503, '자동 인증 보안 확인에 연결하지 못했습니다.'); }
+  if (verified?.success !== true || verified.hostname !== new URL(AUTO_AUTH_ORIGIN).hostname ||
+      verified.action !== 'wordcollector-auth') {
+    throw new ApiError(403,'자동 인증 보안 검증을 통과하지 못했습니다.');
+  }
+  const ipHash = await registrationIpHash(env,ip);
+  const rawToken = 'wc_' + bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const testerId = 'anon-' + crypto.randomUUID();
+  const tokenHash = await sha256Hex(rawToken);
+  const expiresAt = new Date(Date.now() + AUTO_AUTH_TTL_DAYS*86400000).toISOString();
+  // Atomic D1 transaction: registration cap and identity creation succeed or fail together.
+  let issued;
+  try {
+    issued = await env.DB.batch([
+      env.DB.prepare('INSERT INTO anonymous_auth_registrations (registration_ip_hash,usage_date,issue_count) ' +
+        'VALUES (?,?,1) ON CONFLICT(registration_ip_hash,usage_date) DO UPDATE SET issue_count=issue_count+1')
+        .bind(ipHash,todayKST()),
+      env.DB.prepare('INSERT INTO testers (tester_id,token_hash,is_active,expires_at) VALUES (?,?,1,?)')
+        .bind(testerId,tokenHash,expiresAt),
+      env.DB.prepare('INSERT INTO anonymous_clients (tester_id,registration_ip_hash) VALUES (?,?)')
+        .bind(testerId,ipHash)
+    ]);
+  } catch(error) {
+    if (/anonymous_registration_limit_2|CHECK constraint failed/i.test(String(error?.message||''))) {
+      throw new ApiError(429,'이 네트워크의 오늘 자동 인증 발급 한도에 도달했습니다.');
+    }
+    throw error;
+  }
+  if (!Array.isArray(issued) || issued.length !== 3 ||
+      issued.some(item => item?.success !== true || item?.meta?.changes !== 1)) {
+    throw new ApiError(503,'자동 인증 발급 기록을 확인하지 못했습니다.');
+  }
+  return workerJson({token:rawToken,expiresAt,mode:'anonymous-device'});
+}
+
+async function anonymousIpQuotaStatement(env, testerId, date) {
+  if (!testerId.startsWith('anon-')) return null;
+  const entry = await env.DB.prepare(
+    'SELECT registration_ip_hash FROM anonymous_clients WHERE tester_id = ?'
+  ).bind(testerId).first();
+  if (!entry?.registration_ip_hash) throw new ApiError(401,'자동 인증 정보를 찾을 수 없습니다.');
+  return env.DB.prepare('INSERT INTO anonymous_ip_daily_usage ' +
+    '(registration_ip_hash,usage_date,request_count,updated_at) ' +
+    'VALUES (?,?,1,CURRENT_TIMESTAMP) ON CONFLICT(registration_ip_hash,usage_date) ' +
+    'DO UPDATE SET request_count=request_count+1,updated_at=CURRENT_TIMESTAMP')
+    .bind(entry.registration_ip_hash,date);
+}
+
 async function authenticate(request, env) {
   const match = /^Bearer (wc_[a-f0-9]{64})$/.exec(request.headers.get('Authorization') || '');
   if (!match) return null;
@@ -288,6 +378,7 @@ async function usage(env, testerId, date = todayKST()) {
 async function reserveAnalysis(env, testerId) {
   const date = todayKST();
   let items;
+  const ipQuota = await anonymousIpQuotaStatement(env,testerId,date);
   try {
     items = await env.DB.batch([
     env.DB.prepare(
@@ -303,7 +394,8 @@ async function reserveAnalysis(env, testerId) {
       'VALUES (?, 1, CURRENT_TIMESTAMP) ' +
       'ON CONFLICT(usage_date) DO UPDATE SET ' +
       'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
-    ).bind(date)
+    ).bind(date),
+    ...(ipQuota ? [ipQuota] : [])
     ]);
   } catch (error) {
     // Original table retains its 100-per-day CHECK and trigger. A second,
@@ -321,10 +413,11 @@ async function reserveAnalysis(env, testerId) {
         'INSERT INTO global_daily_usage (usage_date, request_count, updated_at) ' +
         'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
         'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
-      ).bind(date)
+      ).bind(date),
+      ...(ipQuota ? [ipQuota] : [])
     ]);
   }
-  if (!Array.isArray(items) || items.length !== 2 ||
+  if (!Array.isArray(items) || items.length !== (ipQuota ? 3 : 2) ||
       items.some(item => item?.success !== true || item?.meta?.changes !== 1)) {
     throw new ApiError(503, '사용량 기록을 확인하지 못했습니다.');
   }
@@ -345,6 +438,7 @@ function validateImageInput(value) {
 // The two additional D1 tables must exist before enabling photo generation.
 async function reserveImage(env, testerId) {
   const date = todayKST();
+  const ipQuota = await anonymousIpQuotaStatement(env,testerId,date);
   let result;
   try {
     result = await env.DB.batch([
@@ -357,7 +451,8 @@ async function reserveImage(env, testerId) {
       'INSERT INTO global_daily_image_usage (usage_date, request_count, updated_at) ' +
       'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
       'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
-    ).bind(date)
+    ).bind(date),
+    ...(ipQuota ? [ipQuota] : [])
     ]);
   } catch (error) {
     // Existing image quota is 100; the new additive overflow table covers
@@ -374,10 +469,11 @@ async function reserveImage(env, testerId) {
         'INSERT INTO global_daily_image_usage (usage_date, request_count, updated_at) ' +
         'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
         'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
-      ).bind(date)
+      ).bind(date),
+    ...(ipQuota ? [ipQuota] : [])
     ]);
   }
-  if (!Array.isArray(result) || result.length !== 2 ||
+  if (!Array.isArray(result) || result.length !== (ipQuota ? 3 : 2) ||
       result.some(row => row?.success !== true || row?.meta?.changes !== 1)) {
     throw new ApiError(503, '사진 생성 사용량 기록을 확인하지 못했습니다.');
   }
@@ -473,7 +569,7 @@ async function readWorkerJson(request) {
 
 function asError(error, phase = 'UNKNOWN') {
   const detail = String(error?.message || '');
-  if (detail.includes('daily_limit_100') || detail.includes('global_limit_1000') ||
+  if (detail.includes('anonymous_ip_limit_400') || detail.includes('daily_limit_100') || detail.includes('global_limit_1000') ||
       detail.includes('global_limit_1500') || detail.includes('image_limit_100') ||
       detail.includes('image_global_limit_1500') ||
       detail.includes('daily_extra_limit_100') || detail.includes('image_extra_limit_100')) {
@@ -521,11 +617,16 @@ const handler = {
       }
     }
 
+    if (pathname === '/api/auth/config' && request.method === 'GET') {
+      return workerJson({enabled:autoAuthReady(env),
+        ...(autoAuthReady(env) ? {siteKey:env.TURNSTILE_SITE_KEY} : {})});
+    }
+    const isEnroll = pathname === '/api/auth/anonymous';
     const isUsage = pathname === '/api/usage';
     const isImage = pathname === '/api/image';
     const isAnalyze = pathname === '/api/analyze';
     const isModelStatus = pathname === '/internal/model-status';
-    if (!(isUsage || isAnalyze || isImage || isModelStatus)) {
+    if (!(isEnroll || isUsage || isAnalyze || isImage || isModelStatus)) {
       return workerJson({error:'요청한 경로가 없습니다.'}, 404);
     }
     const requiredMethod = (isUsage || isModelStatus) ? 'GET' : 'POST';
@@ -538,6 +639,7 @@ const handler = {
 
     let phase = 'AUTH';
     try {
+      if (isEnroll) return await issueAnonymousToken(request, env);
       const tester = await authenticate(request, env);
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
       if (isUsage) return workerJson(await usage(env, tester.tester_id));
@@ -605,7 +707,8 @@ const handler = {
       phase = 'INPUT';
       const input = validateInput(await readWorkerJson(request));
 
-      // Charge once per accepted analysis attempt, including upstream failures.
+      // Charge once per accepted analysis attempt, including upstream failures. A failed upstream
+      // response still represents a Gemini API call and must count toward the 400/day cap.
       // No automatic retry or model switch. Gemini is called exactly once per attempt.
       phase = 'QUOTA';
       await reserveAnalysis(env, tester.tester_id);
