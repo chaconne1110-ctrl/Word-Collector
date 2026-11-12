@@ -64,7 +64,7 @@ test('Android tester code survives page reloads and is never stored in JS localS
   assert.equal(saved, '');
   const page3 = makeAndroid(store, requests);
   assert.equal(await page3.restoreTesterToken(), false);
-  await assert.rejects(() => page3.request({term: 'Transformer'}), /테스터 인증 코드를 먼저 등록/);
+  await assert.rejects(() => page3.request({term: 'Transformer'}), /자동 인증 기능을 찾지 못했습니다/);
 });
 
 test('Android refuses to silently save credentials when native secure plugin is missing', async () => {
@@ -94,6 +94,40 @@ test('Browser credentials remain temporary and are not persisted', async () => {
   assert.equal(calls[0].data.headers.Authorization, 'Bearer ' + code);
   const page2 = makeBrowser();
   assert.equal(await page2.restoreTesterToken(), false);
-  await assert.rejects(() => page2.request({term: 'Transformer'}), /테스터 인증 코드를 먼저 등록/);
+  await assert.rejects(() => page2.request({term: 'Transformer'}), /자동 인증 기능을 찾지 못했습니다/);
   assert.equal(calls.length, 1);
+});
+
+test('Android securely persists newly issued anonymous credentials and reuses them without another registration', async () => {
+  let token = '', enrolled = 0;
+  const requests = [];
+  const store = {
+    async save(value) { token = value.token; return {}; },
+    async read() { return {token}; },
+    async clear() { token = ''; return {}; }
+  };
+  function makeNative() {
+    const scope = {
+      Capacitor:{
+        getPlatform:()=> 'android',
+        Plugins:{
+          TesterTokenStore:store,
+          CapacitorHttp:{request:async call=>{requests.push(call);return {status:200,data:response};}}
+        }
+      },
+      WordCollectorAnonymousAuth:{async acquire(){enrolled++;return code;}}
+    };
+    scope.globalThis=scope;
+    vm.runInNewContext(source,scope,{filename:'www/analysis-api.js'});
+    return scope.WordCollectorAI;
+  }
+  const initial=makeNative();
+  await initial.request({term:'Transformer'});
+  assert.equal(token,code);
+  assert.equal(enrolled,1);
+  const reopened=makeNative();
+  await reopened.request({term:'Transformer'});
+  assert.equal(enrolled,1);
+  assert.equal(requests.length,2);
+  assert.ok(requests.every(c=>c.headers.Authorization==='Bearer '+code));
 });
