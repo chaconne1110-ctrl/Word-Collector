@@ -59,8 +59,9 @@ test('home can create empty notebooks without requiring AI usage', () => {
   assert.doesNotMatch(bookmarks,/data-filter="circuit"/);
   const add=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   assert.match(add,/if \(!notebookEntries\.length\)/);
-  assert.match(add,/setCategoryMode\('direct'\)/);
+  assert.match(add,/setCategoryMode\('ai'\)/);
   const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.doesNotMatch(capturePage,/등록된 4개 과목/);
   assert.match(capturePage,/id="existing-notebook-count"/);
+  assert.match(capturePage,/홈에서 단어장 만들기/);
 });

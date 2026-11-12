@@ -6,9 +6,8 @@ const analysisLabel = $('#submit-btn-text');
 const termInput = $('#term-unified-input');
 const courseInput = $('#subject-select');
 const reviewCourse = $('#review-course');
-const customCourseInput = $('#custom-subject-input');
 const contextInput = $('#context-sentence-input');
-const inputControls = [termInput, courseInput, contextInput, customCourseInput, ...$$('[id^="btn-mode-"], [id^="tab-ref-"]')];
+const inputControls = [termInput, courseInput, contextInput, ...$$('[id^="btn-mode-"]')];
 const resultFields = {
   discipline: '전공',
   en: '영어 표제어',
@@ -130,9 +129,10 @@ function refreshNotebookChoices() {
   $('#existing-notebook-count').textContent = '등록된 ' + notebookEntries.length + '개 단어장';
   const existingButton = $('#btn-mode-existing');
   existingButton.disabled = notebookEntries.length === 0;
+  $('#no-notebooks').hidden = notebookEntries.length !== 0;
   if (!notebookEntries.length) {
-    existingButton.setAttribute('aria-label', '단어장이 없습니다. 직접 입력으로 먼저 만들어 주세요.');
-    if ($('#section-mode-existing').classList.contains('hidden') === false) setCategoryMode('direct');
+    existingButton.setAttribute('aria-label', '단어장이 없습니다. 홈에서 먼저 만들어 주세요.');
+    setCategoryMode('ai');
   } else {
     existingButton.removeAttribute('aria-label');
   }
@@ -244,26 +244,21 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '이미 분석이 완료됐습니다. 검수한 후 저장하거나 입력 내용을 바꿔 새로 분석할 수 있습니다.';
     return;
   }
-  const directCourse = !$('#section-mode-direct').classList.contains('hidden');
-  const autoCourse = !directCourse && !$('#section-mode-ai').classList.contains('hidden');
-  if ($('#ref-section-sentence').classList.contains('hidden')) {
-    status.textContent = '참고 문장 탭에서 분석해 주세요.';
-    return;
-  }
+  const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
   const term = termInput.value.trim();
   refreshNotebookChoices();
-  let selected = courseInput.value;
+  const selected = courseInput.value;
   const context = contextInput.value.trim();
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     return;
   }
   if (autoCourse && !Object.keys(allCourses()).length) {
-    status.textContent = '단어장이 없습니다. 직접 입력에서 새 단어장 이름을 먼저 생성해 주세요.';
+    status.textContent = '단어장이 없습니다. 홈에서 새 단어장을 먼저 만들어 주세요.';
     return;
   }
-  if (!directCourse && !autoCourse && (!selected || !hasCourse(selected))) {
-    status.textContent = '저장할 기존 단어장을 선택하거나 직접 입력에서 새 단어장을 만들어 주세요.';
+  if (!autoCourse && (!selected || !hasCourse(selected))) {
+    status.textContent = '저장할 기존 단어장을 선택하거나 홈에서 새 단어장을 만들어 주세요.';
     return;
   }
   const remaining = analysisRequestGate.remainingMs();
@@ -271,24 +266,6 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '3초 이내 중복 요청을 차단했습니다. ' +
       Math.ceil(remaining / 1000) + '초 후에도 미완료라면 다시 눌러 재요청할 수 있습니다.';
     return;
-  }
-  if (directCourse) {
-    const name = customCourseInput.value.trim();
-    if (!name || name.length > 60) {
-      status.textContent = '새 단어장 이름을 1~60자로 입력하세요.';
-      customCourseInput.focus();
-      return;
-    }
-    state = load();
-    selected = Object.keys(allCourses()).find(id => normalize(courseNames(id)[0]) === normalize(name));
-    if (!selected) {
-      selected = 'notebook_' + crypto.randomUUID();
-      if (!commit({...state, courses: {...allCourses(), [selected]: [name, '']}})) return;
-    }
-    for (const select of [courseInput, reviewCourse]) {
-      if (![...select.options].some(option => option.value === selected)) select.add(new Option(courseNames(selected)[0], selected));
-    }
-    courseInput.value = selected;
   }
   const ticket = analysisRequestGate.begin();
   if (!ticket.allowed) return;
@@ -337,7 +314,7 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
-    // Present completed results immediately, including direct notebook selection.
+    // Present completed results immediately after analysis.
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ?
