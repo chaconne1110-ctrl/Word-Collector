@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261112-main-integrated-v9';
+const CACHE_NAME = PREFIX + '20261112-layout-review-v12';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -20,6 +20,7 @@ const APP_SHELL = [
   "assets/styles/ai_code_html.css",
   "assets/styles/bookmarks_html.css",
   "assets/styles/bottom-navigation.css",
+  "assets/styles/mobile-layout.css",
   "assets/styles/edit_html.css",
   "assets/styles/flashcard_html.css",
   "assets/styles/index_html.css",

@@ -38,3 +38,22 @@ Validation: `node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.te
 - Home notebook creation uses the newer validated implementation already present in the web branch.
 
 Run `tests/notebook-editor-browser.cjs`, `tests/capture-layout-browser.cjs`, `tests/reference-translation-browser.cjs`, `tests/flashcard-render-browser.cjs`, `tests/flashcard-scroll-browser.cjs`, and `tests/export-layout-browser.cjs` with Node for the integrated screen checks. The unit/regression suite and these six browser checks passed locally before the main integration was published. AI responses are mocked.
+
+## Mobile layout review (2026-11-12)
+
+The layout review starts from published `main` commit `fdf62cb`. Shared
+`assets/styles/mobile-layout.css` keeps the list, bookmarks, capture and export
+headers in normal layout flow, including safe-area padding. It wraps long terms,
+formulas and export labels; bounds create/rename/delete dialogs to the usable
+viewport; and reserves space beside flashcards for their previous/next controls.
+Capture focus/scroll margins are relative to its inner scroll area. The service
+worker cache is revised and includes the shared stylesheet.
+
+Run `node tests/mobile-layout-browser.cjs` for all eight live pages at 320×568,
+390×844 and 844×390, with 0/34px bottom and 0/24px top insets. The test uses long
+notebook names, unbroken terms/formulas, reference sentences and translations,
+and checks header clearance, horizontal overflow, reachable buttons, both card
+faces and scrollable dialogs. Keep the capture, export-layout, flashcard-render,
+flashcard-scroll, notebook-editor and reference-translation browser checks as
+regression coverage. Chromium simulation does not substitute for final checks
+on an installed Android APK or an iOS device.

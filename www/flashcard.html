@@ -171,9 +171,9 @@
       display: none;
     }
   </style>
-<title>플래시카드 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="card"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_6px_rgba(0,0,0,0.03)]"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="backNavigationBtn"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-[19px] text-on-surface tracking-tight font-bold">플래시카드</h1></div><div class="flex items-center gap-1.5"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-16 bg-surface"><div class="deck-layout flex flex-col w-full">
+<title>플래시카드 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"><link rel="stylesheet" href="./assets/styles/mobile-layout.css"></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="card"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_6px_rgba(0,0,0,0.03)]"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="backNavigationBtn"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-[19px] text-on-surface tracking-tight font-bold">플래시카드</h1></div><div class="flex items-center gap-1.5"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-16 bg-surface"><div class="deck-layout flex flex-col w-full">
 <!-- Subject Tracker & Sub-Header -->
-<div class="px-margin pt-2.5 pb-1 flex items-center justify-between shrink-0">
+<div class="deck-summary px-margin pt-2.5 pb-1 flex items-center justify-between shrink-0">
 <div class="flex items-center gap-space-xs">
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[12px] font-semibold" id="subjectBadgeKr">
         전자기학
@@ -941,7 +941,7 @@
 </div>
 </article>
 </template><!-- Vertical Quick Jump Floating Controls -->
-<div class="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-20 pointer-events-auto">
+<div id="card-navigation" class="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-20 pointer-events-auto">
 <button aria-label="이전 단어" class="w-7 h-7 rounded-full bg-surface-container-lowest/90 backdrop-blur border border-surface-container-high shadow-sm flex items-center justify-center text-primary active:scale-90"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span></button>
 <div class="flex flex-col gap-1 py-1" id="verticalIndicators">
 <span class="w-1.5 h-3 rounded-full bg-primary transition-all duration-300" data-dot-index="1"></span>

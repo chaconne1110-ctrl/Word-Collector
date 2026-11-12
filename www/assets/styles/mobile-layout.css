@@ -1,0 +1,115 @@
+/* Shared layout corrections for the live app pages. Keep headers in flow so
+   device safe areas are included without a second, hard-coded top offset. */
+[hidden] { display: none !important; }
+body[data-page] { min-width: 0; }
+body[data-page="home"], body[data-page="bookmarks"] { min-height: 100dvh; }
+body[data-page]:not([data-page="card"]):not([data-page="backup"]) > header {
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+}
+body[data-page]:not([data-page="card"]) > main { padding-top: 0; }
+body[data-page="capture"] { min-height: 0; }
+body[data-page="home"] > main,
+body[data-page="words"] > main,
+body[data-page="bookmarks"] > main {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+body[data-page] main { min-width: 0; }
+body[data-page] header button { flex-shrink: 0; }
+body[data-page="edit"] header > div > div:first-child,
+body[data-page="edit"] header > div > div:first-child > div { min-width: 0; }
+body[data-page="edit"] header > div > div:last-child { flex-shrink: 0; }
+body[data-page="edit"] header h1 { overflow-wrap: anywhere; }
+
+/* User-entered words and formulas must wrap inside the card, including
+   strings without spaces. Horizontal filter strips remain independently scrollable. */
+#term-list [data-field], #subjectGroups, #exportStatus,
+body[data-page="edit"] main, body[data-page="capture"] main {
+  overflow-wrap: anywhere;
+}
+#term-list [data-field="en"] { max-width: 100%; }
+#term-list [data-field="formula"], #term-list [data-field="pron"] {
+  min-width: 0;
+  max-width: 100%;
+}
+#subjectGroups label > span { min-width: 0; }
+#subjectGroups input, #exportContent input[type="checkbox"] { flex-shrink: 0; }
+#exportContent section > .flex.justify-between,
+#exportContent section.flex.justify-between,
+#exportContent section > div > .flex.justify-between {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#exportContent .grid > label { min-width: 0; overflow-wrap: anywhere; }
+
+/* Keep notebook names compact in the deck toolbar; full names remain in the
+   notebook settings. Counters and navigation get their own space. */
+.deck-summary { gap: 8px; }
+.deck-summary > :first-child { flex: 1; min-width: 0; }
+.deck-summary > :last-child { flex-shrink: 0; }
+#subjectBadgeKr, #subjectBadgeEn {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#subjectBadgeKr { flex: 1; }
+#subjectBadgeEn { max-width: 40%; }
+#subjectBadgeEn:empty { display: none; }
+#topActiveCounter { white-space: nowrap; }
+#cardsScrollContainer { right: 60px; }
+#card-navigation { right: 8px; gap: 12px; }
+#card-navigation button { width: 44px; height: 44px; flex-shrink: 0; }
+.card-front, .card-back { overflow-wrap: anywhere; }
+.card-front [data-field], .card-back [data-field] { min-width: 0; max-width: 100%; }
+.card-front [data-field="en"], .card-back [data-field="en"] { flex: 1; }
+.card-front [data-field="counter"], .card-back [data-field="counter"] {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.card-front .flex.items-baseline, .card-back .flex.items-baseline { gap: 8px; }
+
+/* Native dialogs sit above navigation and scroll within the usable viewport,
+   including short landscape screens and a reduced keyboard viewport. */
+body[data-page] dialog {
+  box-sizing: border-box;
+  max-height: calc(100vh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  top: env(safe-area-inset-top, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+body[data-page] dialog input { min-width: 0; max-width: 100%; }
+body[data-page] dialog button { min-height: 44px; }
+body[data-page="backup"] header { padding-top: calc(18px + env(safe-area-inset-top, 0px)); }
+body[data-page="backup"] main { padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
+body[data-page="backup"] .panel { overflow-wrap: anywhere; }
+body[data-page="backup"] .panel > button { margin-bottom: 8px; }
+body[data-page="card"] > main > .deck-layout { grid-template-columns: minmax(0, 1fr); }
+.deck-summary, .deck-stage { min-width: 0; }
+.card-front > :first-child > :first-child > :first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-front > :first-child > :first-child > :first-child > :last-child {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.card-front .flex.items-baseline, .card-back .flex.items-baseline { flex-wrap: wrap; }
+.card-front [data-field="en"], .card-back [data-field="en"] { flex-basis: 12rem; }
+/* Capture scrolls inside main, below the in-flow header. Large viewport-based
+   scroll margins would push focused inputs back underneath that header. */
+#ai-auth-settings, #tester-token, #analysis-review { scroll-margin-block: 8px; }
+/* Field captions and their badges need a second row when both cannot fit. */
+body[data-page="edit"] main .flex.justify-between,
+body[data-page="capture"] main .flex.justify-between {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+body[data-page="capture"] main label,
+#section-mode-ai .whitespace-nowrap { white-space: normal; }
