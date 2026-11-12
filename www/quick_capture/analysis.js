@@ -29,51 +29,53 @@ const reviewPhotoStatus = $('#review-photo-status');
 let photoDraft = null;
 let photoBusy = false;
 const photoRequestGate = WordCollectorRequestGate.create();
-reviewPhotoButton.addEventListener('click', async () => {
+async function startReviewPhoto({automatic = false} = {}) {
   if (!draft) return;
   const remaining = photoRequestGate.remainingMs();
   if (remaining > 0) {
-    reviewPhotoStatus.textContent = '사진 생성 중복 요청을 차단했습니다. ' +
-      Math.ceil(remaining / 1000) + '초 후에도 미완료라면 다시 누를 수 있습니다.';
+    if (!automatic) reviewPhotoStatus.textContent = '3초 이내 중복 사진 요청을 차단했습니다. ' +
+      Math.ceil(remaining / 1000) + '초 후 미완료면 다시 누를 수 있습니다.';
     return;
   }
-  if (photoBusy) {
-    if (!confirm('이전 사진 생성이 아직 완료되지 않았습니다. 재요청하면 이전 요청도 과금될 수 있습니다. 다시 요청할까요?')) return;
-  } else if (photoDraft) {
-    if (!confirm('사진을 다시 생성하면 추가 API 요금이 발생합니다. 미저장 사진을 교체할까요?')) return;
-  } else if (!confirm('Gemini 이미지 생성에는 별도 API 요금이 발생합니다. 사진을 생성할까요?')) {
-    return;
+  if (!automatic) {
+    if (photoBusy) {
+      if (!confirm('이전 사진 생성이 진행 중입니다. 재요청하면 추가 API 사용량이 발생할 수 있습니다. 계속할까요?')) return;
+    } else if (photoDraft) {
+      if (!confirm('새 사진 요청은 API 1회가 추가됩니다. 기존 사진을 교체할까요?')) return;
+    } else if (!confirm('사진을 다시 요청하면 API 사용량 1회가 추가됩니다. 계속할까요?')) return;
   }
   const ticket = photoRequestGate.begin();
   if (!ticket.allowed) return;
   photoBusy = true;
-  reviewPhotoButton.textContent = '생성 중 · 3초 후 재요청 가능';
-  reviewPhotoStatus.textContent = ticket.replaced ?
-    '이전 브라우저 요청을 중단하고 다시 요청했습니다. 이미 처리된 서버 요청은 과금될 수 있습니다.' :
-    'AI 사진을 제작 중입니다. 3초 이내 추가 요청은 차단됩니다.';
+  reviewPhotoButton.textContent = '사진 생성 중 · 3초 후 재요청 가능';
+  reviewPhotoStatus.textContent = automatic ?
+    '단어 분석 완료. AI 학습 사진을 자동 생성 중입니다(별도 API 1회).' :
+    '사진을 다시 요청했습니다. 이전 요청도 서버에서 처리됐다면 과금될 수 있습니다.';
+  const word = reviewForm.elements.en.value.trim() || reviewForm.elements.ko.value.trim() || draft.term;
+  const koreanMeaning = reviewForm.elements.ko.value.trim() || word;
+  const definition = (reviewForm.elements.koDef.value || reviewForm.elements.enDef.value ||
+    koreanMeaning || word).trim().slice(0, 700);
   try {
     const r = await WordCollectorAI.createImage({
-      word:reviewForm.elements.en.value.trim() || reviewForm.elements.ko.value.trim(),
-      koreanMeaning:reviewForm.elements.ko.value.trim(),
-      subject:courseNames(draft.selected)[0],
-      definition:(reviewForm.elements.koDef.value || reviewForm.elements.enDef.value).slice(0,700)
+      word, koreanMeaning, subject:courseNames(draft.selected)[0], definition
     }, {signal:ticket.signal});
-    if (!photoRequestGate.isCurrent(ticket.id)) return;
+    if (!photoRequestGate.isCurrent(ticket.id) || !draft) return;
     photoDraft = r.image;
     reviewPhotoImage.src = 'data:' + r.image.mimeType + ';base64,' + r.image.data;
     reviewPhotoImage.hidden = false;
-    reviewPhotoButton.textContent = '사진 다시 생성 (추가 과금)';
-    reviewPhotoStatus.textContent = '사진 제작 완료. 단어장에 저장하면 사진도 함께 저장됩니다.';
+    reviewPhotoStatus.textContent = '사진 생성 완료. 단어장에 저장하면 사진도 함께 저장됩니다.';
   } catch (error) {
     if (!photoRequestGate.isCurrent(ticket.id)) return;
-    reviewPhotoStatus.textContent = error?.message || '사진을 생성하지 못했습니다.';
+    reviewPhotoStatus.textContent = '내용 분석은 완료됐지만 사진 생성에 실패했습니다: ' +
+      (error?.message || '원인 불명') + ' · 단어만 저장하거나 사진을 재요청할 수 있습니다.';
   } finally {
     if (photoRequestGate.finish(ticket.id)) {
       photoBusy = false;
-      reviewPhotoButton.textContent = photoDraft ? '사진 다시 생성 (추가 과금)' : '사진 생성 (별도 유료 API 1회)';
+      reviewPhotoButton.textContent = photoDraft ? '사진 다시 생성 (추가 API 1회)' : '사진 다시 시도 (추가 API 1회)';
     }
   }
-});
+}
+reviewPhotoButton.addEventListener('click', () => { void startReviewPhoto(); });
 
 const normalize = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -314,6 +316,9 @@ analysisButton.addEventListener('click', async () => {
     showRecommendation(result, autoCourse, context);
     reviewForm.hidden = false;
     reviewForm.scrollIntoView({block: 'start'});
+    // Start exactly one independent photo request after a successful analysis.
+    // Review is already visible and remains saveable if photo generation fails.
+    void startReviewPhoto({automatic:true});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
@@ -328,7 +333,7 @@ analysisButton.addEventListener('click', async () => {
     if (analysisRequestGate.finish(ticket.id)) {
       analyzing = false;
       for (const item of inputControls) item.disabled = false;
-      analysisLabel.textContent = 'AI 분석 시작';
+      analysisLabel.textContent = '단어 분석 + 사진 자동 생성';
     }
   }
 });

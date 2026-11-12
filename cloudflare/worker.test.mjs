@@ -14,7 +14,7 @@ async function tokenHash(value) {
   return Buffer.from(digest).toString('hex');
 }
 function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} = {}) {
-  const state = {calls: [], used: 0, batchCalls: 0, hash: null};
+  const state = {calls: [], used: 0, imageUsed:0, batchCalls: 0, hash: null};
   const db = {
     prepare(sql) {
       const stmt = {
@@ -28,6 +28,7 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
               : null;
           }
           if (sql.includes('FROM tester_daily_usage')) return {request_count: state.used};
+          if (sql.includes('FROM tester_daily_image_usage')) return {request_count: state.imageUsed};
           throw new Error('Unexpected SQL');
         }
       };
@@ -60,6 +61,7 @@ test('health is available without exposing secrets', async () => {
   assert.equal(body.model, 'gemini-3.5-flash-lite');
   assert.equal(body.status, 'disabled-for-review');
   assert.equal(body.dailyLimitPerTester, 100);
+  assert.equal(body.dailyCombinedApiLimitPerTester, 200);
   assert.equal(body.dailyGlobalLimit, 1500);
   assert.equal(body.imageGenerationEnabled, false);
   assert.equal(body.dailyImageLimitPerTester, 100);
@@ -82,8 +84,10 @@ test('authenticated usage read does not reserve a call', async () => {
   }), env);
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.equal(body.limit, 100);
-  assert.equal(body.remaining, 100);
+  assert.equal(body.limit, 200);
+  assert.equal(body.remaining, 200);
+  assert.equal(body.analysis.limit, 100);
+  assert.equal(body.image.limit, 100);
   assert.equal(state.batchCalls, 0);
 });
 

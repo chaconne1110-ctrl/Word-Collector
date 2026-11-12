@@ -116,14 +116,14 @@
   </section>
   <div id="review-fields" class="space-y-2"></div>
   <section id="photo-review" class="p-3 rounded-xl border border-surface-container-high space-y-2">
-    <p class="font-semibold">AI 학습 사진</p>
+    <p class="font-semibold">AI 학습 사진 · 분석 완료 시 자동 생성 (별도 API 1회)</p>
     <img id="review-photo-image" hidden alt="AI 생성 학습 사진" class="w-full max-h-64 object-contain rounded-lg" />
     <button id="review-photo-generate" type="button" class="rounded-lg px-3 py-2 bg-primary text-on-primary">사진 생성 (별도 유료 API 1회)</button>
-    <p id="review-photo-status" class="text-sm text-on-surface-variant" role="status">사진은 선택적으로 제작하며 저장 후 플래시카드에 표시됩니다.</p>
+    <p id="review-photo-status" class="text-sm text-on-surface-variant" role="status">단어 분석 성공 시 사진을 자동 요청합니다. 사진 생성이 실패해도 단어 분석 결과를 저장할 수 있습니다.</p>
   </section>
   <button type="submit" class="w-full rounded-lg p-3 bg-primary text-on-primary">단어장에 저장</button>
 </form><div class="fixed bottom-0 left-0 right-0 p-margin bg-surface/90 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2 z-40" style="bottom: 60px;">
-<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="submit-action-btn" type="button"><span class="material-symbols-outlined text-[20px]">cloud_upload</span><span id="submit-btn-text" class="">AI 분석 시작</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span></button><p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p>
+<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="submit-action-btn" type="button"><span class="material-symbols-outlined text-[20px]">cloud_upload</span><span id="submit-btn-text" class="">단어 분석 + 사진 자동 생성</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span></button><p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p>
 <div class="flex items-center justify-center gap-1.5 text-center"><span class="material-symbols-outlined text-[15px] text-secondary">verified_user</span><p class="font-caption text-caption text-on-surface-variant">등록 후 AI 분석 결과 통합 검수 단계로 이동합니다.</p></div></div>
 </div>
 <!-- Toast Notification Template -->

@@ -245,13 +245,21 @@ async function usage(env, testerId, date = todayKST()) {
   const row = await env.DB.prepare(
     'SELECT request_count FROM tester_daily_usage WHERE tester_id = ? AND usage_date = ?'
   ).bind(testerId, date).first();
-  const used = Number(row?.request_count ?? 0);
+  const imageRow = await env.DB.prepare(
+    'SELECT request_count FROM tester_daily_image_usage WHERE tester_id = ? AND usage_date = ?'
+  ).bind(testerId, date).first();
+  const analysisUsed = Number(row?.request_count ?? 0);
+  const imageUsed = Number(imageRow?.request_count ?? 0);
+  const limit = PERSONAL_LIMIT + IMAGE_PERSONAL_LIMIT;
+  const used = analysisUsed + imageUsed;
   return {
     date,
     timezone: 'Asia/Seoul',
-    limit: PERSONAL_LIMIT,
+    limit,
     used,
-    remaining: Math.max(0, PERSONAL_LIMIT - used)
+    remaining: Math.max(0, limit - used),
+    analysis: {used:analysisUsed, limit:PERSONAL_LIMIT, remaining:Math.max(0,PERSONAL_LIMIT-analysisUsed)},
+    image: {used:imageUsed, limit:IMAGE_PERSONAL_LIMIT, remaining:Math.max(0,IMAGE_PERSONAL_LIMIT-imageUsed)}
   };
 }
 
@@ -440,6 +448,7 @@ const handler = {
           model: MODEL,
           status: env.ENABLE_LIVE_ANALYSIS === 'true' ? 'live' : 'disabled-for-review',
           dailyLimitPerTester: PERSONAL_LIMIT,
+          dailyCombinedApiLimitPerTester: PERSONAL_LIMIT + IMAGE_PERSONAL_LIMIT,
           dailyGlobalLimit: GLOBAL_LIMIT,
           imageGenerationEnabled: env.ENABLE_IMAGE_GENERATION === 'true',
           dailyImageLimitPerTester: IMAGE_PERSONAL_LIMIT,
