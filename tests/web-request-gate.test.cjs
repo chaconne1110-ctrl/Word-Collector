@@ -61,3 +61,27 @@ test('web photo fetch forwards cancellation',async()=>{
   ctl.abort();
   assert.equal(signal.aborted,true);
 });
+
+test('web UI uses separate gates for analysis and both image-generation buttons',()=>{
+  const fs=require('node:fs');
+  const review=fs.readFileSync('www/quick_capture/analysis.js','utf8');
+  const deck=fs.readFileSync('www/app.js','utf8');
+  const captureHtml=fs.readFileSync('www/quick_capture/code.html','utf8');
+  const deckHtml=fs.readFileSync('www/flashcard.html','utf8');
+  const sw=fs.readFileSync('www/sw.js','utf8');
+  assert.match(review,/const analysisRequestGate = WordCollectorRequestGate\.create\(\)/);
+  assert.match(review,/const photoRequestGate = WordCollectorRequestGate\.create\(\)/);
+  assert.match(review,/analysisRequestGate\.begin\(\)/);
+  assert.match(review,/photoRequestGate\.begin\(\)/);
+  assert.match(review,/analysisRequestGate\.isCurrent\(ticket\.id\)/);
+  assert.match(review,/photoRequestGate\.isCurrent\(ticket\.id\)/);
+  assert.match(review,/reviewForm\.scrollIntoView\(\{block: 'start'\}\)/);
+  assert.doesNotMatch(review,/reviewForm\.requestSubmit\(\)/);
+  assert.doesNotMatch(review,/analysisButton\.disabled = true/);
+  assert.match(deck,/const photoGate = WordCollectorRequestGate\.create\(\)/);
+  assert.match(deck,/photoGate\.begin\(\)/);
+  assert.match(deck,/photoGate\.isCurrent\(ticket\.id\)/);
+  assert.match(captureHtml,/request-gate\.js/);
+  assert.match(deckHtml,/request-gate\.js/);
+  assert.match(sw,/request-gate\.js/);
+});

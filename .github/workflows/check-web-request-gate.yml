@@ -1,0 +1,37 @@
+name: Validate Word Collector web-only changes (no deploy)
+
+on:
+  push:
+    branches:
+      - feature/webapp-only-20261112
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-only:
+    name: Syntax and regression tests (no APK, no Pages)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Validate web scripts
+        run: |
+          node --check www/request-gate.js
+          node --check www/analysis-api.js
+          node --check www/quick_capture/analysis.js
+          node --check www/app.js
+          node --check www/sw.js
+      - name: Verify all unit and regression tests
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+      - name: Verify no web deploy on this branch
+        run: |
+          grep -Fq 'branches: [feature/ai-photo-generation-20261111]' .github/workflows/deploy-iphone-pwa.yml
+          echo 'Only tests ran. No Pages, Cloudflare Worker or Android release actions.'
