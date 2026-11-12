@@ -25,9 +25,8 @@ const {createServer}=require('../server/server.cjs');
    await page.locator('#btn-mode-existing').click();
    assert.ok(await page.locator('#section-mode-existing').isVisible());
    await page.locator('#context-sentence-input').fill('Current flows through a conductor.');
-   await page.locator('#ai-auth-settings summary').click();
-   await page.locator('#tester-token').fill('wc_'+'a'.repeat(64));
-   await page.locator('#ai-auth-settings summary').click();
+   // The tester-code panel was removed; AI works without a code.
+   assert.equal(await page.locator('#ai-auth-settings,#tester-token,#register-tester').count(),0);
    const geometry=await page.evaluate(()=>{
     const button=document.querySelector('#submit-action-btn').getBoundingClientRect();
     const bar=document.querySelector('#analysis-action-bar').getBoundingClientRect();

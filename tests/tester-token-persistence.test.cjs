@@ -123,7 +123,10 @@ test('Android securely persists newly issued anonymous credentials and reuses th
     vm.runInNewContext(source,scope,{filename:'www/analysis-api.js'});
     return scope.WordCollectorAI;
   }
+  // Turnstile enrollment is opt-in (explicit ensureAutoAuth); plain requests
+  // use the per-device public quota and never start enrollment by themselves.
   const initial=makeNative();
+  await initial.ensureAutoAuth();
   await initial.request({term:'Transformer'});
   assert.equal(token,code);
   assert.equal(enrolled,1);

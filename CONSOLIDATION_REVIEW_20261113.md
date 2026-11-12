@@ -1,5 +1,26 @@
 # Word Collector consolidated branch — integration record (2026-11-13 KST)
 
+## Priority override (branch `integrate/consolidated-chat-priority-20261113`)
+This branch is `integrate/consolidated-review-20261113` with the owner's decisions from the
+`feature/public-ai-400-per-device` work applied as the **highest-priority** source. Where this
+section disagrees with anything below, this section wins.
+
+- **Public access = per-install device ID.** The app sends a random `X-WC-Device` ID; requests
+  without a code get 200 analysis + 200 image calls/day per device. No tester code is needed.
+- **No tester-code UI.** The Quick Capture tester/server panel is removed and any code saved by an
+  older build is cleared on load, so an expired code can never block analysis.
+- **Failed requests are not charged to the personal quota.** A Gemini error, timeout or unusable
+  output refunds the reserved call. The global (and, for Turnstile identities, registration-IP)
+  counters keep the attempt so failures stay bounded per day.
+- **"User location is not supported" is re-sent up to twice** (3 attempts total); other errors are
+  returned after one call. Charged once per request.
+- **Worker placement `gcp:us-central1`** (see `cloudflare/wrangler.example.jsonc`) must be kept on deploy.
+- Turnstile enrollment code stays in the Worker/`www/anonymous-auth.js` but is **dormant and not used by
+  the app**; per-device identities are exempt from the registration-IP cap.
+- **Production state (2026-11-12):** the live Worker already runs this device-ID/refund/retry
+  behaviour (version `224c0223`), migration 0003 is applied, placement is set. Deploying a Worker
+  without `X-WC-Device` support would break the APKs distributed from that branch.
+
 ## Integration status
 Working branch: `integrate/consolidated-review-20261113`. Draft PR #12 targets `main`; **not deployed or merged**. The branch starts with `main` + the latest `fix/main-layout-review` changes.
 
@@ -13,12 +34,12 @@ Working branch: `integrate/consolidated-review-20261113`. Draft PR #12 targets `
 - New regression tests: anonymous enrollment, fake/foreign origin rejection, token hashing, same-IP quota, browser reuse and native iframe origin check. CI validation is configured on this review branch; Android real-device validation remains outstanding.
 
 ### Deliberate conflict resolution (latest functional behavior wins)
-1. `feature/webapp-only-20261112` server-issued Turnstile token design supersedes client-replaceable `feature/public-ai-400-per-device` ID design. Neither client device IDs nor Origin headers are considered sufficient authentication.
+1. ~~Turnstile token design supersedes the device-ID design~~ — **overridden**: the per-device ID design is primary (see Priority override). Turnstile remains dormant/opt-in.
 2. The current `main` analysis model's **automatic first-notebook creation**, current review/save implementation, flashcard flow and newest navigation are preserved. Old branch copies of these files were **not** used wholesale.
-3. Failed upstream Gemini requests and region-retry calls remain counted where they represent actual model API attempts. `feature/public-ai-400-per-device`'s request-count refunds and unmetered retry logic were **not** transplanted, because the requested limit is on actual API requests, not successes.
+3. ~~Failed requests stay counted~~ — **overridden**: the owner asked that failed requests not be charged to the personal quota; refunds and the location retry are transplanted.
 4. Existing `main` Android KeyStore native authentication supersedes the older `feature/secure-tester-token` branch; no plaintext key storage or backup export.
 5. `feature/xlsx-export` only adds a Flutter package; current Capacitor/web app already has XLSX export and tests. Do not copy the Flutter dependency.
-6. Newest `fix/main-layout-review` corrections supersede older mobile overlap fixes in `feature/ui-ux-notebook-settings` and `feature/public-ai-400-per-device`.
+6. Newest `fix/main-layout-review` corrections supersede older mobile overlap fixes in `feature/ui-ux-notebook-settings` and `feature/public-ai-400-per-device` (layout only; that branch's auth, refund and tester-UI removal are applied here).
 
 ## Release blockers — do NOT deploy, merge, or delete needed source branches yet
 - Configure production Turnstile widget for `chaconne1110-ctrl.github.io`; Worker secrets `TURNSTILE_SECRET`, `AUTO_AUTH_IP_SECRET`, site key `TURNSTILE_SITE_KEY` and explicit `AUTO_AUTH_ENABLED=true`. Back up D1; apply additive migration `0004` before enabling enrollment.

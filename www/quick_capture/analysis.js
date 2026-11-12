@@ -397,82 +397,10 @@ reviewForm.addEventListener('submit', event => {
   void saveReview();
 });
 
-const testerToken = $('#tester-token');
-const testerStatus = $('#tester-status');
-const testerMode = $('#ai-server-mode');
-const isHostedWeb = location.protocol === 'https:' && !['android', 'ios'].includes(window.Capacitor?.getPlatform?.());
-if (isHostedWeb) {
-  const localOption = testerMode.querySelector('option[value="local"]');
-  if (localOption) localOption.disabled = true;
-  testerMode.value = 'cloud';
-}
-const registerTesterButton = $('#register-tester');
-const clearTesterButton = $('#clear-tester');
-let testerBusy = false;
-
-async function configureTester(clear = false) {
-  if (testerBusy) return;
-  testerBusy = true;
-  registerTesterButton.disabled = true;
-  clearTesterButton.disabled = true;
-  try {
-    if (clear) {
-      await WordCollectorAI.clearTesterToken();
-      testerToken.value = '';
-      testerStatus.textContent = '기기에 저장된 인증 코드를 삭제했습니다.';
-      return;
-    }
-    if (testerMode.value === 'local') {
-      WordCollectorAI.setLocalServer(true);
-      testerToken.value = '';
-      testerStatus.textContent = 'PC 로컬 개발 서버를 선택했습니다. 저장된 Cloudflare 코드는 유지됩니다.';
-      return;
-    }
-    const result = await WordCollectorAI.rememberTesterToken(testerToken.value);
-    testerToken.value = '';
-    testerStatus.textContent = result.persistent ?
-      '인증 코드를 기기에 암호화해 저장했습니다. 다음 실행부터 자동으로 사용됩니다.' :
-      '인증 코드를 웹 브라우저 세션에 등록했습니다. 브라우저 저장소를 정리하면 다시 등록해야 합니다.';
-  } catch (error) {
-    testerStatus.textContent = error?.message || '인증 코드를 저장하지 못했습니다.';
-  } finally {
-    testerBusy = false;
-    registerTesterButton.disabled = false;
-    clearTesterButton.disabled = false;
-  }
-}
-registerTesterButton.addEventListener('click', () => { void configureTester(); });
-clearTesterButton.addEventListener('click', () => { void configureTester(true); });
-testerMode.addEventListener('change', async () => {
-  WordCollectorAI.setLocalServer(testerMode.value === 'local');
-  if (testerMode.value === 'local') {
-    testerStatus.textContent = 'PC 로컬 개발 서버를 선택했습니다. 저장된 Cloudflare 코드는 유지됩니다.';
-    return;
-  }
-  try {
-    const stored = await WordCollectorAI.restoreTesterToken();
-    testerStatus.textContent = stored ?
-      '인증 코드가 현재 브라우저 세션에 등록되어 있습니다.' :
-      'Cloudflare HTTPS를 선택했습니다. 인증 코드 없이도 AI 분석·사진을 사용할 수 있습니다.';
-  } catch (error) {
-    testerStatus.textContent = error?.message || '저장된 인증 코드를 불러오지 못했습니다.';
-  }
-});
-// Prefer automatic, server-issued credentials. If enrollment is not configured
-// yet, keep legacy manual token controls available for an orderly rollout.
-void WordCollectorAI.ensureAutoAuth().then(enabled => {
-  if (!enabled || testerMode.value !== 'cloud') return;
-  testerStatus.textContent = '자동 인증 완료. 분석 200회 + 사진 200회, 총 400회 API 호출 한도가 적용됩니다.';
-  const controls = $('#ai-auth-settings');
-  if (controls) {
-    const summary = controls.querySelector('summary');
-    if (summary) summary.textContent = 'AI 서버 · 자동 인증';
-    const label = testerToken.closest('label');
-    if (label) label.hidden = true;
-    registerTesterButton.hidden = true;
-    clearTesterButton.hidden = true;
-  }
-}).catch(error => {
-  testerStatus.textContent = (error?.message || '자동 인증을 완료하지 못했습니다.') +
-    ' 기존 승인 코드가 있다면 수동 등록할 수 있습니다.';
-});
+// The tester-code UI was removed: every install uses the public per-device
+// quota (X-WC-Device). Drop any code saved by an older build so an expired
+// code can never block analysis without a way to clear it. Best effort only.
+void Promise.resolve().then(() => {
+  WordCollectorAI.setLocalServer(false);
+  return WordCollectorAI.clearTesterToken();
+}).catch(() => {});

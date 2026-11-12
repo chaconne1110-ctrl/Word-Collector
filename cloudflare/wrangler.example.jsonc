@@ -1,9 +1,12 @@
 {
   "name": "word-collector-api",
   "main": "worker.mjs",
-  "compatibility_date": "2025-11-01",
+  "compatibility_date": "2026-11-09",
   "workers_dev": true,
-  "vars": { "ENABLE_LIVE_ANALYSIS": "true" },
+  // Production runs the Worker in a US region: Gemini rejects some Cloudflare
+  // edge locations with "User location is not supported". Keep this on deploy.
+  "placement": { "region": "gcp:us-central1" },
+  "vars": { "ENABLE_LIVE_ANALYSIS": "true", "ENABLE_IMAGE_GENERATION": "true" },
   "d1_databases": [{
     "binding": "DB",
     "database_name": "REPLACE_WITH_EXISTING_DATABASE_NAME",

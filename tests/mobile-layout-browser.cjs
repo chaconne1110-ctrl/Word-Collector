@@ -83,9 +83,8 @@ const {createServer} = require('../server/server.cjs');
           await page.locator('button[aria-label="단어 삭제"]').click();
           await dialogFits('#deleteModal', '#deleteModal button:last-child');
         } else if (file.startsWith('quick_capture')) {
-          await reachable('#ai-auth-settings summary', {scroll:false});
-          await page.locator('#ai-auth-settings summary').click();
-          await reachable('#tester-token');
+          // No tester-code panel: the capture page uses the per-device quota.
+          assert.equal(await page.locator('#ai-auth-settings, #tester-token').count(), 0);
           await reachable('#submit-action-btn');
         } else if (file.startsWith('_6')) {
           await reachable('#exportActionBtn', {scroll:false});

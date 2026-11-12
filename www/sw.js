@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-anonymous-auth-review-v14';
+const CACHE_NAME = PREFIX + '20261113-chat-priority-v15';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

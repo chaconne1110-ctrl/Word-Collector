@@ -11,9 +11,10 @@ const response = {model:'gemini-3.5-flash-lite',en:'Voltage',ko:'전압',discipl
   enDef:'Electric potential difference.',koDef:'전위차',exampleEn:'Voltage rises.',
   pos:'noun',exampleKo:'전압이 증가한다.',course:'전기공학'};
 
-test('hosted web includes auth code before analysis script without mutating user records',()=>{
-  assert.ok(page.indexOf('../anonymous-auth.js')>=0);
-  assert.ok(page.indexOf('../anonymous-auth.js') < page.indexOf('../analysis-api.js'));
+test('capture page uses per-device public access: no Turnstile script and no tester-code input',()=>{
+  assert.equal(page.indexOf('../anonymous-auth.js'),-1);
+  assert.doesNotMatch(page,/id="tester-token"|id="ai-auth-settings"/);
+  // The dormant opt-in Turnstile helper still never touches word records.
   assert.match(anonymous,/indexedDB\.open\(DB_NAME, 1\)/);
   assert.doesNotMatch(anonymous,/localStorage|word-collector-data|state\.terms/);
   assert.match(api,/WordCollectorAnonymousAuth\.acquire\(\)/);
@@ -48,7 +49,7 @@ test('existing web browser identity is reused for text and photo requests withou
   assert.ok(calls.every(x=>x.headers.Authorization==='Bearer '+good));
 });
 
-test('new web browser obtains a single automatic credential; API calls never retry enrollment',async()=>{
+test('explicit opt-in enrollment obtains a single credential; API calls never retry enrollment',async()=>{
   let acquireCalls=0;
   const calls=[];
   const scope={
@@ -64,17 +65,30 @@ test('new web browser obtains a single automatic credential; API calls never ret
   };
   scope.globalThis=scope;
   vm.runInNewContext(api,scope,{filename:'www/analysis-api.js'});
+  await scope.WordCollectorAI.ensureAutoAuth();
   await scope.WordCollectorAI.request({term:'Voltage'});
   await scope.WordCollectorAI.request({term:'Voltage'});
   assert.equal(acquireCalls,1);
   assert.deepEqual(calls,['Bearer '+good,'Bearer '+good]);
 });
 
-test('browser without the auto-auth helper fails closed before chargeable network access',async()=>{
-  let charged=false;
-  const scope={AbortSignal,fetch:async()=>{charged=true;return null;}};
+test('without any stored credential, requests use the per-device ID and never start enrollment',async()=>{
+  let acquireCalls=0;
+  const headers=[];
+  const store=new Map();
+  const scope={
+    AbortSignal, crypto: require('node:crypto').webcrypto,
+    localStorage:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},
+    WordCollectorAnonymousAuth:{restore:async()=>'',clear:async()=>{},acquire:async()=>{acquireCalls++;return good;}},
+    fetch:async(url,opts)=>{headers.push(opts.headers);return {status:200,json:async()=>response};}
+  };
   scope.globalThis=scope;
   vm.runInNewContext(api,scope,{filename:'www/analysis-api.js'});
-  await assert.rejects(()=>scope.WordCollectorAI.request({term:'Voltage'}),/자동 인증 기능을 찾지 못/);
-  assert.equal(charged,false);
+  await scope.WordCollectorAI.request({term:'Voltage'});
+  await scope.WordCollectorAI.request({term:'Voltage'});
+  assert.equal(acquireCalls,0);
+  assert.equal(headers.length,2);
+  assert.ok(headers.every(h=>!('Authorization' in h)));
+  assert.match(headers[0]['X-WC-Device'],/^wd_[a-f0-9]{64}$/);
+  assert.equal(headers[1]['X-WC-Device'],headers[0]['X-WC-Device'],'same install keeps one device ID');
 });

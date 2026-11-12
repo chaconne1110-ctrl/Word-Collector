@@ -9,7 +9,8 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
   let calls=0;
   await page.route('https://word-collector-api.yechan-lim-elec.workers.dev/api/analyze',async route=>{
    calls++;
-   assert.equal(route.request().headers().authorization,'Bearer wc_'+'b'.repeat(64));
+   assert.equal(route.request().headers().authorization,undefined);
+   assert.match(route.request().headers()['x-wc-device']||'',/^wd_[a-f0-9]{64}$/);
    const input=route.request().postDataJSON();assert.equal(input.term,'변압기 Transformer');assert.equal(input.autoCourse,false);
    assert.equal(input.context,'Self-attention processes language.');assert.equal(input.course,'전기기기');
    await route.fulfill({json:{model:'gemini-3.5-flash-lite',en:'Transformer',ko:'트랜스포머',discipline:'인공지능',pos:'noun',
@@ -23,11 +24,10 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
   });
   assert.equal(await page.locator('nav a').count(),4);
   await page.locator('nav a[href="quick_capture/code.html"]').click();
-  await page.waitForURL('**/quick_capture/code.html'); await page.locator('#register-tester').waitFor({state:'attached'});
+  await page.waitForURL('**/quick_capture/code.html'); await page.locator('#submit-action-btn').waitFor({state:'attached'});
   assert.equal(await page.locator('nav a').count(),4);
-  await page.locator('details summary').click();
-  await page.locator('#tester-token').fill('wc_'+'b'.repeat(64));await page.locator('#register-tester').click();
-  assert.equal(await page.locator('#tester-token').inputValue(),'');
+  // No tester-code UI: analysis is sent with the per-device ID only.
+  assert.equal(await page.locator('#tester-token').count(),0);
   await page.locator('#btn-mode-existing').click();
   await page.locator('#subject-select').selectOption('electrical-machines');
   await page.locator('#term-unified-input').fill('변압기 Transformer');

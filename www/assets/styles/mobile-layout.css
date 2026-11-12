@@ -104,7 +104,7 @@ body[data-page="card"] > main > .deck-layout { grid-template-columns: minmax(0, 
 .card-front [data-field="en"], .card-back [data-field="en"] { flex-basis: 12rem; }
 /* Capture scrolls inside main, below the in-flow header. Large viewport-based
    scroll margins would push focused inputs back underneath that header. */
-#ai-auth-settings, #tester-token, #analysis-review { scroll-margin-block: 8px; }
+#analysis-review { scroll-margin-block: 8px; }
 /* Field captions and their badges need a second row when both cannot fit. */
 body[data-page="edit"] main .flex.justify-between,
 body[data-page="capture"] main .flex.justify-between {

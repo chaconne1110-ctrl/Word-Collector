@@ -1,5 +1,11 @@
 # Web + Android anonymous automatic authentication (opt-in, not deployed)
 
+> **Status on `integrate/consolidated-chat-priority-20261113`: dormant.** The app's public access
+> is the per-install device ID (`X-WC-Device`, 200 + 200 calls/day per device) and the tester-code
+> UI is removed. Failed requests are refunded to the personal quota (not charged), overriding the
+> "every attempt is counted" rule below. Turnstile enrollment is kept only as an opt-in option and
+> is not called by the app; see `CONSOLIDATION_REVIEW_20261113.md` → Priority override.
+
 Scope: `integrate/consolidated-review-20261113`. This implementation **does not deploy** the GitHub Pages site or Cloudflare Worker, remove existing tester users, or migrate client word records.
 
 ## User flow
