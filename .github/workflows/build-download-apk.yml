@@ -56,7 +56,8 @@ jobs:
           test -s android/app/src/main/assets/public/index.html
           test -s android/app/src/main/assets/public/analysis-api.js
           test -s android/app/src/main/assets/public/quick_capture/code.html
-          grep -q 'id="ai-auth-settings"' android/app/src/main/assets/public/quick_capture/code.html
+          ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
+          test -s android/app/src/main/assets/public/assets/styles/layout-fixes.css
           grep -q 'flex: 0 0 auto' android/app/src/main/assets/public/quick_capture/code.html
 
       - name: Build Android debug APK (not production signed)

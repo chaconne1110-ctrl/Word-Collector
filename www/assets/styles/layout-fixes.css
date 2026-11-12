@@ -1,0 +1,116 @@
+/* Shared layout guards for narrow phones (360px and up).
+   Each page ships its own precompiled Tailwind file, so fixes that must apply
+   everywhere live here as plain CSS. Goal: no overlapping text or buttons. */
+
+/* Home header: backup link sits inside the header row, never on its own line. */
+.wc-header-link {
+  display: inline-flex;
+  align-items: center;
+  height: 2.25rem;
+  padding: 0 .75rem;
+  border-radius: 9999px;
+  background: #eaedff;
+  color: #00236f;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+header h1 { min-width: 0; }
+#create-notebook { gap: .4rem; white-space: nowrap; flex-shrink: 0; }
+
+/* Long notebook names and headwords wrap to two lines instead of being cut. */
+[data-page="home"] main h2,
+[data-page="words"] [data-field="en"],
+[data-page="bookmarks"] [data-field="en"] {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+/* Flashcard: top badges stay on one line; the notebook chip shrinks with "…". */
+#subjectBadgeKr {
+  display: block;
+  min-width: 0;
+  /* Viewport-based cap so the nowrap chip can never widen the page. */
+  max-width: calc(100vw - 10rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:has(> #subjectBadgeKr) { min-width: 0; }
+#subjectBadgeEn, #topActiveCounter {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* The in-card "01 / 02" repeats the counter shown above the card; hiding it
+   gives long headwords the full card width. */
+[data-page="card"] [data-field="counter"] { display: none; }
+/* Long headwords shrink on narrow phones and only break inside a word as a
+   last resort, with a hyphen. */
+[data-page="card"] [data-field="en"] {
+  min-width: 0;
+  font-size: min(2.25rem, 8vw);
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+/* "수식" label next to the formula must not break into one letter per line. */
+[data-page="card"] :has(> span.uppercase.tracking-wider:not([data-field])) { flex-shrink: 0; margin-right: .6rem; }
+[data-page="card"] span.uppercase.tracking-wider:not([data-field]) { white-space: nowrap; }
+/* Back-side title (e.g. ELECTROMAGNETIC INTERFERENCE SUPPRESSION…) wraps. */
+[data-page="card"] [data-field="backTitle"] { white-space: normal; overflow-wrap: anywhere; }
+[data-page="card"] [data-field="formula"] { min-width: 0; overflow-wrap: anywhere; }
+/* Up/down card buttons get their own gutter instead of covering card text. */
+[data-page="card"] #cardsScrollContainer { right: 2.6rem; }
+[data-page="card"] .deck-stage > .absolute.z-20 { right: .3rem; }
+
+/* Edit screen: text never runs under the speaker / dropdown icons. */
+#englishTermInput { padding-right: 2.75rem; text-overflow: ellipsis; }
+#subjectSelect { padding-right: 2.5rem; text-overflow: ellipsis; }
+/* Small "항목 1-2" / status badges stay on one line beside their headings. */
+[data-page="edit"] .justify-between > span:last-child:not(:first-child),
+[data-page="edit"] .justify-between > div:last-child > span {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+[data-page="edit"] .justify-between > :first-child { min-width: 0; }
+[data-page="edit"] .justify-between > span:last-child:not(:first-child) { margin-left: .5rem; }
+/* Text areas grow with their content so sentences are never cut off. */
+[data-page="edit"] textarea {
+  field-sizing: content;
+  min-height: 4.5rem;
+  overflow-wrap: anywhere;
+}
+
+/* Quick capture: long notebook names in the select end with "…". */
+body:not([data-page]) main select { text-overflow: ellipsis; padding-right: 2.5rem; }
+
+/* Flashcard back: AI photo panel is built in app.js with utility classes that
+   are not in the precompiled flashcard CSS, so give it explicit spacing. */
+[data-page="card"] section:has(> [data-action="generate-photo"]) {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  border-radius: .75rem;
+}
+[data-page="card"] [data-action="generate-photo"] {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: .55rem .9rem;
+  border-radius: .5rem;
+  background: #00236f;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: normal;
+  text-align: left;
+}
+[data-page="card"] [data-action="generate-photo"]:disabled { opacity: .6; }
