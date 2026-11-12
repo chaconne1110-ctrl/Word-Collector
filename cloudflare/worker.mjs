@@ -135,6 +135,28 @@ function validateOutput(value, input) {
   return analysis;
 }
 
+// Google sometimes rejects a call with "User location is not supported"
+// depending on which Cloudflare egress IP is used; the same call usually
+// succeeds when sent again. Only that specific error is retried (it is not
+// billed by Google). Every other failure is returned after a single call.
+const LOCATION_RETRY_ATTEMPTS = 3;
+async function isLocationBlocked(response) {
+  if (response.status !== 400) return false;
+  try {
+    const error = (await response.clone().json())?.error;
+    return error?.status === 'FAILED_PRECONDITION' &&
+      /location is not supported|region is not supported|country is not supported/i.test(String(error?.message || ''));
+  } catch {
+    return false;
+  }
+}
+async function fetchWithLocationRetry(fetchImpl, url, options) {
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetchImpl(url, options);
+    if (attempt >= LOCATION_RETRY_ATTEMPTS || !(await isLocationBlocked(response))) return response;
+  }
+}
+
 async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
   const controller = new AbortController();
   let timeout;
@@ -147,7 +169,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
   const request = (async () => {
     let response;
     try {
-    response = await fetchImpl(ENDPOINT, {
+    response = await fetchWithLocationRetry(fetchImpl, ENDPOINT, {
       method: 'POST', signal: controller.signal, redirect: 'manual',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
@@ -453,7 +475,7 @@ async function generatePhoto(input, apiKey) {
   ].join(' ');
   let response;
   try {
-    response = await fetch(
+    response = await fetchWithLocationRetry(fetch,
       'https://generativelanguage.googleapis.com/v1beta/models/' + IMAGE_MODEL + ':generateContent',
       {
         method: 'POST',
@@ -675,7 +697,8 @@ const handler = {
       const input = validateInput(await readWorkerJson(request));
 
       // Reserve before calling Gemini; a failed attempt is refunded to the
-      // personal quota (the global counter keeps it). Gemini is called once.
+      // personal quota (the global counter keeps it). Gemini is called once,
+      // except that a "location not supported" rejection is re-sent up to twice.
       phase = 'QUOTA';
       const reservation = await reserveAnalysis(env, tester.tester_id);
       phase = 'GEMINI';
