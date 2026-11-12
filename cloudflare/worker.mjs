@@ -5,7 +5,7 @@
 
 const MODEL = 'gemini-3.5-flash-lite';
 const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
-const IMAGE_PERSONAL_LIMIT = 100;
+const IMAGE_PERSONAL_LIMIT = 200;
 const IMAGE_GLOBAL_LIMIT = 1500;
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const BODY_LIMIT = 256 * 1024;
@@ -206,7 +206,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
   finally { clearTimeout(timeout); }
 }
 
-const PERSONAL_LIMIT = 100;
+const PERSONAL_LIMIT = 200;
 const GLOBAL_LIMIT = 1500;
 
 function workerJson(data, status = 200) {
@@ -248,8 +248,14 @@ async function usage(env, testerId, date = todayKST()) {
   const imageRow = await env.DB.prepare(
     'SELECT request_count FROM tester_daily_image_usage WHERE tester_id = ? AND usage_date = ?'
   ).bind(testerId, date).first();
-  const analysisUsed = Number(row?.request_count ?? 0);
-  const imageUsed = Number(imageRow?.request_count ?? 0);
+  const extraAnalysis = await env.DB.prepare(
+    'SELECT request_count FROM tester_daily_usage_extra WHERE tester_id = ? AND usage_date = ?'
+  ).bind(testerId, date).first();
+  const extraImage = await env.DB.prepare(
+    'SELECT request_count FROM tester_daily_image_usage_extra WHERE tester_id = ? AND usage_date = ?'
+  ).bind(testerId, date).first();
+  const analysisUsed = Number(row?.request_count ?? 0) + Number(extraAnalysis?.request_count ?? 0);
+  const imageUsed = Number(imageRow?.request_count ?? 0) + Number(extraImage?.request_count ?? 0);
   const limit = PERSONAL_LIMIT + IMAGE_PERSONAL_LIMIT;
   const used = analysisUsed + imageUsed;
   return {
@@ -267,7 +273,9 @@ async function usage(env, testerId, date = todayKST()) {
 // Never try to charge Gemini after this reservation fails.
 async function reserveAnalysis(env, testerId) {
   const date = todayKST();
-  const items = await env.DB.batch([
+  let items;
+  try {
+    items = await env.DB.batch([
     env.DB.prepare(
       'INSERT INTO tester_daily_usage ' +
       '(tester_id, usage_date, request_count, updated_at) ' +
@@ -282,7 +290,26 @@ async function reserveAnalysis(env, testerId) {
       'ON CONFLICT(usage_date) DO UPDATE SET ' +
       'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
     ).bind(date)
-  ]);
+    ]);
+  } catch (error) {
+    // Original table retains its 100-per-day CHECK and trigger. A second,
+    // additive overflow table accounts for attempts 101-200 without replacing
+    // or erasing existing tester usage data. Both writes remain atomic.
+    if (!String(error?.message || '').includes('daily_limit_100') &&
+        !String(error?.message || '').includes('CHECK constraint failed')) throw error;
+    items = await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO tester_daily_usage_extra (tester_id, usage_date, request_count, updated_at) ' +
+        'VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(tester_id, usage_date) DO UPDATE SET ' +
+        'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
+      ).bind(testerId, date),
+      env.DB.prepare(
+        'INSERT INTO global_daily_usage (usage_date, request_count, updated_at) ' +
+        'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
+        'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
+      ).bind(date)
+    ]);
+  }
   if (!Array.isArray(items) || items.length !== 2 ||
       items.some(item => item?.success !== true || item?.meta?.changes !== 1)) {
     throw new ApiError(503, '사용량 기록을 확인하지 못했습니다.');
@@ -300,11 +327,13 @@ function validateImageInput(value) {
   return {word, koreanMeaning, subject, definition};
 }
 
-// Image calls are independently capped and require a deliberate tap in the app.
+// Image quota is independently enforced. Web review also starts an automatic image attempt.
 // The two additional D1 tables must exist before enabling photo generation.
 async function reserveImage(env, testerId) {
   const date = todayKST();
-  const result = await env.DB.batch([
+  let result;
+  try {
+    result = await env.DB.batch([
     env.DB.prepare(
       'INSERT INTO tester_daily_image_usage (tester_id, usage_date, request_count, updated_at) ' +
       'VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(tester_id, usage_date) DO UPDATE SET ' +
@@ -315,7 +344,25 @@ async function reserveImage(env, testerId) {
       'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
       'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
     ).bind(date)
-  ]);
+    ]);
+  } catch (error) {
+    // Existing image quota is 100; the new additive overflow table covers
+    // attempts 101-200. A failed primary batch does not commit a global count.
+    if (!String(error?.message || '').includes('image_limit_100') &&
+        !String(error?.message || '').includes('CHECK constraint failed')) throw error;
+    result = await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO tester_daily_image_usage_extra (tester_id, usage_date, request_count, updated_at) ' +
+        'VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(tester_id, usage_date) DO UPDATE SET ' +
+        'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
+      ).bind(testerId, date),
+      env.DB.prepare(
+        'INSERT INTO global_daily_image_usage (usage_date, request_count, updated_at) ' +
+        'VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(usage_date) DO UPDATE SET ' +
+        'request_count = request_count + 1, updated_at = CURRENT_TIMESTAMP'
+      ).bind(date)
+    ]);
+  }
   if (!Array.isArray(result) || result.length !== 2 ||
       result.some(row => row?.success !== true || row?.meta?.changes !== 1)) {
     throw new ApiError(503, '사진 생성 사용량 기록을 확인하지 못했습니다.');
@@ -414,7 +461,8 @@ function asError(error, phase = 'UNKNOWN') {
   const detail = String(error?.message || '');
   if (detail.includes('daily_limit_100') || detail.includes('global_limit_1000') ||
       detail.includes('global_limit_1500') || detail.includes('image_limit_100') ||
-      detail.includes('image_global_limit_1500')) {
+      detail.includes('image_global_limit_1500') ||
+      detail.includes('daily_extra_limit_100') || detail.includes('image_extra_limit_100')) {
     return workerJson({error:'오늘의 호출 한도에 도달했습니다.'}, 429);
   }
   if (error instanceof ApiError) return workerJson({error: error.message}, error.status);
