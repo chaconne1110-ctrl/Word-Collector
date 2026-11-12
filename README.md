@@ -1,18 +1,22 @@
 # Word Collector — 현재 수정 가능한 Android 앱 소스
 
-> **작업 브랜치:** `feature/ai-photo-generation-20261111`  
-> **운영 확인:** 2026-11-11 (KST), Android 단어 분석 및 AI 사진 생성 성공 (사용자 실기기 확인).  
-> **안전 원칙:** `main`은 변경하지 않으며, 개발 브랜치에서 소스 파일을 수정하고 검증합니다.
+> **통합 기준 브랜치:** `main` — 2026-11-12 사용자 요청으로 작업본 통합
+> **운영 확인:** 2026-11-11 (KST), Android 단어 분석 및 AI 사진 생성 성공 (사용자 실기기 확인).
+> **후속 개발:** 최신 `main`에서 개발 브랜치를 만들고 검증한 뒤 병합합니다.
 
 ## 현재 동작과 개발 상태
 
 - HTML/CSS/JavaScript + Capacitor 8 기반 Android 앱, 앱 ID: `com.yechan.wordcollector`
 - 전공 단어장 관리, 단어 추가·수정, 북마크, 플래시카드
 - Cloudflare Worker + D1 인증형 Gemini 단어 분석 및 이미지 생성
-- 텍스트 분석: **1인 하루 100회 / 전체 하루 1,500회**
-- AI 이미지 생성: **1인 하루 100회 / 전체 하루 1,500회** (텍스트 분석과 **별도 집계**)
+- 텍스트 분석: **1인 하루 200회 / 전체 하루 1,500회**
+- AI 이미지 생성: **1인 하루 200회 / 전체 하루 1,500회** (텍스트 분석과 **별도 집계**)
 - 이미지 생성 모델: `gemini-3.1-flash-lite-image`; 정사각형 이미지 한 장을 요청하고 앱은 JPG로 저장
-- 저장된 AI 이미지는 단말 IndexedDB에 보관해 플래시카드에서 오프라인 재표시
+- 저장된 AI 이미지는 단말 IndexedDB에 보관해 플래시카드와 수정 화면에서 오프라인 재표시
+- 참고 문장과 한국어 해석을 함께 표시하며, 단어 추가 화면의 직접 입력·PDF 첨부 선택 기능은 제거
+- 단어장이 없을 때 AI가 이름을 정한 첫 단어장에 자동 저장, 홈에서도 단어장 생성 가능
+
+위 200+200 한도와 첫 단어장 자동 분석은 새 Worker 배포가 필요하며, 한도 증가는 `0003_personal_daily_400_overflow.sql` 적용도 필요합니다. GitHub Pages 배포는 Worker/D1을 갱신하지 않습니다.
 - 실제 모바일 이미지 생성: 최초 Google API HTTP 400 오류를 `generationConfig.imageConfig`로 수정한 후 성공
 
 **아직 남은 과제:** 현재 JSON 백업/복원은 이미지 저장소(IndexedDB)를 포함하지 않습니다. APK 삭제, 기기 변경, 앱 데이터 초기화 전에는 이미지를 별도 보존해야 합니다. GitHub Actions는 디버그 서명 APK를 생성하며 정식 배포 서명/기존 APK와의 덮어쓰기 호환성은 보장되지 않습니다.
@@ -36,18 +40,18 @@
 
 ## GitHub에서 직접 수정하는 방법
 
-1. [개발 브랜치](https://github.com/chaconne1110-ctrl/Word-Collector/tree/feature/ai-photo-generation-20261111)를 엽니다.
+1. [최신 main](https://github.com/chaconne1110-ctrl/Word-Collector/tree/main)에서 새 개발 브랜치를 만듭니다.
 2. 위 표에서 파일을 선택합니다.
 3. 우측 연필 아이콘 **Edit this file**로 수정합니다.
 4. **Commit changes**에서 현재 개발 브랜치에 커밋합니다. `main`을 선택하지 마세요.
-5. 해당 브랜치의 [Draft Pull Request #10](https://github.com/chaconne1110-ctrl/Word-Collector/pull/10)에서 변경 내용을 검토합니다. 사용자 승인 없이 `main`으로 병합하지 않습니다.
+5. 변경한 개발 브랜치에서 `main`을 대상으로 PR을 생성해 검토합니다.
 
 Windows VS Code / Codex에서도 브랜치를 체크아웃해 수정할 수 있습니다.
 
 ```powershell
 git clone https://github.com/chaconne1110-ctrl/Word-Collector.git
 cd Word-Collector
-git switch feature/ai-photo-generation-20261111
+git switch -c feature/next-change origin/main
 npm ci
 node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
 npx.cmd cap sync android
@@ -57,8 +61,8 @@ Android SDK/JDK가 구성된 PC에서는 `cd android` 후 `.\gradlew.bat assembl
 
 ## Cloudflare 운영 환경
 
-**운영 Worker:** `word-collector-api`  
-**D1:** `word-collector-db` (binding: `DB`)  
+**운영 Worker:** `word-collector-api`
+**D1:** `word-collector-db` (binding: `DB`)
 **마지막 이미지 HTTP 400 수정 및 성공한 서버 버전:** `0e0be96b-15c9-4bef-883d-7a05263dc8cd`
 
 설정값:
