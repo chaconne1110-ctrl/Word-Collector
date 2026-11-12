@@ -24,12 +24,14 @@ function commit(next) {
   }
 }
 
-const courseNames = id => state.courses?.[id] || seed.courses[id];
-const hasCourse = id => Object.hasOwn(seed.courses, id);
+const courseNames = id => state.courses?.[id] || [id || '단어장', ''];
+const allCourses = () => Object.fromEntries(Object.entries(state.courses || {})
+  .filter(([id]) => !(state.deletedCourses || []).includes(id)));
+const hasCourse = id => Object.hasOwn(allCourses(), id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
 const course = hasCourse(params.get('course')) ? params.get('course') :
-  hasTerm(termId) ? state.terms[termId].course : 'electromagnetics';
+  hasTerm(termId) ? state.terms[termId].course : Object.keys(allCourses())[0] || '';
 const fromBookmark = params.get('from') === 'bookmark';
 const listFilter = params.get('filter') || 'all';
 const query = params.get('q') || '';
@@ -99,33 +101,92 @@ function rowLink(row, url) {
 function renderHome() {
   const input = $('#term-search-input');
   const clear = $('#clear-search-btn');
-  const rows = $$('[data-subject]');
-  for (const row of rows) rowLink(row, route('words.html', {course: row.dataset.subject}));
-  function render() {
-    let visible = 0;
-    const q = input.value.trim().toLowerCase();
-    for (const row of rows) {
-      const id = row.dataset.subject;
-      $('h2', row).textContent = courseNames(id)[0];
-      const ids = idsFor(false, id, 'all', '');
-      const shown = courseNames(id).some(name => name.toLowerCase().includes(q)) ||
-        ids.some(term => matches(state.terms[term], q));
-      row.hidden = !shown;
-      visible += Number(shown);
-      $$('span', row).forEach(span => {
-        if (/^\d+개 단어 저장됨$/.test(span.textContent.trim())) span.textContent = ids.length + '개 단어 저장됨';
-        if (/^북마크 \d+개$/.test(span.textContent.trim())) span.textContent = '북마크 ' + ids.filter(id => state.saved.includes(id)).length + '개';
-      });
+  const container = $('#word-list');
+  const empty = $('#empty-state');
+  const dialog = $('#create-notebook-dialog');
+  const nameInput = $('#new-notebook-name');
+
+  function openCreate() {
+    nameInput.value = '';
+    nameInput.setCustomValidity('');
+    dialog.showModal();
+    nameInput.focus();
+  }
+  $('#create-notebook').addEventListener('click', openCreate);
+  $('#cancel-create-notebook').addEventListener('click', () => dialog.close());
+  $('#create-notebook-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = nameInput.value.trim().replace(/\s+/g, ' ');
+    nameInput.setCustomValidity(name && name.length <= 60 ? '' : '단어장 이름을 1~60자로 입력하세요.');
+    if (!nameInput.reportValidity()) return;
+    state = load();
+    const exists = Object.values(allCourses()).some(names =>
+      names[0].normalize('NFKC').toLocaleLowerCase() === name.normalize('NFKC').toLocaleLowerCase());
+    if (exists) {
+      nameInput.setCustomValidity('같은 이름의 단어장이 이미 있습니다.');
+      nameInput.reportValidity();
+      return;
     }
-    $('#rendered-count').textContent = '총 ' + visible + '개 과목 등록됨';
-    $('#empty-state').classList.toggle('hidden', visible > 0);
+    const id = 'notebook_' + crypto.randomUUID();
+    if (commit({...state, courses:{...state.courses, [id]:[name, '']}})) {
+      dialog.close();
+      location.href = route('words.html', {course:id});
+    }
+  });
+  nameInput.addEventListener('input', () => nameInput.setCustomValidity(''));
+
+  function createCard(id, names) {
+    const row = document.createElement('article');
+    row.className = 'word-card relative rounded-xl bg-surface-container-lowest p-space-md shadow-sm transition-all cursor-pointer group hover:bg-surface-container-low/40 active:scale-[0.99]';
+    row.dataset.subject = id;
+    row.innerHTML =
+      '<div class="flex items-start gap-space-sm">' +
+      '<div class="w-12 h-12 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[26px]">menu_book</span></div>' +
+      '<div class="flex flex-col min-w-0"><h2 class="font-term-kr-title text-term-kr-title text-on-surface font-bold truncate"></h2>' +
+      '<p class="font-caption text-caption text-on-surface-variant mt-0.5 truncate"></p></div></div>' +
+      '<div class="mt-space-md pt-2.5 flex items-center justify-between bg-surface-container-low/60 -mx-space-md -mb-space-md px-space-md py-2.5 rounded-b-xl gap-2 flex-wrap">' +
+      '<span data-word-count class="font-label-ui text-caption font-semibold text-primary-container"></span>' +
+      '<span data-bookmark-count class="font-label-ui text-caption text-on-surface-variant"></span></div>';
+    $('h2', row).textContent = names[0];
+    $('p', row).textContent = names[1] || '내가 만든 단어장';
+    const ids = idsFor(false, id, 'all', '');
+    $('[data-word-count]', row).textContent = ids.length + '개 단어 저장됨';
+    $('[data-bookmark-count]', row).textContent =
+      '북마크 ' + ids.filter(termId => state.saved.includes(termId)).length + '개';
+    rowLink(row, route('words.html', {course:id}));
+    return row;
+  }
+
+  function render() {
+    state = load();
+    const courses = Object.entries(allCourses());
+    const q = input.value.trim().toLowerCase();
+    const visible = courses.filter(([id, names]) =>
+      names.some(name => name.toLowerCase().includes(q)) ||
+      idsFor(false, id, 'all', '').some(termId => matches(state.terms[termId], q)));
+    container.replaceChildren(...visible.map(([id, names]) => createCard(id, names)));
+    $('#rendered-count').textContent = q ? '검색 결과 ' + visible.length + '개 단어장' :
+      '총 ' + courses.length + '개 단어장 등록됨';
+    empty.classList.toggle('hidden', visible.length > 0);
+    if (!visible.length) {
+      $('#empty-state-title').textContent = courses.length && q ? '검색 결과가 없습니다' : '아직 단어장이 없습니다';
+      $('#empty-state-description').textContent = courses.length && q ?
+        '검색어를 변경하거나 전체 단어장을 확인해 주세요.' :
+        '새 단어장을 만든 뒤 원하는 전공 단어를 추가할 수 있습니다.';
+      $('#empty-state-action').textContent = courses.length && q ? '검색어 초기화' : '새 단어장 만들기';
+    }
     clear.classList.toggle('hidden', !input.value);
   }
+  $('#empty-state-action').addEventListener('click', () => {
+    if (input.value.trim() && Object.keys(allCourses()).length) {
+      input.value = '';
+      render();
+    } else openCreate();
+  });
   input.addEventListener('input', render);
-  function reset() { input.value = ''; render(); }
-  clear.addEventListener('click', reset);
-  $('#empty-state button').addEventListener('click', reset);
-  window.addEventListener('pageshow', () => { state = load(); render(); });
+  clear.addEventListener('click', () => { input.value = ''; render(); });
+  window.addEventListener('pageshow', render);
+  render();
 }
 
 function renderList() {
@@ -136,22 +197,38 @@ function renderList() {
   let filter = listFilter;
   if (bookmark) {
     const filters = $('#bookmark-filters');
-    for (const chip of $$('[data-filter]', filters)) {
-      if (chip.dataset.filter === 'circuit') chip.dataset.filter = 'circuit-theory';
-      if (chip.dataset.filter === 'electromag') chip.dataset.filter = 'electromagnetics';
-      if (chip.dataset.filter === 'machines') chip.dataset.filter = 'electrical-machines';
+    const allChip = filters.querySelector('[data-filter="all"]');
+    filters.replaceChildren(allChip);
+    for (const [id, names] of Object.entries(allCourses())) {
+      const chip = allChip.cloneNode(true);
+      chip.dataset.filter = id;
+      chip.firstElementChild.textContent = names[0];
+      filters.append(chip);
     }
-    const semiconductor = filters.lastElementChild.cloneNode(true);
-    semiconductor.dataset.filter = 'semiconductor';
-    semiconductor.firstElementChild.textContent = '반도체공학';
-    filters.append(semiconductor);
   } else {
+    if (!hasCourse(course)) { location.replace('index.html'); return; }
     $('header h1').textContent = courseNames(course)[0];
     $('header button[aria-label="뒤로 가기"]').addEventListener('click', () => location.href = 'index.html');
     const search = $('#searchContainer');
     $('#searchToggleBtn').addEventListener('click', () => {
       search.classList.toggle('hidden');
       if (!search.classList.contains('hidden')) input.focus();
+    });
+    const deleteDialog = $('#delete-notebook-dialog');
+    function openNotebookDelete() {
+      const count = Object.values(state.terms).filter(term => term.course === course).length;
+      $('#delete-notebook-description').textContent = '“' + courseNames(course)[0] + '” 단어장과 저장된 단어 ' + count + '개, 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
+      deleteDialog.showModal();
+    }
+    $('#delete-notebook').addEventListener('click', openNotebookDelete);
+    $('#cancel-notebook-delete').addEventListener('click', () => deleteDialog.close());
+    $('#confirm-notebook-delete').addEventListener('click', () => {
+      state = load();
+      const courses = {...allCourses()};
+      delete courses[course];
+      const terms = Object.fromEntries(Object.entries(state.terms).filter(([, term]) => term.course !== course));
+      const saved = state.saved.filter(id => Object.hasOwn(terms, id));
+      if (commit({...state, courses, terms, saved, deletedCourses: [...new Set([...(state.deletedCourses || []), course])]})) location.replace('index.html');
     });
     const renameDialog = $('#rename-notebook-dialog');
     const nameInput = $('#notebook-name');
@@ -168,7 +245,7 @@ function renderList() {
       nameInput.setCustomValidity(name ? '' : '단어장 이름을 입력해 주세요.');
       if (!nameInput.reportValidity()) return;
       const names = [name, courseNames(course)[1]];
-      if (!commit({...state, courses: {...seed.courses, ...state.courses, [course]: names}})) return;
+      if (!commit({...state, courses: {...allCourses(), [course]: names}})) return;
       $('header h1').textContent = name;
       renameDialog.close();
     });
@@ -225,9 +302,15 @@ function renderDeck() {
   const prev = $('button[aria-label="이전 단어"]');
   const next = $('button[aria-label="다음 단어"]');
   let current = termId;
+  let cancelActivePhoto = () => {};
+  window.addEventListener('pagehide', () => cancelActivePhoto());
+  let wheelGesture;
+  const atEdge = (face, direction) => direction < 0 ? face.scrollTop <= 1 :
+    face.scrollTop + face.clientHeight >= face.scrollHeight - 1;
   back.addEventListener('click', () => location.href = listUrl(fromBookmark));
 
   function draw(direction = 0) {
+    cancelActivePhoto();
     const ids = idsFor(fromBookmark, course, listFilter, query);
     const index = ids.indexOf(current);
     const target = index < 0 ? (direction < 0 ? ids.at(-1) : ids[0]) : ids[index + direction];
@@ -254,7 +337,28 @@ function renderDeck() {
     const card = template.content.firstElementChild.cloneNode(true);
     card.dataset.termId = current;
     const flipper = $('.card-flipper', card);
-    bindFields(card, {...term, counter, backTitle: term.en + ' · 예문'});
+    const referenceSentence = typeof term.referenceSentence === 'string' ? term.referenceSentence.trim() : '';
+    bindFields(card, {...term, exampleEn: referenceSentence || term.exampleEn,
+      exampleKo: referenceSentence ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
+      counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문')});
+    if (referenceSentence) {
+      const sentence = $('[data-field="exampleEn"]', card);
+      sentence.style.whiteSpace = 'pre-wrap';
+      sentence.style.overflowWrap = 'anywhere';
+      const translation = $('[data-field="exampleKo"]', card);
+      if (translation) {
+        translation.parentElement.hidden = false;
+        translation.style.whiteSpace = 'pre-wrap';
+        translation.style.overflowWrap = 'anywhere';
+      }
+      const section = sentence.parentElement;
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        if (sentence.contains(walker.currentNode) || translation?.contains(walker.currentNode)) continue;
+        walker.currentNode.textContent = walker.currentNode.textContent
+          .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력');
+      }
+    }
     const savedImage = term.diagram ? diagramImage(term.diagram) : null;
     if (savedImage) {
       const imageSection = document.createElement('div');
@@ -267,9 +371,92 @@ function renderDeck() {
       notice.textContent = '첨부된 도해가 없습니다.';
       $('.card-back', card).append(notice);
     }
+    // Generated photos are explicitly requested, billed once per tap and retained offline.
+    // Existing hand-built SVG diagrams remain available independently of this feature.
+    const photoTermId = current;
+    const photoPanel = document.createElement('section');
+    photoPanel.className = 'rounded-xl border border-surface-container-high bg-surface-container-lowest p-3 space-y-2';
+    const photoHeading = document.createElement('p');
+    photoHeading.className = 'font-label-ui text-[12px] font-bold text-primary';
+    photoHeading.textContent = 'AI 생성 학습 사진';
+    const photoImage = document.createElement('img');
+    photoImage.alt = (term.en || term.ko) + '의 AI 생성 학습 사진';
+    photoImage.className = 'w-full max-h-64 rounded-lg object-contain bg-surface-container-low';
+    photoImage.hidden = true;
+    const photoStatus = document.createElement('p');
+    photoStatus.className = 'text-[11px] text-on-surface-variant';
+    photoStatus.setAttribute('role', 'status');
+    photoStatus.textContent = '사진을 만들면 기기에 저장되고, 다음에는 인터넷 없이 표시됩니다.';
+    const photoButton = document.createElement('button');
+    photoButton.type = 'button';
+    photoButton.dataset.action = 'generate-photo';
+    photoButton.className = 'rounded-lg bg-primary text-on-primary px-3 py-2 text-xs font-bold';
+    photoButton.textContent = 'AI 사진 생성 (유료 · 1회)';
+    photoPanel.append(photoHeading, photoImage, photoStatus, photoButton);
+    $('.card-back', card).firstElementChild.append(photoPanel);
+    let hasPhoto = false;
+    let busyPhoto = false;
+    const photoGate = WordCollectorRequestGate.create();
+    cancelActivePhoto = () => photoGate.cancel();
+    async function refreshPhoto() {
+      const blob = await WordCollectorPhoto.get(photoTermId);
+      if (!blob || !card.isConnected) return;
+      const url = URL.createObjectURL(blob);
+      photoImage.onload = () => URL.revokeObjectURL(url);
+      photoImage.onerror = () => URL.revokeObjectURL(url);
+      photoImage.src = url;
+      photoImage.hidden = false;
+      hasPhoto = true;
+      photoButton.textContent = '사진 다시 생성 (추가 과금)';
+      photoStatus.textContent = '기기에 저장된 JPG 사진입니다. 새로 생성하면 인터넷 없이 표시됩니다.';
+    }
+    photoButton.addEventListener('click', async () => {
+      const remaining = photoGate.remainingMs();
+      if (remaining > 0) {
+        photoStatus.textContent = '3초 이내 중복 사진 생성 요청을 차단했습니다. ' +
+          Math.ceil(remaining / 1000) + '초 후에도 미완료면 다시 요청할 수 있습니다.';
+        return;
+      }
+      if (busyPhoto) {
+        if (!confirm('이전 사진 생성이 아직 처리 중입니다. 재요청 시 추가 요금이 발생할 수 있습니다. 재요청할까요?')) return;
+      } else if (hasPhoto) {
+        if (!confirm('사진을 다시 생성하면 새로운 API 요금이 발생하고 기존 사진이 교체됩니다. 진행할까요?')) return;
+      } else if (!confirm('사진 생성은 별도 유료 Gemini API를 1회 호출합니다. 기기에 저장할 사진을 생성할까요?')) {
+        return;
+      }
+      const ticket = photoGate.begin();
+      if (!ticket.allowed) return;
+      busyPhoto = true;
+      photoButton.textContent = '생성 중 · 3초 후 재요청 가능';
+      photoStatus.textContent = ticket.replaced ?
+        '이전 브라우저 요청을 중단하고 다시 요청했습니다. 서버에서 이미 처리된 호출은 과금될 수 있습니다.' :
+        'AI 사진을 생성 중입니다. 처음 3초간 중복 클릭은 차단됩니다.';
+      try {
+        const result = await WordCollectorAI.createImage({
+          word:term.en || term.ko, koreanMeaning:term.ko,
+          subject:courseNames(term.course)[0],
+          definition:(term.koDef || term.enDef || term.ko || term.en).slice(0, 700)
+        }, {signal:ticket.signal});
+        if (!photoGate.isCurrent(ticket.id) || !card.isConnected) return;
+        await WordCollectorPhoto.save(photoTermId, result.image);
+        if (!photoGate.isCurrent(ticket.id) || !card.isConnected) return;
+        await refreshPhoto();
+        photoStatus.textContent = 'AI 사진 제작과 기기 저장이 완료됐습니다.';
+      } catch (error) {
+        if (!photoGate.isCurrent(ticket.id)) return;
+        photoStatus.textContent = error?.message || 'AI 사진을 생성하지 못했습니다.';
+      } finally {
+        if (photoGate.finish(ticket.id)) {
+          busyPhoto = false;
+          photoButton.textContent = hasPhoto ? '사진 다시 생성 (추가 과금)' : 'AI 사진 생성 (유료 · 1회)';
+        }
+      }
+    });
     const bookmarkButtons = $$('[data-action="bookmark"]', card);
     bookmarkButtons.forEach(button => paintBookmark(button, current));
+    let suppressTapUntil = 0;
     card.addEventListener('click', event => {
+      if (Date.now() < suppressTapUntil) return;
       const button = event.target.closest('button');
       if (!button || button.dataset.action === 'flip') flipper.classList.toggle('is-flipped');
       else if (button.dataset.action === 'edit') location.href = cardUrl(current).replace('flashcard.html', 'edit.html');
@@ -280,35 +467,73 @@ function renderDeck() {
     });
     let start;
     card.addEventListener('touchstart', event => {
-      start = event.target.closest('button') ? null : event.changedTouches[0];
+      const face = event.target.closest('.card-front, .card-back');
+      start = event.touches.length !== 1 || event.target.closest('button') || !face ? null : {
+        x: event.touches[0].clientX, y: event.touches[0].clientY,
+        atTop: atEdge(face, -1), atBottom: atEdge(face, 1)
+      };
     }, {passive: true});
+    card.addEventListener('touchmove', event => {
+      if (!start || event.touches.length !== 1) { start = null; return; }
+      const x = event.touches[0].clientX - start.x;
+      const y = event.touches[0].clientY - start.y;
+      if (Math.max(Math.abs(x), Math.abs(y)) > 8) suppressTapUntil = Date.now() + 400;
+      // Only capture a vertical swipe that began at the relevant content edge.
+      // Other vertical gestures stay native so long definitions remain readable.
+      if (Math.abs(y) > Math.abs(x) && (y < 0 ? start.atBottom : start.atTop)) {
+        event.preventDefault();
+      }
+    }, {passive: false});
+    card.addEventListener('touchcancel', () => {
+      start = null;
+      suppressTapUntil = Date.now() + 400;
+    });
     card.addEventListener('touchend', event => {
       if (!start) return;
       const end = event.changedTouches[0];
-      const x = end.clientX - start.clientX;
-      const y = end.clientY - start.clientY;
+      const x = end.clientX - start.x;
+      const y = end.clientY - start.y;
+      const edge = y < 0 ? start.atBottom : start.atTop;
       start = null;
       if (Math.max(Math.abs(x), Math.abs(y)) < 40) return;
-      event.preventDefault();
-      if (Math.abs(x) > Math.abs(y)) flipper.classList.toggle('is-flipped');
-      else draw(y < 0 ? 1 : -1);
-    });
+      suppressTapUntil = Date.now() + 400;
+      if (Math.abs(x) > Math.abs(y)) {
+        event.preventDefault();
+        flipper.classList.toggle('is-flipped');
+      } else if (edge) {
+        event.preventDefault();
+        draw(y < 0 ? 1 : -1);
+      }
+    }, {passive: false});
     container.append(card);
+    container.scrollTop = 0;
+    void refreshPhoto().catch(error => {
+      photoStatus.textContent = error?.message || '저장된 사진을 읽지 못했습니다.';
+    });
   }
   prev.addEventListener('click', () => draw(-1));
   next.addEventListener('click', () => draw(1));
-  document.addEventListener('keydown', event => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      draw(event.key === 'ArrowDown' ? 1 : -1);
-    }
-  });
-  let lastWheel = -Infinity;
   container.addEventListener('wheel', event => {
-    if (Math.abs(event.deltaY) < 10 || performance.now() - lastWheel < 350) return;
-    lastWheel = performance.now();
-    draw(event.deltaY > 0 ? 1 : -1);
-  }, {passive: true});
+    if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    const face = event.target.closest('.card-front, .card-back');
+    if (!face) return;
+    const now = performance.now();
+    const direction = Math.sign(event.deltaY);
+    if (!wheelGesture || now - wheelGesture.lastAt > 180 || direction !== wheelGesture.direction) {
+      wheelGesture = {lastAt: now, direction, distance: 0, atEdge: atEdge(face, direction), consumed: false};
+    }
+    wheelGesture.lastAt = now;
+    // One word per wheel/trackpad gesture, including its momentum events.
+    if (wheelGesture.consumed) { event.preventDefault(); return; }
+    if (!wheelGesture.atEdge || !atEdge(face, direction)) return;
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? face.clientHeight : 1;
+    wheelGesture.distance += Math.abs(event.deltaY) * unit;
+    if (wheelGesture.distance >= 50) {
+      wheelGesture.consumed = true;
+      draw(direction);
+    }
+  }, {passive: false});
   window.addEventListener('pageshow', () => { state = load(); draw(); });
 }
 
@@ -325,12 +550,12 @@ const fields = {
 
 function renderEditor() {
   if (!hasTerm(termId)) {
-    location.replace(listUrl(fromBookmark));
+    location.replace('index.html');
     return;
   }
   const term = state.terms[termId];
   const select = $('#subjectSelect');
-  select.replaceChildren(...Object.entries(seed.courses).map(([id, names]) =>
+  select.replaceChildren(...Object.entries(allCourses()).map(([id, names]) =>
     new Option(courseNames(id).join(' · '), id)));
   for (const [id, key] of Object.entries(fields)) {
     const input = document.getElementById(id);
@@ -351,8 +576,9 @@ function openFlashcardDirect() {
 function saveTermChanges() {
   const updated = {...state.terms[termId]};
   for (const [id, key] of Object.entries(fields)) updated[key] = document.getElementById(id).value.trim();
-  if (!updated.en || !updated.ko) {
-    alert('영어 표제어와 한국어 뜻을 입력해 주세요.');
+  const validation = WordCollectorPartialTerm.validate(updated);
+  if (!validation.ok) {
+    alert(validation.message);
     return;
   }
   const moved = updated.course !== state.terms[termId].course;
@@ -363,12 +589,12 @@ function saveTermChanges() {
 }
 
 function openDeleteModal() {
-  $('#deleteModal').hidden = false;
-  $('#deleteModal').classList.remove('hidden');
+  const modal = $('#deleteModal');
+  $('p', modal).textContent = '“' + state.terms[termId].en + '” 단어와 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
+  modal.showModal();
 }
 function closeDeleteModal() {
-  $('#deleteModal').hidden = true;
-  $('#deleteModal').classList.add('hidden');
+  $('#deleteModal').close();
 }
 function confirmDelete() {
   const terms = {...state.terms};

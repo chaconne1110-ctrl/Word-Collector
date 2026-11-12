@@ -61,6 +61,107 @@
     .card-back svg, .card-back img {
       max-width: 100%;
     }
+    .card-front > :first-child > :first-child {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .card-front > :first-child > :first-child > :last-child {
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .card-front button {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .card-front > *, .card-front > :first-child > * {
+      flex-shrink: 0;
+      min-width: 0;
+    }
+    .card-front { overscroll-behavior-y: contain; }
+    /* Keep the deck inside the viewport; only the visible card face scrolls. */
+    html:has(body[data-page="card"]), body[data-page="card"] {
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+    body[data-page="card"] > main {
+      position: fixed;
+      top: calc(57px + env(safe-area-inset-top, 0px));
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      padding-top: 0;
+      padding-bottom: 0;
+      min-height: 0;
+    }
+    body[data-page="card"] > main > div {
+      height: 100%;
+      max-height: none;
+      min-height: 0;
+    }
+    #cardsScrollContainer {
+      scroll-snap-type: none;
+      scroll-behavior: auto;
+      padding-bottom: 0;
+      min-height: 0;
+    }
+    #cardsScrollContainer > article {
+      scroll-snap-align: none;
+    }
+    .card-front, .card-back {
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+    /* Explicit grid sizing also works in Android WebViews without dvh support. */
+    body[data-page="card"] > main > .deck-layout {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+      min-height: 0;
+    }
+    .deck-stage {
+      position: relative;
+      display: block;
+      min-height: 0;
+      margin-bottom: 8px;
+    }
+    #cardsScrollContainer {
+      position: absolute;
+      inset: 0 16px;
+      width: auto;
+      height: auto;
+      overflow: hidden;
+    }
+    #cardsScrollContainer > article {
+      position: absolute;
+      inset: 0;
+      height: auto;
+      min-height: 0 !important;
+      perspective: none;
+    }
+    .card-flipper, .card-flipper.is-flipped {
+      position: absolute;
+      inset: 0;
+      height: auto;
+      transform: none;
+      transform-style: flat;
+      transition: none;
+    }
+    .card-front, .card-back {
+      transform: none;
+      backface-visibility: visible;
+      -webkit-backface-visibility: visible;
+      height: auto;
+    }
+    .card-front { gap: 12px; }
+    .card-front > :first-child {
+      flex: 1 0 auto;
+      justify-content: flex-start;
+      gap: 12px;
+    }
+    .card-flipper > .card-front { display: flex; }
+    .card-flipper > .card-back { display: none; }
+    .card-flipper.is-flipped > .card-front { display: none; }
+    .card-flipper.is-flipped > .card-back { display: flex; }
     /* Hide scrollbars for snap container */
     #cardsScrollContainer {
       -ms-overflow-style: none;
@@ -70,7 +171,7 @@
       display: none;
     }
   </style>
-<title>플래시카드 · Word Collector</title></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="card"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_6px_rgba(0,0,0,0.03)]"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="backNavigationBtn"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-[19px] text-on-surface tracking-tight font-bold">플래시카드</h1></div><div class="flex items-center gap-1.5"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-16 bg-surface"><div class="flex flex-col w-full h-[calc(100dvh-120px)] max-h-[820px]">
+<title>플래시카드 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="card"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_6px_rgba(0,0,0,0.03)]"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="backNavigationBtn"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-[19px] text-on-surface tracking-tight font-bold">플래시카드</h1></div><div class="flex items-center gap-1.5"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-16 bg-surface"><div class="deck-layout flex flex-col w-full">
 <!-- Subject Tracker & Sub-Header -->
 <div class="px-margin pt-2.5 pb-1 flex items-center justify-between shrink-0">
 <div class="flex items-center gap-space-xs">
@@ -88,14 +189,14 @@
 <!-- Controls / Hints: Vertical Navigation Hint & Flip Gesture Banner -->
 
 <!-- Main Flashcard Vertical Scroll Snap Container -->
-<div class="relative px-margin flex-1 min-h-0 flex flex-col items-center">
+<div class="deck-stage relative px-margin flex-1 min-h-0 flex flex-col items-center">
 <div class="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth space-y-4 pb-4 overscroll-y-contain rounded-2xl" id="cardsScrollContainer" style="overflow:hidden">
 <!-- CARD 1: Skin Effect (표피 효과) -->
 <!-- CARD 2: Permittivity (유전율) -->
 <!-- CARD 3: Lorentz Force (로렌츠 힘) -->
 <!-- CARD 4: Permeability (투자율) -->
 <!-- CARD 5: Poynting Vector (포인팅 벡터) -->
-</div><template data-card-template="generic"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" style="min-height:100%;max-height:none;touch-action:none">
+</div><template data-card-template="generic"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -187,12 +288,12 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
 </article>
-</template><template data-card-template="term_poynting_vector"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="5" data-term-id="term_poynting_vector" style="min-height:100%;max-height:none;touch-action:none">
+</template><template data-card-template="term_poynting_vector"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="5" data-term-id="term_poynting_vector" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -319,12 +420,12 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 위로 스크롤</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
 </article>
-</template><template data-card-template="term_permeability"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="4" data-term-id="term_permeability" style="min-height:100%;max-height:none;touch-action:none">
+</template><template data-card-template="term_permeability"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="4" data-term-id="term_permeability" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -377,7 +478,7 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 <!-- BACK SIDE -->
@@ -447,12 +548,12 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
 </article>
-</template><template data-card-template="term_lorentz_force"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="3" data-term-id="term_lorentz_force" style="min-height:100%;max-height:none;touch-action:none">
+</template><template data-card-template="term_lorentz_force"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="3" data-term-id="term_lorentz_force" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -505,7 +606,7 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 <!-- BACK SIDE -->
@@ -576,12 +677,12 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
 </article>
-</template><template data-card-template="term_permittivity"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="2" data-term-id="term_permittivity" style="min-height:100%;max-height:none;touch-action:none">
+</template><template data-card-template="term_permittivity"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="2" data-term-id="term_permittivity" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -634,7 +735,7 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 <!-- BACK SIDE -->
@@ -712,12 +813,12 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
 </article>
-</template><template data-card-template="term_skin_effect"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" data-term-id="term_skin_effect" style="min-height:100%;max-height:none;touch-action:none">
+</template><template data-card-template="term_skin_effect"><article class="snap-start shrink-0 relative card-perspective w-full h-full min-h-[520px] max-h-[580px] select-none" data-card-index="1" data-term-id="term_skin_effect" style="min-height:100%;max-height:none;touch-action:pan-y">
 <div class="card-flipper cursor-pointer">
 <!-- FRONT SIDE -->
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
@@ -770,7 +871,7 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">touch_app</span> 탭하거나 좌우로 스와이프하여 뒷면
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 <!-- BACK SIDE -->
@@ -834,7 +935,7 @@
 <span class="flex items-center gap-1 text-primary font-semibold">
 <span class="material-symbols-outlined text-[15px] animate-pulse">replay</span> 탭하거나 스와이프하여 앞면(정의)으로 복귀
 </span>
-<span class="font-label-mono text-outline">↑ 밀어서 다음 단어</span>
+<span class="font-label-mono text-outline">끝에서 ↑ 다음 · ↓ 이전</span>
 </div>
 </div>
 </div>
@@ -854,7 +955,7 @@
 </div>
 </div>
 </main>
-<nav aria-label="Global Navigation" class="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-outline-variant/30 flex justify-around items-center h-16 px-2 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.03)]"><a class="flex flex-col items-center justify-center flex-1 py-1 text-primary transition-colors" href="index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-ui text-[11px] font-bold mt-0.5">홈</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="quick_capture/code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-label-ui text-[11px] font-medium mt-0.5">단어 추가</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-label-ui text-[11px] font-medium mt-0.5">북마크</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-label-ui text-[11px] font-medium mt-0.5">출력</span></a></nav>
+<nav aria-label="Global Navigation" class="bottom-navigation fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-outline-variant/30 flex justify-around items-center h-16 px-2 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.03)]"><a class="flex flex-col items-center justify-center flex-1 py-1 text-primary transition-colors" href="index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-ui text-[11px] font-bold mt-0.5">홈</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="quick_capture/code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-label-ui text-[11px] font-medium mt-0.5">단어 추가</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-label-ui text-[11px] font-medium mt-0.5">북마크</span></a><a class="flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors" href="_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-label-ui text-[11px] font-medium mt-0.5">출력</span></a></nav>
 <template id="resonance-diagram"><svg class="w-full h-28" viewbox="0 0 300 90" fill="none" xmlns="http://www.w3.org/2000/svg">
 <line x1="20" y1="75" x2="280" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
 <line x1="20" y1="10" x2="20" y2="75" stroke="#c5c5d3" stroke-width="1.5"></line>
@@ -865,4 +966,4 @@
 <text x="265" y="85" font-size="8" font-family="JetBrains Mono" fill="#444651" text-anchor="end">Frequency (f)</text>
 <text x="25" y="18" font-size="8" font-family="JetBrains Mono" fill="#444651">Impedance |Z|</text>
 </svg>
-</template><script src="data.js"></script><script src="diagrams.js"></script><script src="app.js"></script></body></html>
+</template><script src="data.js"></script><script src="diagrams.js"></script><script src="analysis-api.js"></script><script src="photo-store.js"></script><script src="request-gate.js"></script><script src="app.js"></script></body></html>

@@ -1,0 +1,37 @@
+const assert = require('node:assert/strict');
+const {once} = require('node:events');
+const {chromium} = require('playwright');
+const {createServer} = require('../server/server.cjs');
+
+(async () => {
+  const server = createServer();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  let browser;
+  try {
+    browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox']});
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    for (const width of [320, 390]) {
+      await page.setViewportSize({width, height: 844});
+      await page.goto(base + '/words.html?course=electromagnetics');
+      await page.locator('#term-list [data-term-id]').first().click();
+      await page.waitForSelector('#cardsScrollContainer > article');
+      assert.equal(await page.locator('.card-front').isVisible(), true);
+      assert.equal(await page.locator('.card-front [data-action="bookmark"]').count(), 1);
+      await page.locator('.card-front [data-action="bookmark"]').click();
+      const pressed = await page.locator('.card-front [data-action="bookmark"]').getAttribute('aria-pressed');
+      assert.equal(await page.locator('.card-back [data-action="bookmark"]').getAttribute('aria-pressed'), pressed);
+      await page.locator('.card-front [data-action="flip"]').last().click();
+      assert.equal(await page.locator('.card-back').isVisible(), true);
+      assert.equal(await page.getByRole('button', {name: 'AI 사진 생성 (유료 · 1회)', exact: true}).count(), 1);
+    }
+    assert.deepEqual(errors, []);
+    console.log('PASS: list-to-flashcard rendering, both bookmark buttons, face switching and photo panel at 320/390px');
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
