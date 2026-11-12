@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261112-layout-review-v13';
+const CACHE_NAME = PREFIX + '20261113-anonymous-auth-review-v14';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "_6/code.html",
   "ai/code.html",
   "analysis-api.js",
+  "anonymous-auth.js",
+  "auth/native-challenge.html",
   "app.js",
   "assets/fonts/Inter/inter-local.css",
   "assets/fonts/JetBrainsMono/local.css",
