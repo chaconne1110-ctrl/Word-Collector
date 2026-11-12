@@ -64,7 +64,8 @@ test('Android tester code survives page reloads and is never stored in JS localS
   assert.equal(saved, '');
   const page3 = makeAndroid(store, requests);
   assert.equal(await page3.restoreTesterToken(), false);
-  await assert.rejects(() => page3.request({term: 'Transformer'}), /자동 인증 기능을 찾지 못했습니다/);
+  await page3.request({term: 'Transformer'});
+  assert.equal(Object.hasOwn(requests.at(-1).headers, 'Authorization'), false);
 });
 
 test('Android refuses to silently save credentials when native secure plugin is missing', async () => {
@@ -94,8 +95,9 @@ test('Browser credentials remain temporary and are not persisted', async () => {
   assert.equal(calls[0].data.headers.Authorization, 'Bearer ' + code);
   const page2 = makeBrowser();
   assert.equal(await page2.restoreTesterToken(), false);
-  await assert.rejects(() => page2.request({term: 'Transformer'}), /자동 인증 기능을 찾지 못했습니다/);
-  assert.equal(calls.length, 1);
+  await page2.request({term: 'Transformer'});
+  assert.equal(calls.length, 2);
+  assert.equal(Object.hasOwn(calls[1].data.headers, 'Authorization'), false);
 });
 
 test('Android securely persists newly issued anonymous credentials and reuses them without another registration', async () => {

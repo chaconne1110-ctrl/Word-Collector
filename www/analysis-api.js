@@ -56,12 +56,15 @@
     return converted;
   }
   function createClient({native = false, nativeHttp, fetchImpl = root.fetch?.bind(root),
-    baseUrl = CLOUD_URL, token = ''} = {}) {
+    baseUrl = CLOUD_URL, token = '', deviceId = ''} = {}) {
     if (![CLOUD_URL, '', 'http://127.0.0.1:8787'].includes(baseUrl)) throw new Error('허용되지 않은 분석 서버입니다.');
     const cloud = baseUrl === CLOUD_URL;
     const headers = {'Content-Type':'application/json'};
-    if (cloud) {
-      if (!/^wc_[a-f0-9]{64}$/.test(token)) throw new Error('테스터 인증 코드를 먼저 등록해 주세요.');
+    // AI works without a tester code: each app install has its own daily quota
+    // (analysis 200 + image 200), keyed by a random per-install device ID.
+    if (cloud && /^wd_[a-f0-9]{64}$/.test(deviceId)) headers['X-WC-Device'] = deviceId;
+    if (cloud && token) {
+      if (!/^wc_[a-f0-9]{64}$/.test(token)) throw new Error('테스터 인증 코드 형식을 확인해 주세요.');
       headers.Authorization = 'Bearer ' + token;
     }
     async function requestAttempt(payload, signal) {
@@ -178,6 +181,20 @@
     }
     // Remove any plaintext credential left by an earlier preview build.
     try { root.localStorage?.removeItem('word-collector-tester-auth-v1'); } catch { /* private storage disabled */ }
+    // Random per-install ID for the public daily quota. Not a credential.
+    const DEVICE_KEY = 'word-collector-device-id-v1';
+    let deviceId = '';
+    function getDeviceId() {
+      if (deviceId) return deviceId;
+      try { deviceId = root.localStorage?.getItem(DEVICE_KEY) || ''; } catch {}
+      if (!/^wd_[a-f0-9]{64}$/.test(deviceId)) {
+        const bytes = new Uint8Array(32);
+        try { root.crypto.getRandomValues(bytes); } catch { return ''; }
+        deviceId = 'wd_' + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        try { root.localStorage?.setItem(DEVICE_KEY, deviceId); } catch {}
+      }
+      return deviceId;
+    }
     root.WordCollectorAI = {
       // Retained for callers that only want temporary credentials.
       configure({testerToken = '', useLocal = false}) {
@@ -247,18 +264,21 @@
         }
         return Boolean(token);
       },
+      // Public access uses the per-install device ID (X-WC-Device). A token is
+      // sent only if one is already stored; no Turnstile enrollment is started.
       async createImage(payload, options = {}) {
-        if (!token) await root.WordCollectorAI.ensureAutoAuth();
+        if (!token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
-          baseUrl:CLOUD_URL, token, native:isNative(),
+          baseUrl:CLOUD_URL, token, deviceId:getDeviceId(), native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
         }).requestImage(payload, options);
       },
       async request(payload, options = {}) {
-        if (!local && !token) await root.WordCollectorAI.ensureAutoAuth();
+        if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
           baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
           token,
+          deviceId: local ? '' : getDeviceId(),
           native: isNative(),
           nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
         }).request(payload, options);

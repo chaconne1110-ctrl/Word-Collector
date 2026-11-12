@@ -453,7 +453,7 @@ testerMode.addEventListener('change', async () => {
     const stored = await WordCollectorAI.restoreTesterToken();
     testerStatus.textContent = stored ?
       '인증 코드가 현재 브라우저 세션에 등록되어 있습니다.' :
-      'Cloudflare HTTPS를 선택했습니다. 인증 코드를 등록해 주세요.';
+      'Cloudflare HTTPS를 선택했습니다. 인증 코드 없이도 AI 분석·사진을 사용할 수 있습니다.';
   } catch (error) {
     testerStatus.textContent = error?.message || '저장된 인증 코드를 불러오지 못했습니다.';
   }
