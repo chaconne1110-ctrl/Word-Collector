@@ -11,6 +11,7 @@ const {createServer} = require('../server/server.cjs');
   try {
     browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox']});
     const page = await browser.newPage({acceptDownloads: true});
+    await page.addInitScript(() => { if(!localStorage.getItem('lexicon-word-collector-v1')) localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses:{electromagnetics:['검증 단어장','Test']},terms:{a:{course:'electromagnetics',en:'electricity',ko:'전기',pos:'noun',enDef:'Energy',exampleEn:'Electricity flows.'}},saved:[]})); });
     let safeBottom = 0;
     // Chromium desktop reports zero safe-area insets. Substitute the CSS env()
     // value in served styles to exercise the same declarations with a phone inset.

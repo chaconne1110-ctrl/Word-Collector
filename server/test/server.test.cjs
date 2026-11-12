@@ -87,7 +87,7 @@ test('empty notebooks disclose missing saved-term evidence; invented related ter
 test('input validation rejects malformed fields or destinations before calling Gemini', async t => {
   const {send, url} = await serverFor(t, {fetchImpl: () => assert.fail('invalid input must not call Gemini')});
   const cases = [null, {...fixture(),word:''}, {...fixture(),word:{}}, {...fixture(),autoSubject:'true'},
-    {...fixture(),autoSubject:false,selectedSubject:'없는 과목'}, {...fixture(),notebooks:[]},
+    {...fixture(),autoSubject:false,selectedSubject:'없는 과목'}, {...fixture(),autoSubject:false,notebooks:[]},
     {...fixture(), notebooks:[{name:'전자기학',terms:[{englishTerm:123}]}]}];
   for (const request of cases) {
     const response = await send(request); assert.equal(response.status, 400); assert.equal(typeof (await response.json()).error, 'string');
@@ -186,4 +186,27 @@ test('legacy client accepts user-created empty notebooks in both manual and auto
     }
   }
   assert.equal(calls,2);
+});
+
+test('automatic analysis with no notebooks names a new course in one request', async t => {
+  let calls = 0;
+  const {send} = await serverFor(t, {fetchImpl: async (_, init) => {
+    calls++;
+    const request = JSON.parse(init.body);
+    assert.equal(request.generationConfig.responseSchema.properties.notebookName.enum, undefined);
+    assert.match(request.systemInstruction.parts[0].text, /새 단어장 이름/);
+    return upstream(output({notebookName:'전자기 유도', pos:'noun', exampleKo:'와전류가 도체를 가열한다.'}));
+  }});
+  const response = await send({term:'와전류',context:'자기장에 의해 생기는 전류',autoCourse:true,notebooks:[]});
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.course, '전자기 유도');
+  assert.equal(data.classification.reviewedCourses, 0);
+  assert.deepEqual(data.classification.relatedTerms, []);
+  assert.equal(calls, 1);
+});
+
+test('new notebook names must stay within the UI length limit', async t => {
+  const {send} = await serverFor(t, {fetchImpl: async () => upstream(output({notebookName:'가'.repeat(61),pos:'noun',exampleKo:'예문'}))});
+  assert.equal((await send({term:'eddy current',context:'',autoCourse:true,notebooks:[]})).status,502);
 });

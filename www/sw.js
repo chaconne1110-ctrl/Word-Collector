@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261112-capture-simplified-v8';
+const CACHE_NAME = PREFIX + '20261112-main-integrated-v9';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

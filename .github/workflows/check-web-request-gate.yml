@@ -1,8 +1,9 @@
-name: Validate Word Collector web-only changes (no deploy)
+name: Validate Word Collector web changes
 
 on:
   push:
     branches:
+      - main
       - feature/webapp-only-20261112
   workflow_dispatch:
 
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   test-only:
-    name: Syntax and regression tests (no APK, no Pages)
+    name: Syntax and regression tests
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -31,7 +32,3 @@ jobs:
           node --check www/sw.js
       - name: Verify all unit and regression tests
         run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
-      - name: Verify no web deploy on this branch
-        run: |
-          grep -Fq 'branches: [feature/ai-photo-generation-20261111]' .github/workflows/deploy-iphone-pwa.yml
-          echo 'Only tests ran. No Pages, Cloudflare Worker or Android release actions.'

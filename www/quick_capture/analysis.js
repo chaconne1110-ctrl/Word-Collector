@@ -28,6 +28,7 @@ const reviewPhotoImage = $('#review-photo-image');
 const reviewPhotoStatus = $('#review-photo-status');
 let photoDraft = null;
 let photoBusy = false;
+let photoTask = Promise.resolve();
 const photoRequestGate = WordCollectorRequestGate.create();
 async function startReviewPhoto({automatic = false} = {}) {
   if (!draft) return;
@@ -55,9 +56,10 @@ async function startReviewPhoto({automatic = false} = {}) {
   const koreanMeaning = reviewForm.elements.ko.value.trim() || word;
   const definition = (reviewForm.elements.koDef.value || reviewForm.elements.enDef.value ||
     koreanMeaning || word).trim().slice(0, 700);
+  photoTask = (async () => {
   try {
     const r = await WordCollectorAI.createImage({
-      word, koreanMeaning, subject:courseNames(draft.selected)[0], definition
+      word, koreanMeaning, subject:draft.newCourseName || courseNames(draft.selected)[0], definition
     }, {signal:ticket.signal});
     if (!photoRequestGate.isCurrent(ticket.id) || !draft) return;
     photoDraft = r.image;
@@ -74,6 +76,8 @@ async function startReviewPhoto({automatic = false} = {}) {
       reviewPhotoButton.textContent = photoDraft ? '사진 다시 생성 (추가 API 1회)' : '사진 다시 시도 (추가 API 1회)';
     }
   }
+  })();
+  return photoTask;
 }
 reviewPhotoButton.addEventListener('click', () => { void startReviewPhoto(); });
 
@@ -131,7 +135,7 @@ function refreshNotebookChoices() {
   existingButton.disabled = notebookEntries.length === 0;
   $('#no-notebooks').hidden = notebookEntries.length !== 0;
   if (!notebookEntries.length) {
-    existingButton.setAttribute('aria-label', '단어장이 없습니다. 홈에서 먼저 만들어 주세요.');
+    existingButton.setAttribute('aria-label', '단어장이 없어 AI 자동 분류로 새 단어장을 만듭니다.');
     setCategoryMode('ai');
   } else {
     existingButton.removeAttribute('aria-label');
@@ -149,8 +153,8 @@ function supportsEddyDiagram(en, selected) {
 
 function updateReviewTarget() {
   $('#review-target').textContent = draft.term +
-    (draft.recommended ? ' · AI 추천: ' + courseNames(draft.recommended)[0] : '') +
-    ' · 저장: ' + courseNames(draft.selected)[0];
+    (draft.recommended ? ' · AI 추천: ' + (draft.newCourseName || courseNames(draft.recommended)[0]) : '') +
+    ' · 저장: ' + (draft.newCourseName || courseNames(draft.selected)[0]);
 }
 
 function currentNotebooks() {
@@ -244,17 +248,14 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '이미 분석이 완료됐습니다. 검수한 후 저장하거나 입력 내용을 바꿔 새로 분석할 수 있습니다.';
     return;
   }
-  const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
-  const term = termInput.value.trim();
   refreshNotebookChoices();
+  const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
+  const createFirstCourse = autoCourse && Object.keys(allCourses()).length === 0;
+  const term = termInput.value.trim();
   const selected = courseInput.value;
   const context = contextInput.value.trim();
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
-    return;
-  }
-  if (autoCourse && !Object.keys(allCourses()).length) {
-    status.textContent = '단어장이 없습니다. 홈에서 새 단어장을 먼저 만들어 주세요.';
     return;
   }
   if (!autoCourse && (!selected || !hasCourse(selected))) {
@@ -292,13 +293,22 @@ analysisButton.addEventListener('click', async () => {
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;
     reviewForm.elements.referenceTranslation.parentElement.hidden = !context;
-    const target = autoCourse ?
+    let target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
+    let newCourseName;
+    if (createFirstCourse) {
+      if (typeof result.course !== 'string' || !result.course.trim() || result.course.trim().length > 60) {
+        throw new Error('새 단어장 이름을 확인하지 못했습니다. 다시 분석해 주세요.');
+      }
+      newCourseName = result.course.trim();
+      target = 'notebook_' + crypto.randomUUID();
+      reviewCourse.add(new Option(newCourseName, target));
+    }
     if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, referenceSentence: context, model: result.model, recommended: autoCourse ? target : null, selected: target,
+    draft = {term, newCourseName, referenceSentence: context, model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     reviewCourse.value = target;
     // Users always control the destination, including when the notebook contains no words.
@@ -314,7 +324,7 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
-    // Present completed results immediately after analysis.
+    if (createFirstCourse && !result.needsManualCompletion) await saveReview();
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ?
@@ -330,10 +340,9 @@ analysisButton.addEventListener('click', async () => {
   }
 });
 
-reviewForm.addEventListener('submit', async event => {
-  event.preventDefault();
-  if (!draft) return;
-  state = load();
+let saving = false;
+async function saveReview() {
+  if (!draft || saving) return;
   const result = Object.fromEntries(Object.keys(resultFields).map(key =>
     [key, reviewForm.elements[key].value.trim()]));
   const validation = WordCollectorPartialTerm.validate(result);
@@ -342,28 +351,50 @@ reviewForm.addEventListener('submit', async event => {
     status.scrollIntoView({block: 'center'});
     return;
   }
-  if (!hasCourse(draft.selected)) {
-    status.textContent = '저장할 단어장이 삭제됐습니다. 단어장을 다시 선택해 주세요.';
-    return;
-  }
-  const existing = WordCollectorPartialTerm.findExisting(state.terms, draft.selected, result);
-  if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
-  const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
-  const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
-  delete word.diagram;
-  if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
-  if (commit({...state, terms: {...state.terms, [id]: word}})) {
-    if (photoDraft) {
-      try {
-        await WordCollectorPhoto.save(id, photoDraft);
-      } catch (error) {
-        status.textContent = '단어는 저장됐지만 사진 저장에 실패했습니다: ' + error.message;
-        return;
-      }
+  const savingDraft = draft;
+  saving = true;
+  const controls = [...new Set([...inputControls, analysisButton, ...reviewForm.elements])];
+  const disabled = controls.map(control => control.disabled);
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    if (photoBusy) status.textContent = '사진 생성이 끝나면 단어와 함께 저장합니다.';
+    await photoTask;
+    if (draft !== savingDraft) return;
+    state = load();
+    const courses = {...allCourses()};
+    if (draft.newCourseName) {
+      const sameName = Object.keys(courses).find(id => normalize(courses[id][0]) === normalize(draft.newCourseName));
+      if (sameName) draft.selected = sameName;
+      else courses[draft.selected] = [draft.newCourseName, ''];
+    } else if (!hasCourse(draft.selected)) {
+      status.textContent = '저장할 단어장이 삭제됐습니다. 단어장을 다시 선택해 주세요.';
+      return;
     }
-    draft = null;
-    location.href = '../' + route('words.html', {course: word.course});
+    const existing = WordCollectorPartialTerm.findExisting(state.terms, draft.selected, result);
+    if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
+    const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
+    const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
+    delete word.diagram;
+    if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
+    if (commit({...state, courses, terms: {...state.terms, [id]: word}})) {
+      if (photoDraft) {
+        try { await WordCollectorPhoto.save(id, photoDraft); }
+        catch (error) {
+          status.textContent = '단어는 저장됐지만 사진 저장에 실패했습니다: ' + error.message;
+          return;
+        }
+      }
+      draft = null;
+      location.href = '../' + route('words.html', {course: word.course});
+    }
+  } finally {
+    saving = false;
+    controls.forEach((control, i) => { control.disabled = disabled[i]; });
   }
+}
+reviewForm.addEventListener('submit', event => {
+  event.preventDefault();
+  void saveReview();
 });
 
 const testerToken = $('#tester-token');

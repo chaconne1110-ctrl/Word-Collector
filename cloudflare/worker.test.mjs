@@ -390,3 +390,27 @@ test('analysis requests 101-200 use additive overflow and 201 returns 429',async
     assert.equal(usageBody.limit,400);
   }finally {globalThis.fetch=original;}
 });
+
+test('empty notebook auto analysis proposes a new name with one authorized Gemini call', async () => {
+  const {env, state} = mockEnv({live:true});
+  state.hash = await tokenHash(token);
+  const previous = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async (_, options) => {
+      calls++;
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.generationConfig.responseSchema.properties.notebookName.enum, undefined);
+      assert.deepEqual(JSON.parse(payload.contents[0].parts[0].text).notebooks, []);
+      return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({englishTerm:'Transformer',koreanMeaning:'변압기',specialization:'전기공학',notebookName:'전력 변환',englishDefinition:'An electrical device.',koreanDefinition:'전기 장치.',exampleSentence:'A transformer changes voltage.',explanation:'전압 변환',recommendationReason:'전력 분야',relatedTerms:['invented'],pos:'noun',exampleKo:'변압기가 전압을 바꾼다.'})}]}}]}));
+    };
+    const response = await worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({term:'Transformer',context:'AC voltage',autoCourse:true,notebooks:[]})}),env);
+    const result = await response.json();
+    assert.equal(response.status,200,JSON.stringify(result));
+    assert.equal(result.course,'전력 변환');
+    assert.equal(result.classification.reviewedCourses,0);
+    assert.deepEqual(result.classification.relatedTerms,[]);
+    assert.equal(calls,1);
+    assert.equal(state.batchCalls,1);
+  } finally { globalThis.fetch = previous; }
+});

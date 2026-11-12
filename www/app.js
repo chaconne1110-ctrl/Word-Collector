@@ -563,10 +563,16 @@ function renderEditor() {
   }
   $('#edit-course-label').textContent = courseNames(term.course)[0];
   $('header button[aria-label^="수정 취소"]').onclick = openFlashcardDirect;
-  const diagramButton = $('[onclick="regenerateAiDiagram()"]');
-  diagramButton.removeAttribute('onclick');
-  diagramButton.title = '이 화면에는 AI 생성 기능이 연결되어 있지 않습니다.';
-  if (termId !== 'term_resonance_frequency') diagramButton.parentElement.nextElementSibling.hidden = true;
+  const photo = $('#edit-analysis-photo');
+  const photoStatus = $('#edit-photo-status');
+  void WordCollectorPhoto.get(termId).then(blob => {
+    if (!blob) { photoStatus.textContent = '이 단어에 저장된 분석 이미지가 없습니다.'; return; }
+    const url = URL.createObjectURL(blob);
+    photo.onload = () => { photo.hidden = false; photoStatus.textContent = '이 단어에 저장된 분석 이미지입니다.'; URL.revokeObjectURL(url); };
+    photo.onerror = () => { photoStatus.textContent = '저장된 이미지를 표시하지 못했습니다.'; URL.revokeObjectURL(url); };
+    photo.alt = term.en + ' 분석 이미지';
+    photo.src = url;
+  }).catch(() => { photoStatus.textContent = '저장된 이미지를 불러오지 못했습니다. 다시 열어 주세요.'; });
 }
 
 function openFlashcardDirect() {

@@ -12,6 +12,7 @@ const {createServer} = require('../server/server.cjs');
   try {
     browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox']});
     const page = await browser.newPage();
+    await page.addInitScript(() => { if(!localStorage.getItem('lexicon-word-collector-v1')) localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses:{electromagnetics:['검증 단어장','Test']},terms:{a:{course:'electromagnetics',en:'electricity',ko:'전기',pos:'noun',enDef:'Energy',exampleEn:'Electricity flows.'}},saved:[]})); });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     for (const width of [320, 390]) {

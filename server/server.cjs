@@ -20,7 +20,8 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 정확하고 간결한 영어 정의, koreanDefinition은 그 정의의 충실한 한국어 해석입니다. exampleSentence는 같은 의미를 사용하는 자연스러운 영어 예문 한 문장입니다.
 7. explanation은 짧은 한국어 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
 8. translateReference=true이면 referenceTranslation에 referenceText 전체의 충실한 한국어 해석을 1,200자 이내로 작성하세요. 생성 예문(exampleSentence)의 번역과 혼동하지 마세요. 원문이 한국어이면 의미를 유지한 자연스러운 한국어 문장으로 작성하세요.
-9. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
+9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
+10. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
 class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -58,8 +59,8 @@ function validateInput(value) {
   const referenceText = inputText(value.referenceText, '참고 문장', 6000);
   if (typeof value.autoSubject !== 'boolean') failInput('자동 분류 선택을 확인해 주세요.');
   const selectedSubject = inputText(value.selectedSubject, '선택 단어장', 100);
-  if (!Array.isArray(value.notebooks) || !value.notebooks.length || value.notebooks.length > 50) {
-    failInput('분류 후보 단어장을 1개 이상, 50개 이하로 제공해 주세요.');
+  if (!Array.isArray(value.notebooks) || (!value.autoSubject && !value.notebooks.length) || value.notebooks.length > 50) {
+    failInput('분류 후보 단어장은 50개 이하여야 하며 직접 선택 시 1개 이상이어야 합니다.');
   }
   const names = new Set();
   let totalTerms = 0;
@@ -89,7 +90,7 @@ function validateInput(value) {
 }
 function responseSchema(input) {
   const properties = Object.fromEntries(CORE_FIELDS.map(field => [field, {type: 'STRING'}]));
-  properties.notebookName.enum = input.autoSubject ? input.notebooks.map(notebook => notebook.name) : [input.selectedSubject];
+  if (!input.autoSubject || input.notebooks.length) properties.notebookName.enum = input.autoSubject ? input.notebooks.map(notebook => notebook.name) : [input.selectedSubject];
   properties.explanation = {type: 'STRING'};
   properties.recommendationReason = {type: 'STRING'};
   properties.relatedTerms = {type: 'ARRAY', items: {type: 'STRING'}, maxItems: 5};
@@ -113,9 +114,10 @@ function validateOutput(value, input) {
   // A model cannot move a manually selected save destination, even if it ignores the prompt.
   if (!input.autoSubject) analysis.notebookName = input.selectedSubject;
   const notebook = input.notebooks.find(item => item.name === analysis.notebookName);
-  if (!notebook) invalid();
+  const newNotebook = input.autoSubject && input.notebooks.length === 0;
+  if (newNotebook ? analysis.notebookName.length > 60 : !notebook) invalid();
   if (!Array.isArray(value.relatedTerms) || value.relatedTerms.length > 5 || value.relatedTerms.some(term => typeof term !== 'string')) invalid();
-  const saved = new Map(notebook.terms.map(term => {
+  const saved = new Map((notebook?.terms || []).map(term => {
     const label = term.englishTerm || term.koreanMeaning;
     return [label.toLocaleLowerCase('en'), label];
   }));
@@ -124,6 +126,8 @@ function validateOutput(value, input) {
     analysis.recommendationReason = input.referenceText
       ? '참고 문장을 최우선으로 의미를 분석하고, 직접 선택한 단어장에 저장합니다.'
       : '직접 선택한 단어장을 참고해 의미를 분석하고, 해당 단어장에 저장합니다.';
+  } else if (newNotebook) {
+    analysis.recommendationReason = '기존 단어장이 없어 입력한 단어와 참고 문장에 맞는 새 단어장 이름을 제안했습니다.';
   } else if (!notebook.terms.length) {
     analysis.recommendationReason = '추천 단어장에 저장된 단어가 없어 의미를 직접 비교할 수 없습니다. 단어장 이름과 입력 문맥을 참고한 임시 추천입니다. 저장 전 확인해 주세요.';
   }
