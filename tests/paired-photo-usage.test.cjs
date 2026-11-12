@@ -17,13 +17,16 @@ test('photo request includes fallback Korean meaning and definition',()=>{
   assert.match(s,/const koreanMeaning = .* \|\| word;/);
   assert.match(s,/const definition = /);
 });
-test('existing separate caps represent at most 200 actual API attempts',()=>{
+test('new per-tester caps represent 400 actual API attempts and at most 200 pairs',()=>{
   const worker=fs.readFileSync('cloudflare/worker.mjs','utf8');
-  assert.match(worker,/const PERSONAL_LIMIT = 100/);
-  assert.match(worker,/const IMAGE_PERSONAL_LIMIT = 100/);
+  assert.match(worker,/const PERSONAL_LIMIT = 200/);
+  assert.match(worker,/const IMAGE_PERSONAL_LIMIT = 200/);
   assert.match(worker,/const limit = PERSONAL_LIMIT \+ IMAGE_PERSONAL_LIMIT/);
   assert.match(worker,/analysis: \{used:analysisUsed/);
   assert.match(worker,/image: \{used:imageUsed/);
   assert.match(fs.readFileSync('cloudflare/schema.sql','utf8'),/daily_limit_100/);
+  const migration=fs.readFileSync('cloudflare/migrations/0003_personal_daily_400_overflow.sql','utf8');
+  assert.match(migration,/tester_daily_usage_extra/);
+  assert.match(migration,/tester_daily_image_usage_extra/);
   assert.match(fs.readFileSync('cloudflare/migrations/0002_image_daily_limits.sql','utf8'),/image_limit_100/);
 });

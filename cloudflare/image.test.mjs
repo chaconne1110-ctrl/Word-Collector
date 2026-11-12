@@ -21,6 +21,8 @@ async function fixture({photoEnabled = false, quotaError = null} = {}) {
           if (this.sql.includes('FROM testers')) return this.params[0] === expected
             ? {tester_id:'owner-test-01',is_active:1,expires_at:null} : null;
           if (this.sql.includes('sqlite_master')) return {total:3};
+          if (this.sql.includes('FROM tester_daily_usage_extra')) return {request_count:0};
+          if (this.sql.includes('FROM tester_daily_image_usage_extra')) return {request_count:0};
           throw new Error('Unexpected SQL: ' + this.sql);
         }
       };
@@ -108,4 +110,51 @@ test('upstream photo failure is reported without exposing provider details',asyn
     assert.ok(!JSON.stringify(body).includes('API key and request'));
     assert.equal(f.used(),1);
   }finally{globalThis.fetch=priorFetch;}
+});
+
+test('new image calls use overflow quota 101-200 and enforce maximum', async()=>{
+  let current=100, extra=0, geminiCalls=0, batchCalls=0;
+  const expected=await sha(token);
+  const DB={
+    prepare(sql) {return {sql,bind(...params){this.params=params;return this;},async first() {
+      if(sql.includes('FROM testers')) return {tester_id:'owner-test-01',is_active:1,expires_at:null};
+      if(sql.includes('FROM tester_daily_image_usage_extra')) return {request_count:extra};
+      if(sql.includes('FROM tester_daily_image_usage')) return {request_count:current};
+      if(sql.includes('FROM tester_daily_usage_extra')) return {request_count:0};
+      if(sql.includes('FROM tester_daily_usage')) return {request_count:0};
+      throw Error('Unexpected SQL '+sql);
+    }};},
+    async batch(commands){
+      batchCalls++;
+      if(commands[0].sql.includes('tester_daily_image_usage_extra')) {
+        if(extra>=100)throw Error('image_extra_limit_100');
+        extra++;
+      } else {
+        if(current>=100)throw Error('image_limit_100');
+        current++;
+      }
+      return commands.map(()=>({success:true,meta:{changes:1}}));
+    }
+  };
+  const env={DB,GEMINI_API_KEY:'dummy',ENABLE_LIVE_ANALYSIS:'true',ENABLE_IMAGE_GENERATION:'true'};
+  const prior=globalThis.fetch;
+  globalThis.fetch=async()=>{
+    geminiCalls++;
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{inlineData:{
+      mimeType:'image/png',data:Buffer.alloc(150,42).toString('base64')
+    }}]}}]}),{status:200});
+  };
+  try {
+    let result=await worker.fetch(request(),env);
+    assert.equal(result.status,200,await result.text());
+    assert.equal(extra,1);
+    extra=99;
+    result=await worker.fetch(request(),env);
+    assert.equal(result.status,200,await result.text());
+    assert.equal(extra,100);
+    result=await worker.fetch(request(),env);
+    assert.equal(result.status,429);
+    assert.equal(geminiCalls,2);
+    assert.equal(batchCalls,6);
+  }finally{globalThis.fetch=prior;}
 });

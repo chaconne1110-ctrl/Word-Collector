@@ -14,7 +14,7 @@ async function tokenHash(value) {
   return Buffer.from(digest).toString('hex');
 }
 function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} = {}) {
-  const state = {calls: [], used: 0, imageUsed:0, batchCalls: 0, hash: null};
+  const state = {calls: [], used: 0, imageUsed:0, extraUsed:0, extraImageUsed:0, batchCalls: 0, hash: null};
   const db = {
     prepare(sql) {
       const stmt = {
@@ -27,7 +27,9 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
               ? {tester_id: 'owner-test-01', is_active: 1, expires_at: null}
               : null;
           }
+          if (sql.includes('FROM tester_daily_usage_extra')) return {request_count: state.extraUsed};
           if (sql.includes('FROM tester_daily_usage')) return {request_count: state.used};
+          if (sql.includes('FROM tester_daily_image_usage_extra')) return {request_count: state.extraImageUsed};
           if (sql.includes('FROM tester_daily_image_usage')) return {request_count: state.imageUsed};
           throw new Error('Unexpected SQL');
         }
@@ -37,8 +39,14 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
     async batch(stmts) {
       state.batchCalls++;
       assert.equal(stmts.length, 2);
-      if (rejectBatch) throw new Error('daily_limit_100');
-      state.used++;
+      if (rejectBatch) throw new Error('global_limit_1500');
+      if (stmts[0].sql.includes('tester_daily_usage_extra')) {
+        if (state.extraUsed >= 100) throw new Error('daily_extra_limit_100');
+        state.extraUsed++;
+      } else {
+        if (state.used >= 100) throw new Error('daily_limit_100');
+        state.used++;
+      }
       return [
         {success: true, meta: {changes: 1}},
         {success: true, meta: {changes: 1}}
@@ -60,11 +68,11 @@ test('health is available without exposing secrets', async () => {
   assert.equal(body.ok, true);
   assert.equal(body.model, 'gemini-3.5-flash-lite');
   assert.equal(body.status, 'disabled-for-review');
-  assert.equal(body.dailyLimitPerTester, 100);
-  assert.equal(body.dailyCombinedApiLimitPerTester, 200);
+  assert.equal(body.dailyLimitPerTester, 200);
+  assert.equal(body.dailyCombinedApiLimitPerTester, 400);
   assert.equal(body.dailyGlobalLimit, 1500);
   assert.equal(body.imageGenerationEnabled, false);
-  assert.equal(body.dailyImageLimitPerTester, 100);
+  assert.equal(body.dailyImageLimitPerTester, 200);
   assert.equal(body.dailyImageGlobalLimit, 1500);
   assert.ok(!JSON.stringify(body).includes('dummy-not-real'));
 });
@@ -84,10 +92,10 @@ test('authenticated usage read does not reserve a call', async () => {
   }), env);
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.equal(body.limit, 200);
-  assert.equal(body.remaining, 200);
-  assert.equal(body.analysis.limit, 100);
-  assert.equal(body.image.limit, 100);
+  assert.equal(body.limit, 400);
+  assert.equal(body.remaining, 400);
+  assert.equal(body.analysis.limit, 200);
+  assert.equal(body.image.limit, 200);
   assert.equal(state.batchCalls, 0);
 });
 
@@ -341,4 +349,43 @@ test('empty custom notebooks allow both user-selected save and provisional AI cl
     assert.equal(calls.length,2);
     assert.equal(state.used,2);
   }finally {globalThis.fetch=beforeFetch;}
+});
+
+test('analysis requests 101-200 use additive overflow and 201 returns 429',async()=>{
+  const {env,state}=mockEnv({live:true});
+  state.hash=await tokenHash(token);
+  state.used=100;
+  const original=globalThis.fetch; let calls=0;
+  const mocked={
+    englishTerm:'Voltage',koreanMeaning:'전압',specialization:'전기공학',notebookName:'전기기기',
+    englishDefinition:'Electric potential difference',koreanDefinition:'전위차',
+    exampleSentence:'Voltage rises.', explanation:'설명',recommendationReason:'직접 선택',relatedTerms:[],
+    pos:'noun',exampleKo:'전압이 상승한다.'
+  };
+  globalThis.fetch=async()=>{
+    calls++;
+    return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(mocked)}]}}]}),{status:200});
+  };
+  const send=()=>worker.fetch(new Request(baseUrl+'/api/analyze',{method:'POST',headers:{
+    Authorization:'Bearer '+token,'Content-Type':'application/json'
+  },body:JSON.stringify({term:'전압',course:'전기기기',autoCourse:false})}),env);
+  try {
+    let result=await send();
+    assert.equal(result.status,200,await result.text());
+    assert.equal(state.used,100);
+    assert.equal(state.extraUsed,1);
+    assert.equal(calls,1);
+    state.extraUsed=99;
+    result=await send();
+    assert.equal(result.status,200,await result.text());
+    assert.equal(state.extraUsed,100);
+    result=await send();
+    assert.equal(result.status,429);
+    assert.equal(calls,2);
+    const usageRes=await worker.fetch(new Request(baseUrl+'/api/usage',{headers:{Authorization:'Bearer '+token}}),env);
+    const usageBody=await usageRes.json();
+    assert.equal(usageBody.analysis.used,200);
+    assert.equal(usageBody.analysis.remaining,0);
+    assert.equal(usageBody.limit,400);
+  }finally {globalThis.fetch=original;}
 });
