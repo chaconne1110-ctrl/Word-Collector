@@ -1,0 +1,114 @@
+name: Build chat-priority Android debug APK (no deploy)
+
+on:
+  push:
+    branches:
+      - integrate/consolidated-chat-priority-20261113
+    paths:
+      - '.github/workflows/build-chat-priority-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-test-apk:
+    name: Validate and build exact branch snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout requested branch commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify exact requested branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
+          grep -q '"webDir":  *"www"' capacitor.config.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install exact application dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check www/app.js
+          node --check www/analysis-api.js
+          node --check www/quick_capture/analysis.js
+          node --check www/sw.js
+          node --check cloudflare/worker.mjs
+
+      - name: Run regression tests (no paid Gemini API calls)
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+
+      - name: Sync branch www assets into Android
+        run: npx --no-install cap sync android
+
+      - name: Check bundled UI and authentication mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/app/src/main/assets/public/analysis-api.js
+          test -s android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'id="analysis-action-bar"' android/app/src/main/assets/public/quick_capture/code.html
+          ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
+
+      - name: Build Android debug APK
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
+
+      - name: Package APK and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          SHORT_SHA="${GITHUB_SHA:0:9}"
+          NAME="WordCollector_chat_priority_${SHORT_SHA}_debug.apk"
+          mkdir -p release
+          cp "$APK" "release/$NAME"
+          (cd release && sha256sum "$NAME" > SHA256.txt)
+          {
+            echo "Branch: $GITHUB_REF_NAME"
+            echo "Commit: $GITHUB_SHA"
+            echo "Android App ID: com.yechan.wordcollector"
+            echo "Variant: debug test build, not production signed"
+            echo "No Cloudflare Worker or GitHub Pages deployment was performed"
+            echo "Do not uninstall an existing app or clear its data to switch signing keys"
+          } > release/BUILD_INFO.txt
+
+      - name: Upload downloadable APK and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordcollector-chat-priority-debug-apk
+          path: |
+            release/*.apk
+            release/SHA256.txt
+            release/BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 30
