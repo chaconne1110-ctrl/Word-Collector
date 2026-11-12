@@ -73,6 +73,9 @@
     return new Promise((resolve, reject) => {
       const mount = root.document.createElement('div');
       mount.id = 'wc-anonymous-verification';
+      mount.setAttribute('role','dialog');
+      mount.setAttribute('aria-label','AI 자동 인증 보안 검증');
+      mount.style.cssText = 'position:fixed;z-index:2147483647;left:50%;top:40%;transform:translate(-50%,-40%);width:min(380px,calc(100vw - 32px));background:#fff;color:#172033;border:1px solid #dbe0e7;border-radius:12px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.25)';
       root.document.body.append(mount);
       let widget, finished = false;
       const timer = setTimeout(() => done(new Error('자동 인증 보안 검증 시간이 초과되었습니다.')), 90000);
@@ -87,7 +90,8 @@
       try {
         widget = turnstile.render(mount, {
           sitekey: siteKey,
-          size: 'invisible',
+          size: 'flexible',
+          appearance: 'always',
           action: 'wordcollector-auth',
           execution: 'execute',
           callback: value => done(null, value),
@@ -153,10 +157,11 @@
     if (inFlight) return inFlight;
     inFlight = (async () => {
       // Restoring an already-issued token never invokes Turnstile or allocates a new identity.
-      const prior = await restore();
+      const native = ['android','ios'].includes(root.Capacitor?.getPlatform?.());
+      // Native identity is recovered from Android Keystore by WordCollectorAI.
+      const prior = native ? '' : await restore();
       if (prior) return prior;
       const config = await getConfig();
-      const native = ['android','ios'].includes(root.Capacitor?.getPlatform?.());
       const turnstileToken = native ? await nativeChallenge() : await challenge(config.siteKey);
       const response = await root.fetch(API + '/api/auth/anonymous', {
         method: 'POST', redirect: 'error', cache: 'no-store',
