@@ -58,7 +58,7 @@ jobs:
           test -s android/app/src/main/assets/public/quick_capture/code.html
           ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
           test -s android/app/src/main/assets/public/assets/styles/layout-fixes.css
-          grep -q 'flex: 0 0 auto' android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'id="analysis-action-bar"' android/app/src/main/assets/public/quick_capture/code.html
 
       - name: Build Android debug APK (not production signed)
         run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
