@@ -157,7 +157,8 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
     // A tester token never enters localStorage, cookies, word records or backups.
-    // Native AndroidKeyStore / iOS Keychain plugins persist it. Browsers use tab-scoped sessionStorage only, never localStorage.
+    // Native credentials are stored in Android KeyStore; web automatic credentials in IndexedDB.
+    // Existing manual browser session tokens remain supported for rollback.
     let token = '';
     let local = false;
     const WEB_SESSION_KEY = 'word-collector-web-tester-session-v1';
@@ -200,6 +201,8 @@
       async restoreTesterToken() {
         if (token) return true;
         if (!isNative()) {
+          const automaticallyIssued = await root.WordCollectorAnonymousAuth?.restore?.();
+          if (automaticallyIssued) { token = automaticallyIssued; return true; }
           const candidate = session()?.getItem(WEB_SESSION_KEY) || '';
           if (!candidate) return false;
           if (!/^wc_[a-f0-9]{64}$/.test(candidate)) {
@@ -220,6 +223,7 @@
         if (isNative()) await requireSecureStore('clear').clear();
         else {
           try { session()?.removeItem(WEB_SESSION_KEY); } catch {}
+          await root.WordCollectorAnonymousAuth?.clear?.();
         }
         token = '';
         local = false;
@@ -228,15 +232,30 @@
         const hostedWeb = !isNative() && root.location?.protocol === 'https:';
         local = isIOS() || hostedWeb ? false : Boolean(value);
       },
-      async createImage(payload, options = {}) {
+      async ensureAutoAuth() {
+        if (local) return false;
         if (!token) await root.WordCollectorAI.restoreTesterToken();
+        if (!token) {
+          if (!root.WordCollectorAnonymousAuth?.acquire) {
+            throw new Error('자동 인증 기능을 찾지 못했습니다. 새로고침하거나 최신 앱으로 업데이트해 주세요.');
+          }
+          const issued = await root.WordCollectorAnonymousAuth.acquire();
+          if (!/^wc_[a-f0-9]{64}$/.test(issued)) throw new Error('서버 인증 형식을 확인하지 못했습니다.');
+          // Persist on Android before reporting success; never fall back to plaintext storage.
+          if (isNative()) await requireSecureStore('save').save({token:issued});
+          token = issued;
+        }
+        return Boolean(token);
+      },
+      async createImage(payload, options = {}) {
+        if (!token) await root.WordCollectorAI.ensureAutoAuth();
         return createClient({
           baseUrl:CLOUD_URL, token, native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
         }).requestImage(payload, options);
       },
       async request(payload, options = {}) {
-        if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
+        if (!local && !token) await root.WordCollectorAI.ensureAutoAuth();
         return createClient({
           baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
           token,
