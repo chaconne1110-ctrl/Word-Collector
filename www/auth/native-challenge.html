@@ -42,14 +42,14 @@
       document.head.append(script);
     });
     if (!window.turnstile?.render) throw Error('Turnstile을 시작하지 못했습니다.');
-    window.turnstile.render(document.getElementById('verification'),{
+    const widget = window.turnstile.render(document.getElementById('verification'),{
       sitekey:config.siteKey,action:'wordcollector-auth',execution:'execute',appearance:'always',
       size:'flexible',
       callback:token => {status.textContent='보안 검증이 완료되었습니다.';send(token);},
       'error-callback':() => {status.textContent='보안 검증에 실패했습니다. 다시 시도해 주세요.';send('');return true;},
       'expired-callback':() => {status.textContent='검증이 만료되었습니다. 다시 시도해 주세요.';send('');}
     });
-    window.turnstile.execute(document.getElementById('verification'));
+    window.turnstile.execute(widget);
     status.textContent = '자동 인증을 확인하고 있습니다.';
   } catch (error) {
     status.textContent = error?.message || '자동 인증을 완료하지 못했습니다.';
