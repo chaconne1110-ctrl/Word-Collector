@@ -14,7 +14,8 @@ async function tokenHash(value) {
   return Buffer.from(digest).toString('hex');
 }
 function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} = {}) {
-  const state = {calls: [], used: 0, imageUsed:0, extraUsed:0, extraImageUsed:0, batchCalls: 0, hash: null};
+  const state = {calls: [], used: 0, imageUsed:0, extraUsed:0, extraImageUsed:0, batchCalls: 0, hash: null,
+    anonRows: new Set(), anonActive: true};
   const db = {
     prepare(sql) {
       const stmt = {
@@ -23,6 +24,10 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
         bind(...args) { this.args = args; return this; },
         async first() {
           if (sql.includes('sqlite_master')) return {total: 3};
+          if (sql.includes('FROM testers WHERE tester_id')) {
+            return state.anonRows.has(this.args[0])
+              ? {tester_id: this.args[0], is_active: state.anonActive ? 1 : 0} : null;
+          }
           if (sql.includes('FROM testers')) {
             return this.args[0] === state.hash
               ? {tester_id: 'owner-test-01', is_active: 1, expires_at: null}
@@ -32,6 +37,15 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
           if (sql.includes('FROM tester_daily_usage')) return {request_count: state.used};
           if (sql.includes('FROM tester_daily_image_usage_extra')) return {request_count: state.extraImageUsed};
           if (sql.includes('FROM tester_daily_image_usage')) return {request_count: state.imageUsed};
+          throw new Error('Unexpected SQL');
+        },
+        async run() {
+          if (sql.includes('INSERT OR IGNORE INTO testers')) {
+            assert.match(this.args[0], /^anon-[a-f0-9]{32}$/);
+            assert.equal(this.args[1], 'anon:' + this.args[0]);
+            state.anonRows.add(this.args[0]);
+            return {success: true};
+          }
           throw new Error('Unexpected SQL');
         }
       };
@@ -78,10 +92,58 @@ test('health is available without exposing secrets', async () => {
   assert.ok(!JSON.stringify(body).includes('dummy-not-real'));
 });
 
-test('analyze rejects unauthenticated requests without any reservation', async () => {
+test('analyze without a code or client IP is rejected without any reservation', async () => {
   const {env, state} = mockEnv();
   const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method:'POST'}), env);
   assert.equal(res.status, 401);
+  assert.equal(state.batchCalls, 0);
+});
+
+test('public analysis without a tester code uses a per-device bucket', async () => {
+  const {env, state} = mockEnv({live:true});
+  const oldFetch = globalThis.fetch;
+  let geminiCalls = 0;
+  globalThis.fetch = async () => { geminiCalls++; throw new Error('stop after quota'); };
+  const send = device => worker.fetch(new Request(baseUrl + '/api/analyze', {
+    method:'POST', headers:{'CF-Connecting-IP':'203.0.113.7','X-WC-Device':device,'Content-Type':'application/json'},
+    body: JSON.stringify({term:'전압', course:'회로이론', autoCourse:false})
+  }), env);
+  try {
+    assert.notEqual((await send('wd_' + '1'.repeat(64))).status, 401);
+    assert.notEqual((await send('wd_' + '2'.repeat(64))).status, 401);
+    assert.equal(state.anonRows.size, 2, 'same IP, different installs -> separate buckets');
+    assert.equal(state.batchCalls, 2);
+    assert.equal(geminiCalls, 2);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test('public users get the full tester quota (200 analysis) then stop before Gemini', async () => {
+  const {env, state} = mockEnv({live:true});
+  state.used = 100; state.extraUsed = 100;
+  const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+    method:'POST', headers:{'X-WC-Device':'wd_' + '1'.repeat(64),'Content-Type':'application/json'},
+    body: JSON.stringify({term:'전압', course:'회로이론', autoCourse:false})
+  }), env);
+  assert.equal(res.status, 429);
+});
+
+test('public usage reports 400/day; invalid codes and blocked devices are rejected', async () => {
+  const {env, state} = mockEnv({live:true});
+  const dev = {'X-WC-Device':'wd_' + '1'.repeat(64),'Content-Type':'application/json'};
+  const usage = await worker.fetch(new Request(baseUrl + '/api/usage', {headers:dev}), env);
+  assert.equal(usage.status, 200);
+  const body = await usage.json();
+  assert.equal(body.anonymous, true);
+  assert.equal(body.limit, 400);
+  assert.equal(body.analysis.limit, 200);
+  assert.equal(body.image.limit, 200);
+  const bad = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+    method:'POST', headers:{...dev, Authorization:'Bearer wc_' + 'b'.repeat(64)}, body:'{}'
+  }), env);
+  assert.equal(bad.status, 401);
+  state.anonActive = false;
+  const blocked = await worker.fetch(new Request(baseUrl + '/api/analyze', {method:'POST', headers:dev, body:'{}'}), env);
+  assert.equal(blocked.status, 401);
   assert.equal(state.batchCalls, 0);
 });
 

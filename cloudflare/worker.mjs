@@ -255,6 +255,36 @@ async function authenticate(request, env) {
   return tester;
 }
 
+// Public (no tester code) access. Every app install gets the same daily quota
+// as a tester (analysis 200 + image 200 = 400), tracked per device in the
+// existing tester tables. The app sends a random per-install device ID; the
+// client IP is used only when no device ID is present. The shared global
+// 1500/day caps still bound total Gemini spend.
+const DEVICE_ID = /^wd_[a-f0-9]{64}$/;
+async function anonymousIdentity(request, env) {
+  const device = (request.headers.get('X-WC-Device') || '').trim();
+  const ip = (request.headers.get('CF-Connecting-IP') || '').trim();
+  let source;
+  if (DEVICE_ID.test(device)) source = 'device|' + device;
+  else if (ip && ip.length <= 64) source = 'ip|' + ip;
+  else return null;
+  const digest = await crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode('wc-anon-v1|' + (env.ANON_ID_SALT || '') + '|' + source)
+  );
+  const id = 'anon-' + Array.from(new Uint8Array(digest)).slice(0, 16)
+    .map(byte => byte.toString(16).padStart(2, '0')).join('');
+  // Usage tables reference testers(tester_id). The placeholder token_hash can
+  // never equal a SHA-256 hex digest, so it cannot be used as a bearer token.
+  await env.DB.prepare(
+    'INSERT OR IGNORE INTO testers (tester_id, token_hash, is_active) VALUES (?, ?, 1)'
+  ).bind(id, 'anon:' + id).run();
+  const row = await env.DB.prepare(
+    'SELECT tester_id, is_active FROM testers WHERE tester_id = ?'
+  ).bind(id).first();
+  if (!row || Number(row.is_active) !== 1) return null;
+  return {tester_id: id, anonymous: true};
+}
+
 async function usage(env, testerId, date = todayKST()) {
   const row = await env.DB.prepare(
     'SELECT request_count FROM tester_daily_usage WHERE tester_id = ? AND usage_date = ?'
@@ -510,6 +540,7 @@ const handler = {
           model: MODEL,
           status: env.ENABLE_LIVE_ANALYSIS === 'true' ? 'live' : 'disabled-for-review',
           dailyLimitPerTester: PERSONAL_LIMIT,
+          publicAccess: true,
           dailyCombinedApiLimitPerTester: PERSONAL_LIMIT + IMAGE_PERSONAL_LIMIT,
           dailyGlobalLimit: GLOBAL_LIMIT,
           imageGenerationEnabled: env.ENABLE_IMAGE_GENERATION === 'true',
@@ -538,9 +569,18 @@ const handler = {
 
     let phase = 'AUTH';
     try {
-      const tester = await authenticate(request, env);
+      const hasBearer = Boolean(request.headers.get('Authorization'));
+      let tester = await authenticate(request, env);
+      // A supplied but invalid/expired code is still an error; only requests
+      // without any code fall back to public analysis access.
+      if (!tester && !hasBearer && (isAnalyze || isUsage || isImage)) {
+        tester = await anonymousIdentity(request, env);
+      }
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
-      if (isUsage) return workerJson(await usage(env, tester.tester_id));
+      if (isUsage) {
+        const result = await usage(env, tester.tester_id);
+        return workerJson(tester.anonymous ? {...result, anonymous: true} : result);
+      }
       if (isImage) {
         if (env.ENABLE_LIVE_ANALYSIS !== 'true' || env.ENABLE_IMAGE_GENERATION !== 'true') {
           return workerJson({error:'사진 생성 기능이 아직 활성화되지 않았습니다.'}, 503);
@@ -638,7 +678,7 @@ export default {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Vary', 'Origin');
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device');
     }
     return response;
   }
