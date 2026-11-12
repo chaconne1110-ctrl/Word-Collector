@@ -28,30 +28,50 @@ const reviewPhotoImage = $('#review-photo-image');
 const reviewPhotoStatus = $('#review-photo-status');
 let photoDraft = null;
 let photoBusy = false;
+const photoRequestGate = WordCollectorRequestGate.create();
 reviewPhotoButton.addEventListener('click', async () => {
-  if (!draft || photoBusy) return;
-  if (photoDraft && !confirm('새 사진을 생성하면 다시 과금됩니다. 기존 미저장 사진을 교체할까요?')) return;
-  if (!photoDraft && !confirm('Gemini 이미지 생성 API에 별도 요금이 발생합니다. 사진을 만들까요?')) return;
+  if (!draft) return;
+  const remaining = photoRequestGate.remainingMs();
+  if (remaining > 0) {
+    reviewPhotoStatus.textContent = '사진 생성 중복 요청을 차단했습니다. ' +
+      Math.ceil(remaining / 1000) + '초 후에도 미완료라면 다시 누를 수 있습니다.';
+    return;
+  }
+  if (photoBusy) {
+    if (!confirm('이전 사진 생성이 아직 완료되지 않았습니다. 재요청하면 이전 요청도 과금될 수 있습니다. 다시 요청할까요?')) return;
+  } else if (photoDraft) {
+    if (!confirm('사진을 다시 생성하면 추가 API 요금이 발생합니다. 미저장 사진을 교체할까요?')) return;
+  } else if (!confirm('Gemini 이미지 생성에는 별도 API 요금이 발생합니다. 사진을 생성할까요?')) {
+    return;
+  }
+  const ticket = photoRequestGate.begin();
+  if (!ticket.allowed) return;
   photoBusy = true;
-  reviewPhotoButton.disabled = true;
-  reviewPhotoStatus.textContent = 'AI 학습 사진을 제작 중입니다.';
+  reviewPhotoButton.textContent = '생성 중 · 3초 후 재요청 가능';
+  reviewPhotoStatus.textContent = ticket.replaced ?
+    '이전 브라우저 요청을 중단하고 다시 요청했습니다. 이미 처리된 서버 요청은 과금될 수 있습니다.' :
+    'AI 사진을 제작 중입니다. 3초 이내 추가 요청은 차단됩니다.';
   try {
     const r = await WordCollectorAI.createImage({
       word:reviewForm.elements.en.value.trim() || reviewForm.elements.ko.value.trim(),
       koreanMeaning:reviewForm.elements.ko.value.trim(),
       subject:courseNames(draft.selected)[0],
       definition:(reviewForm.elements.koDef.value || reviewForm.elements.enDef.value).slice(0,700)
-    });
+    }, {signal:ticket.signal});
+    if (!photoRequestGate.isCurrent(ticket.id)) return;
     photoDraft = r.image;
     reviewPhotoImage.src = 'data:' + r.image.mimeType + ';base64,' + r.image.data;
     reviewPhotoImage.hidden = false;
     reviewPhotoButton.textContent = '사진 다시 생성 (추가 과금)';
     reviewPhotoStatus.textContent = '사진 제작 완료. 단어장에 저장하면 사진도 함께 저장됩니다.';
   } catch (error) {
+    if (!photoRequestGate.isCurrent(ticket.id)) return;
     reviewPhotoStatus.textContent = error?.message || '사진을 생성하지 못했습니다.';
   } finally {
-    reviewPhotoButton.disabled = false;
-    photoBusy = false;
+    if (photoRequestGate.finish(ticket.id)) {
+      photoBusy = false;
+      reviewPhotoButton.textContent = photoDraft ? '사진 다시 생성 (추가 과금)' : '사진 생성 (별도 유료 API 1회)';
+    }
   }
 });
 
@@ -80,6 +100,11 @@ diagramRefresh.addEventListener('click', () => {
   drawDiagram(true);
 });
 let analyzing = false;
+const analysisRequestGate = WordCollectorRequestGate.create();
+window.addEventListener('pagehide', () => {
+  analysisRequestGate.cancel();
+  photoRequestGate.cancel();
+});
 // Keep the selected notebook ID (not the display name) across UI navigation and new notebooks.
 // This also handles Safari PWA resumes and another tab creating/deleting a notebook.
 const initialCourseId = new URLSearchParams(location.search).get('course');
@@ -178,6 +203,8 @@ reviewForm.elements.en.addEventListener('input', () => {
 });
 
 function invalidateReview() {
+  photoRequestGate.cancel();
+  photoBusy = false;
   draft = null;
   photoDraft = null;
   reviewPhotoImage.hidden = true;
@@ -199,7 +226,11 @@ for (const control of inputControls.filter(control => control.tagName === 'BUTTO
 }
 
 analysisButton.addEventListener('click', async () => {
-  if (analyzing) return;
+  if (draft && !reviewForm.hidden) {
+    reviewForm.scrollIntoView({block:'start'});
+    status.textContent = '이미 분석이 완료됐습니다. 검수한 후 저장하거나 입력 내용을 바꿔 새로 분석할 수 있습니다.';
+    return;
+  }
   const directCourse = !$('#section-mode-direct').classList.contains('hidden');
   const autoCourse = !directCourse && !$('#section-mode-ai').classList.contains('hidden');
   if ($('#ref-section-sentence').classList.contains('hidden')) {
@@ -222,6 +253,12 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = '저장할 기존 단어장을 선택하거나 직접 입력에서 새 단어장을 만들어 주세요.';
     return;
   }
+  const remaining = analysisRequestGate.remainingMs();
+  if (remaining > 0) {
+    status.textContent = '3초 이내 중복 요청을 차단했습니다. ' +
+      Math.ceil(remaining / 1000) + '초 후에도 미완료라면 다시 눌러 재요청할 수 있습니다.';
+    return;
+  }
   if (directCourse) {
     const name = customCourseInput.value.trim();
     if (!name || name.length > 60) {
@@ -240,6 +277,8 @@ analysisButton.addEventListener('click', async () => {
     }
     courseInput.value = selected;
   }
+  const ticket = analysisRequestGate.begin();
+  if (!ticket.allowed) return;
   analyzing = true;
   draft = null;
   photoDraft = null;
@@ -248,13 +287,16 @@ analysisButton.addEventListener('click', async () => {
   reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   for (const item of inputControls) item.disabled = true;
-  analysisButton.disabled = true;
-  analysisLabel.textContent = '분석 중…';
-  status.textContent = 'Gemini에 분석을 요청하고 있어요.';
+  // Leave this button active so an unfinished request can be retried after 3 seconds.
+  analysisLabel.textContent = '분석 중 · 3초 후 재요청 가능';
+  status.textContent = ticket.replaced ?
+    '이전 브라우저 요청을 중단하고 재요청했습니다. 이전 서버 요청도 과금될 수 있습니다.' :
+    'Gemini에 분석을 요청했습니다. 3초 이내 중복 요청은 차단됩니다.';
   try {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
-      notebooks: currentNotebooks()});
+      notebooks: currentNotebooks()}, {signal:ticket.signal});
+    if (!analysisRequestGate.isCurrent(ticket.id)) return;
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
     const target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
@@ -275,15 +317,19 @@ analysisButton.addEventListener('click', async () => {
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
-    if (directCourse && !result.needsManualCompletion) reviewForm.requestSubmit();
+    // Present completed results immediately, including direct notebook selection.
   } catch (error) {
-    status.textContent = ['TimeoutError','AbortError'].includes(error.name) ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.' : error instanceof TypeError || error instanceof SyntaxError ?
+    if (!analysisRequestGate.isCurrent(ticket.id)) return;
+    status.textContent = ['TimeoutError','AbortError'].includes(error.name) ?
+      '분석 시간이 초과됐습니다. 다시 시도해 주세요.' :
+      error instanceof TypeError || error instanceof SyntaxError ?
       'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
   } finally {
-    analyzing = false;
-    for (const item of inputControls) item.disabled = false;
-    analysisButton.disabled = false;
-    analysisLabel.textContent = 'AI 분석 시작';
+    if (analysisRequestGate.finish(ticket.id)) {
+      analyzing = false;
+      for (const item of inputControls) item.disabled = false;
+      analysisLabel.textContent = 'AI 분석 시작';
+    }
   }
 });
 
