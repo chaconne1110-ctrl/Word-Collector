@@ -62,7 +62,7 @@
       if (!/^wc_[a-f0-9]{64}$/.test(token)) throw new Error('테스터 인증 코드를 먼저 등록해 주세요.');
       headers.Authorization = 'Bearer ' + token;
     }
-    async function requestAttempt(payload) {
+    async function requestAttempt(payload, signal) {
       let status, result;
       if (native) {
         if (typeof nativeHttp?.request !== 'function') throw new Error('AI 연결 기능이 포함된 최신 APK로 업데이트해 주세요.');
@@ -79,20 +79,24 @@
       } else {
         const response = await fetchImpl(baseUrl + '/api/analyze',{
           method:'POST',headers,
-          body:JSON.stringify(payload),signal:AbortSignal.timeout(35000),redirect:'error',
+          body:JSON.stringify(payload),
+          signal: signal && typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, AbortSignal.timeout(35000)])
+            : signal || AbortSignal.timeout(35000),
+          redirect:'error',
         });
         status = response.status;
         result = await response.json();
       }
       return {status, result};
     }
-    return {async request(payload) {
-      let {status, result} = await requestAttempt(payload);
+    return {async request(payload, {signal} = {}) {
+      let {status, result} = await requestAttempt(payload, signal);
       // Only pre-quota request validation failures are safe to retry.
       if (status === 400 && LEGACY_NOTEBOOK_VALIDATION.test(result?.error || '')) {
         const modern = toModernNotebookRequest(payload);
         if (modern) {
-          ({status, result} = await requestAttempt(modern));
+          ({status, result} = await requestAttempt(modern, signal));
           if (status >= 200 && status < 300) {
             result = normalizeModernNotebookResponse(result, payload);
           }
@@ -109,7 +113,7 @@
         throw new Error('검수할 항목을 확인할 수 없습니다.');
       }
       return result;
-    }, async requestImage(payload) {
+    }, async requestImage(payload, {signal} = {}) {
       if (!cloud) throw new Error('사진 생성은 Cloudflare HTTPS 서버에서만 사용할 수 있습니다.');
       let status, result;
       if (native) {
@@ -128,7 +132,10 @@
       } else {
         const response = await fetchImpl(baseUrl + '/api/image', {
           method:'POST', headers, body:JSON.stringify(payload),
-          signal:AbortSignal.timeout(65000), redirect:'error'
+          signal: signal && typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, AbortSignal.timeout(65000)])
+            : signal || AbortSignal.timeout(65000),
+          redirect:'error'
         });
         status = response.status;
         result = await response.json();
@@ -215,21 +222,21 @@
         const hostedWeb = !isNative() && root.location?.protocol === 'https:';
         local = isIOS() || hostedWeb ? false : Boolean(value);
       },
-      async createImage(payload) {
+      async createImage(payload, options = {}) {
         if (!token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
           baseUrl:CLOUD_URL, token, native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
-        }).requestImage(payload);
+        }).requestImage(payload, options);
       },
-      async request(payload) {
+      async request(payload, options = {}) {
         if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
         return createClient({
           baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
           token,
           native: isNative(),
           nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
-        }).request(payload);
+        }).request(payload, options);
       }
     };
   }
