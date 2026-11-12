@@ -20,7 +20,8 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 5. 저장 단어가 없는 단어장을 추천할 때에는 비교할 저장 단어가 없다고 recommendationReason에 밝히고 단어장 이름과 입력 문맥에 따른 임시 추천임을 설명하세요. 존재하지 않는 저장 단어를 만들어 근거로 사용하지 마세요.
 6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 정확하고 간결한 영어 정의, koreanDefinition은 그 정의의 충실한 한국어 해석입니다. exampleSentence는 같은 의미를 사용하는 자연스러운 영어 예문 한 문장입니다.
 7. explanation은 짧은 한국어 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
-8. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
+8. translateReference=true이면 referenceTranslation에 referenceText 전체의 충실한 한국어 해석을 1,200자 이내로 작성하세요. 생성 예문(exampleSentence)의 번역과 혼동하지 마세요. 원문이 한국어이면 의미를 유지한 자연스러운 한국어 문장으로 작성하세요.
+9. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
 class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -45,7 +46,7 @@ function validateInput(value) {
       raw.autoCourse ? raw.notebooks : [{course:raw.course,words:[]}];
     if (!Array.isArray(notebooks)) failInput('저장된 단어장 목록을 확인해 주세요.');
     value = {word:raw.term, referenceText:raw.context, autoSubject:raw.autoCourse,
-      selectedSubject:raw.course,
+      selectedSubject:raw.course, translateReference:raw.translateReference,
       notebooks:notebooks.map(book => {
         if (!record(book) || !Array.isArray(book.words)) failInput('저장된 단어장 구성을 확인해 주세요.');
         return {name:book.course,terms:book.words.map(word => {
@@ -83,7 +84,9 @@ function validateInput(value) {
     return {name, terms};
   });
   if (!value.autoSubject && !names.has(selectedSubject)) failInput('저장할 기존 단어장을 선택해 주세요.');
-  return {word, referenceText, autoSubject: value.autoSubject, selectedSubject, notebooks, ...(legacy ? {legacy:true} : {})};
+  return {word, referenceText, autoSubject: value.autoSubject, selectedSubject, notebooks,
+    ...(value.translateReference === true && referenceText ? {translateReference:true} : {}),
+    ...(legacy ? {legacy:true} : {})};
 }
 function responseSchema(input) {
   const properties = Object.fromEntries(CORE_FIELDS.map(field => [field, {type: 'STRING'}]));
@@ -91,8 +94,9 @@ function responseSchema(input) {
   properties.explanation = {type: 'STRING'};
   properties.recommendationReason = {type: 'STRING'};
   properties.relatedTerms = {type: 'ARRAY', items: {type: 'STRING'}, maxItems: 5};
+  if (input.translateReference) properties.referenceTranslation = {type:'STRING'};
   if (input.legacy) { properties.pos = {type:'STRING'}; properties.exampleKo = {type:'STRING'}; }
-  return {type: 'OBJECT', properties, required: [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms', ...(input.legacy ? ['pos','exampleKo'] : [])]};
+  return {type: 'OBJECT', properties, required: [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms', ...(input.translateReference ? ['referenceTranslation'] : []), ...(input.legacy ? ['pos','exampleKo'] : [])]};
 }
 function validateOutput(value, input) {
   const invalid = () => { throw new ApiError(502, 'AI 분석 결과의 형식이 올바르지 않습니다. 다시 분석해 주세요.'); };
@@ -101,6 +105,11 @@ function validateOutput(value, input) {
   for (const field of [...CORE_FIELDS, 'explanation', 'recommendationReason']) {
     if (typeof value[field] !== 'string' || !value[field].trim() || value[field].length > 12000) invalid();
     analysis[field] = value[field].trim();
+  }
+  if (input.translateReference) {
+    if (typeof value.referenceTranslation !== 'string' || !value.referenceTranslation.trim() ||
+        value.referenceTranslation.length > 1200) invalid();
+    analysis.referenceTranslation = value.referenceTranslation.trim();
   }
   // A model cannot move a manually selected save destination, even if it ignores the prompt.
   if (!input.autoSubject) analysis.notebookName = input.selectedSubject;
@@ -191,6 +200,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     return {en:analysis.englishTerm, ko:analysis.koreanMeaning, discipline:analysis.specialization,
       enDef:analysis.englishDefinition, koDef:analysis.koreanDefinition,
       exampleEn:analysis.exampleSentence, exampleKo:output.exampleKo.trim(), pos:output.pos.trim(),
+      ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation} : {}),
       course:analysis.notebookName, model:MODEL,
       ...(input.autoSubject ? {classification:{
         reason:analysis.recommendationReason,

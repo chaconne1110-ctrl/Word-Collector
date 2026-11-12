@@ -19,7 +19,8 @@
     }));
     return {
       word: payload.term, referenceText: payload.context || '',
-      autoSubject: payload.autoCourse, selectedSubject: payload.course || '', notebooks
+      autoSubject: payload.autoCourse, selectedSubject: payload.course || '', notebooks,
+      ...(payload.translateReference === true ? {translateReference:true} : {})
     };
   }
   function normalizeModernNotebookResponse(response, payload) {
@@ -33,6 +34,7 @@
       discipline: analysis.specialization, enDef: analysis.englishDefinition,
       koDef: analysis.koreanDefinition, exampleEn: analysis.exampleSentence,
       course: analysis.notebookName, pos: '', exampleKo: '',
+      ...(typeof analysis.referenceTranslation === 'string' ? {referenceTranslation:analysis.referenceTranslation} : {}),
       needsManualCompletion: true
     };
     // The modern analysis API intentionally omits POS and Korean example translation.
@@ -111,6 +113,10 @@
       }
       if (result.needsManualCompletion && (result.pos !== '' || result.exampleKo !== '')) {
         throw new Error('검수할 항목을 확인할 수 없습니다.');
+      }
+      if (result.referenceTranslation !== undefined &&
+          (typeof result.referenceTranslation !== 'string' || result.referenceTranslation.length > 1200)) {
+        throw new Error('참고 문장 해석을 확인하지 못했습니다. 다시 분석해 주세요.');
       }
       return result;
     }, async requestImage(payload, {signal} = {}) {

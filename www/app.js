@@ -339,15 +339,22 @@ function renderDeck() {
     const flipper = $('.card-flipper', card);
     const referenceSentence = typeof term.referenceSentence === 'string' ? term.referenceSentence.trim() : '';
     bindFields(card, {...term, exampleEn: referenceSentence || term.exampleEn,
+      exampleKo: referenceSentence ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문')});
     if (referenceSentence) {
       const sentence = $('[data-field="exampleEn"]', card);
       sentence.style.whiteSpace = 'pre-wrap';
+      sentence.style.overflowWrap = 'anywhere';
       const translation = $('[data-field="exampleKo"]', card);
-      if (translation) translation.parentElement.hidden = true;
+      if (translation) {
+        translation.parentElement.hidden = false;
+        translation.style.whiteSpace = 'pre-wrap';
+        translation.style.overflowWrap = 'anywhere';
+      }
       const section = sentence.parentElement;
       const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
       while (walker.nextNode()) {
+        if (sentence.contains(walker.currentNode) || translation?.contains(walker.currentNode)) continue;
         walker.currentNode.textContent = walker.currentNode.textContent
           .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력');
       }

@@ -17,7 +17,8 @@ const resultFields = {
   enDef: '영어 정의',
   koDef: '한국어 해설',
   exampleEn: '영어 예문',
-  exampleKo: '예문 번역'
+  exampleKo: '예문 번역',
+  referenceTranslation: '참고 문장 해석'
 };
 let draft;
 const diagramChoice = $('#diagram-choice');
@@ -76,6 +77,12 @@ async function startReviewPhoto({automatic = false} = {}) {
   }
 }
 reviewPhotoButton.addEventListener('click', () => { void startReviewPhoto(); });
+
+const referencePreview = document.createElement('p');
+referencePreview.id = 'review-reference-sentence';
+referencePreview.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere';
+referencePreview.hidden = true;
+$('#review-fields').before(referencePreview);
 
 const normalize = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -196,6 +203,10 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
   input.rows = ['en', 'ko', 'pos'].includes(key) ? 1 : 2;
+  if (key === 'referenceTranslation') {
+    label.hidden = true;
+    input.placeholder = '해석이 없으면 직접 입력하거나 다시 분석해 주세요.';
+  }
   input.className = 'block w-full rounded-lg p-2 bg-surface-container-low';
   label.append(input);
   $('#review-fields').append(label);
@@ -297,9 +308,13 @@ analysisButton.addEventListener('click', async () => {
   try {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
+      translateReference: Boolean(context),
       notebooks: currentNotebooks()}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key];
+    for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
+    referencePreview.textContent = context ? '참고 문장: ' + context : '';
+    referencePreview.hidden = !context;
+    reviewForm.elements.referenceTranslation.parentElement.hidden = !context;
     const target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
     if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
