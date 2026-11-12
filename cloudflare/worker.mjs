@@ -315,8 +315,13 @@ async function issueAnonymousToken(request, env) {
   return workerJson({token:rawToken,expiresAt,mode:'anonymous-device'});
 }
 
+// Per-install device identities ('anon-' + 32 hex, from X-WC-Device) are the
+// primary public access path and are limited per device only (200 + 200).
+// The shared registration-IP cap applies only to Turnstile-issued identities
+// ('anon-' + UUID), which are dormant unless AUTO_AUTH_ENABLED is set.
+const DEVICE_IDENTITY = /^anon-[a-f0-9]{32}$/;
 async function anonymousIpQuotaStatement(env, testerId, date) {
-  if (!testerId.startsWith('anon-')) return null;
+  if (!testerId.startsWith('anon-') || DEVICE_IDENTITY.test(testerId)) return null;
   const entry = await env.DB.prepare(
     'SELECT registration_ip_hash FROM anonymous_clients WHERE tester_id = ?'
   ).bind(testerId).first();
