@@ -412,6 +412,7 @@ async function usage(env, testerId, date = todayKST()) {
 // Never try to charge Gemini after this reservation fails.
 async function reserveAnalysis(env, testerId) {
   const date = todayKST();
+  let table = 'tester_daily_usage';
   let items;
   const ipQuota = await anonymousIpQuotaStatement(env,testerId,date);
   try {
@@ -438,6 +439,7 @@ async function reserveAnalysis(env, testerId) {
     // or erasing existing tester usage data. Both writes remain atomic.
     if (!String(error?.message || '').includes('daily_limit_100') &&
         !String(error?.message || '').includes('CHECK constraint failed')) throw error;
+    table = 'tester_daily_usage_extra';
     items = await env.DB.batch([
       env.DB.prepare(
         'INSERT INTO tester_daily_usage_extra (tester_id, usage_date, request_count, updated_at) ' +
@@ -456,7 +458,26 @@ async function reserveAnalysis(env, testerId) {
       items.some(item => item?.success !== true || item?.meta?.changes !== 1)) {
     throw new ApiError(503, '사용량 기록을 확인하지 못했습니다.');
   }
-  return date;
+  return {table, testerId, date};
+}
+
+// A failed attempt (Gemini error, timeout, unusable output) is given back to
+// the user's personal daily quota. The global daily counter is intentionally
+// NOT refunded: it still bounds total upstream attempts per day, so repeated
+// failures cannot loop without limit. Refund is best effort and never masks
+// the original error.
+const REFUNDABLE_TABLES = new Set([
+  'tester_daily_usage', 'tester_daily_usage_extra',
+  'tester_daily_image_usage', 'tester_daily_image_usage_extra'
+]);
+async function refundPersonal(env, reservation) {
+  if (!reservation || !REFUNDABLE_TABLES.has(reservation.table)) return;
+  try {
+    await env.DB.prepare(
+      'UPDATE ' + reservation.table + ' SET request_count = request_count - 1, ' +
+      'updated_at = CURRENT_TIMESTAMP WHERE tester_id = ? AND usage_date = ? AND request_count > 0'
+    ).bind(reservation.testerId, reservation.date).run();
+  } catch {}
 }
 
 
@@ -474,6 +495,7 @@ function validateImageInput(value) {
 async function reserveImage(env, testerId) {
   const date = todayKST();
   const ipQuota = await anonymousIpQuotaStatement(env,testerId,date);
+  let table = 'tester_daily_image_usage';
   let result;
   try {
     result = await env.DB.batch([
@@ -494,6 +516,7 @@ async function reserveImage(env, testerId) {
     // attempts 101-200. A failed primary batch does not commit a global count.
     if (!String(error?.message || '').includes('image_limit_100') &&
         !String(error?.message || '').includes('CHECK constraint failed')) throw error;
+    table = 'tester_daily_image_usage_extra';
     result = await env.DB.batch([
       env.DB.prepare(
         'INSERT INTO tester_daily_image_usage_extra (tester_id, usage_date, request_count, updated_at) ' +
@@ -512,6 +535,7 @@ async function reserveImage(env, testerId) {
       result.some(row => row?.success !== true || row?.meta?.changes !== 1)) {
     throw new ApiError(503, '사진 생성 사용량 기록을 확인하지 못했습니다.');
   }
+  return {table, testerId, date};
 }
 
 async function generatePhoto(input, apiKey) {
@@ -695,9 +719,14 @@ const handler = {
         phase = 'IMAGE_INPUT';
         const imageInput = validateImageInput(await readWorkerJson(request));
         phase = 'IMAGE_QUOTA';
-        await reserveImage(env, tester.tester_id);
+        const imageReservation = await reserveImage(env, tester.tester_id);
         phase = 'IMAGE_GENERATION';
-        return workerJson(await generatePhoto(imageInput, env.GEMINI_API_KEY));
+        try {
+          return workerJson(await generatePhoto(imageInput, env.GEMINI_API_KEY));
+        } catch (error) {
+          await refundPersonal(env, imageReservation);
+          throw error;
+        }
       }
 
 
@@ -752,15 +781,21 @@ const handler = {
       phase = 'INPUT';
       const input = validateInput(await readWorkerJson(request));
 
-      // Charge once per accepted analysis attempt, including upstream failures. A failed upstream
-      // response still represents a Gemini API call and must count toward the 400/day cap.
-      // No automatic retry or model switch. Gemini is called exactly once per attempt.
+      // Reserve before calling Gemini. Per this project's decision, a failed
+      // attempt is refunded to the personal quota (global and registration-IP
+      // counters keep it, so failures stay bounded per day). Gemini is called once.
       phase = 'QUOTA';
-      await reserveAnalysis(env, tester.tester_id);
+      const reservation = await reserveAnalysis(env, tester.tester_id);
       phase = 'GEMINI';
-      const output = await analyze(input, {
-        apiKey: env.GEMINI_API_KEY, fetchImpl: fetch, timeoutMs: 30000
-      });
+      let output;
+      try {
+        output = await analyze(input, {
+          apiKey: env.GEMINI_API_KEY, fetchImpl: fetch, timeoutMs: 30000
+        });
+      } catch (error) {
+        await refundPersonal(env, reservation);
+        throw error;
+      }
       phase = 'OUTPUT';
       return workerJson(output);
     } catch (error) {

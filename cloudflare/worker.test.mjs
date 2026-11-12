@@ -40,6 +40,16 @@ function mockEnv({secret = 'dummy-not-real', live = false, rejectBatch = false} 
           throw new Error('Unexpected SQL');
         },
         async run() {
+          if (sql.startsWith('UPDATE ')) {
+            assert.match(sql, /request_count = request_count - 1/);
+            assert.match(sql, /request_count > 0/);
+            state.refunds = (state.refunds || 0) + 1;
+            const key = sql.includes('tester_daily_usage_extra') ? 'extraUsed'
+              : sql.includes('tester_daily_usage') ? 'used'
+              : sql.includes('tester_daily_image_usage_extra') ? 'extraImageUsed' : 'imageUsed';
+            if (state[key] > 0) state[key]--;
+            return {success: true};
+          }
           if (sql.includes('INSERT OR IGNORE INTO testers')) {
             assert.match(this.args[0], /^anon-[a-f0-9]{32}$/);
             assert.equal(this.args[1], 'anon:' + this.args[0]);
@@ -474,5 +484,54 @@ test('empty notebook auto analysis proposes a new name with one authorized Gemin
     assert.deepEqual(result.classification.relatedTerms,[]);
     assert.equal(calls,1);
     assert.equal(state.batchCalls,1);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('failed Gemini analysis is refunded to the personal quota only', async () => {
+  const {env, state} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({error:{status:'FAILED_PRECONDITION'}}), {status:400});
+  try {
+    const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+      method:'POST', headers:{'X-WC-Device':'wd_' + '3'.repeat(64),'Content-Type':'application/json'},
+      body: JSON.stringify({term:'전압', course:'회로이론', autoCourse:false})
+    }), env);
+    assert.equal(res.status, 502);
+    assert.equal(state.batchCalls, 1, 'global counter was still charged once');
+    assert.equal(state.refunds, 1);
+    assert.equal(state.used, 0, 'personal quota restored');
+  } finally { globalThis.fetch = previous; }
+});
+
+test('failed analysis in the 101-200 overflow range refunds the overflow table', async () => {
+  const {env, state} = mockEnv({live:true});
+  state.used = 100; state.extraUsed = 5;
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('network'); };
+  try {
+    const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+      method:'POST', headers:{'X-WC-Device':'wd_' + '4'.repeat(64),'Content-Type':'application/json'},
+      body: JSON.stringify({term:'전압', course:'회로이론', autoCourse:false})
+    }), env);
+    assert.equal(res.status, 502);
+    assert.equal(state.used, 100);
+    assert.equal(state.extraUsed, 5);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('a refund failure never hides the original Gemini error', async () => {
+  const {env, state} = mockEnv({live:true});
+  const prepare = env.DB.prepare.bind(env.DB);
+  env.DB.prepare = sql => sql.startsWith('UPDATE ') ? {bind(){return this;}, async run(){ throw new Error('d1 down'); }} : prepare(sql);
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{}', {status:400});
+  try {
+    const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {
+      method:'POST', headers:{'X-WC-Device':'wd_' + '5'.repeat(64),'Content-Type':'application/json'},
+      body: JSON.stringify({term:'전압', course:'회로이론', autoCourse:false})
+    }), env);
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).error, /GEMINI_UPSTREAM_HTTP_400/);
+    assert.equal(state.used, 1);
   } finally { globalThis.fetch = previous; }
 });

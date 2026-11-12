@@ -158,3 +158,22 @@ test('new image calls use overflow quota 101-200 and enforce maximum', async()=>
     assert.equal(batchCalls,6);
   }finally{globalThis.fetch=prior;}
 });
+test('failed photo generation refunds the personal image quota only', async()=>{
+  const f=await fixture({photoEnabled:true});
+  const updates=[];
+  const prepare=f.env.DB.prepare.bind(f.env.DB);
+  f.env.DB.prepare=sql=>sql.startsWith('UPDATE ')
+    ? {bind(...p){this.p=p;return this;}, async run(){updates.push({sql,p:this.p});return {success:true};}}
+    : prepare(sql);
+  const priorFetch=globalThis.fetch;
+  globalThis.fetch=async()=>new Response('{}',{status:400});
+  try {
+    const res=await worker.fetch(request(),f.env);
+    assert.equal(res.status,502);
+    assert.equal(f.used(),1);
+    assert.equal(updates.length,1);
+    assert.match(updates[0].sql,/^UPDATE tester_daily_image_usage SET request_count = request_count - 1/);
+    assert.doesNotMatch(updates[0].sql,/global/);
+    assert.equal(updates[0].p[0],'owner-test-01');
+  } finally { globalThis.fetch=priorFetch; }
+});
