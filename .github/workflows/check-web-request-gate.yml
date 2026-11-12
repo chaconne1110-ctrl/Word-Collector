@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/webapp-only-20261112
+      - integrate/consolidated-review-20261113
   workflow_dispatch:
 
 permissions:
@@ -27,6 +28,7 @@ jobs:
         run: |
           node --check www/request-gate.js
           node --check www/analysis-api.js
+          node --check www/anonymous-auth.js
           node --check www/quick_capture/analysis.js
           node --check www/app.js
           node --check www/sw.js
