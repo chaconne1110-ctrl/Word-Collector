@@ -458,10 +458,21 @@ testerMode.addEventListener('change', async () => {
     testerStatus.textContent = error?.message || '저장된 인증 코드를 불러오지 못했습니다.';
   }
 });
-void WordCollectorAI.restoreTesterToken().then(stored => {
-  if (stored && testerMode.value === 'cloud') {
-    testerStatus.textContent = '인증 코드가 현재 브라우저 세션에 등록되어 있습니다.';
+// Prefer automatic, server-issued credentials. If enrollment is not configured
+// yet, keep legacy manual token controls available for an orderly rollout.
+void WordCollectorAI.ensureAutoAuth().then(enabled => {
+  if (!enabled || testerMode.value !== 'cloud') return;
+  testerStatus.textContent = '자동 인증 완료. 분석 200회 + 사진 200회, 총 400회 API 호출 한도가 적용됩니다.';
+  const controls = $('#ai-auth-settings');
+  if (controls) {
+    const summary = controls.querySelector('summary');
+    if (summary) summary.textContent = 'AI 서버 · 자동 인증';
+    const label = testerToken.closest('label');
+    if (label) label.hidden = true;
+    registerTesterButton.hidden = true;
+    clearTesterButton.hidden = true;
   }
 }).catch(error => {
-  testerStatus.textContent = error?.message || '인증 코드 자동 등록에 실패했습니다.';
+  testerStatus.textContent = (error?.message || '자동 인증을 완료하지 못했습니다.') +
+    ' 기존 승인 코드가 있다면 수동 등록할 수 있습니다.';
 });
