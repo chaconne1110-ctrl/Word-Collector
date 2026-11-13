@@ -6,7 +6,10 @@ test('definitions and explanation are written for high-school students (both ser
   for (const file of ['cloudflare/worker.mjs', 'server/server.cjs']) {
     const src = fs.readFileSync(file, 'utf8');
     assert.match(src, /englishDefinition은 고등학생이 이해할 수 있는 쉬운 영어/, file);
-    assert.match(src, /koreanDefinition은 같은 의미를 고등학생이 이해할 수 있는 쉬운 한국어/, file);
+    // The Korean definition is a faithful translation of the English one (same meaning).
+    assert.match(src, /koreanDefinition은 englishDefinition을 그대로 옮긴 충실한 한국어 번역/, file);
+    assert.match(src, /두 정의는 반드시 같은 의미여야 합니다/, file);
+    assert.doesNotMatch(src, /일상적인 비유나 예를 하나 들어 주세요/, file);
     assert.match(src, /explanation은 고등학생이 이해할 수 있는 쉬운 한국어/, file);
   }
 });
