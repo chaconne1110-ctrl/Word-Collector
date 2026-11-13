@@ -215,6 +215,18 @@ for (const [key, title] of Object.entries(resultFields)) {
   label.append(input);
   $(key === 'discipline' ? '#review-fields-top' : '#review-fields').append(label);
 }
+// 품사 sits to the right of the 단어 field, on the same row.
+{
+  const wordLabel = reviewForm.elements.en.parentElement;
+  const posLabel = reviewForm.elements.pos.parentElement;
+  const row = document.createElement('div');
+  row.className = 'review-word-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
+  wordLabel.before(row);
+  wordLabel.style.cssText = 'flex:1 1 auto;min-width:0';
+  posLabel.style.cssText = 'flex:0 0 6.5rem;min-width:0';
+  row.append(wordLabel, posLabel);
+}
 reviewForm.elements.en.addEventListener('input', () => {
   if (draft) updateDiagram();
 });
@@ -273,6 +285,7 @@ async function runAnalysis() {
     // Two related English words, one per line (no meanings), editable before saving.
     result.related = Array.isArray(result.relatedWords) ? result.relatedWords
       .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join('\n') : '';
+    result.pos = koreanPartOfSpeech(result.pos);
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;

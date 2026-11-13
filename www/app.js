@@ -85,6 +85,24 @@ function relatedEnglishWords(term) {
     .map(line => line.split(' · ')[0].trim()).filter(Boolean).slice(0, 2);
 }
 
+// Part of speech in Korean. Words saved before this change hold English
+// labels ("noun", "adj.", "noun, verb"); anything unrecognised is kept as is.
+const KOREAN_PART_OF_SPEECH = {
+  noun: '명사', n: '명사', 'noun phrase': '명사구', phrase: '구', 'proper noun': '고유명사',
+  verb: '동사', v: '동사', 'phrasal verb': '구동사', 'verb phrase': '동사구',
+  adjective: '형용사', adj: '형용사', adverb: '부사', adv: '부사',
+  pronoun: '대명사', pron: '대명사', preposition: '전치사', prep: '전치사',
+  conjunction: '접속사', conj: '접속사', interjection: '감탄사', determiner: '한정사',
+  article: '관사', numeral: '수사', abbreviation: '약어', acronym: '약어', prefix: '접두사', suffix: '접미사'
+};
+function koreanPartOfSpeech(value) {
+  const text = String(value ?? '').trim();
+  if (!text || /\p{Script=Hangul}/u.test(text)) return text;
+  const parts = text.split(/\s*(?:,|\/|;|·|\bor\b|\band\b)\s*/i).filter(Boolean);
+  const mapped = parts.map(part => KOREAN_PART_OF_SPEECH[part.toLowerCase().replace(/\.$/, '').trim()]);
+  return mapped.every(Boolean) ? [...new Set(mapped)].join(', ') : text;
+}
+
 function bindFields(root, values) {
   $$('[data-field]', root).forEach(node => {
     node.textContent = values[node.dataset.field] || '—';
@@ -289,7 +307,8 @@ function renderList() {
     for (const id of ids) {
       const row = template.content.firstElementChild.cloneNode(true);
       row.dataset.termId = id;
-      bindFields(row, {...state.terms[id], related: relatedEnglishWords(state.terms[id]).join(', ')});
+      bindFields(row, {...state.terms[id], related: relatedEnglishWords(state.terms[id]).join(', '),
+        pron: koreanPartOfSpeech(state.terms[id].pron)});
       $$('[data-field="related"]', row).forEach(chip => {
         chip.hidden = !relatedEnglishWords(state.terms[id]).length;
       });
@@ -411,7 +430,7 @@ function renderDeck() {
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문'),
-      related: relatedEnglishWords(term).join('\n')});
+      related: relatedEnglishWords(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
     // "관련 단어" (two related words from the analysis) replaces the old formula box.
     $$('[data-field="related"]', card).forEach(node => {
       const box = node.parentElement;
