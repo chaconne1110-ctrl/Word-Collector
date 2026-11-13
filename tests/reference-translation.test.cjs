@@ -85,3 +85,58 @@ test('modern compatibility fallback preserves reference translation without anot
   assert.equal(result.referenceTranslation,translation);
   assert.equal(result.exampleKo,''); // Never substitute the reference for the generated example.
 });
+
+const koreanReference = '전류가 도체를 통해 흐릅니다. 도체가 따뜻해집니다.';
+const englishTranslation = 'Current flows through the conductor. The conductor warms up.';
+for (const target of ['server', 'worker']) {
+  test(`${target}: a Korean reference sentence gets an English translation; wrong direction is rejected`, async t => {
+    let generated = {...output, referenceTranslation:englishTranslation}, sent;
+    const upstream = async (_, options) => {
+      sent = JSON.parse(options.body);
+      return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(generated)}]}}]}));
+    };
+    let send;
+    if (target === 'server') {
+      const server = createServer({apiKey:'test-only',fetchImpl:upstream});
+      server.listen(0,'127.0.0.1'); await once(server,'listening');
+      t.after(() => new Promise(resolve => {server.closeAllConnections();server.close(resolve);}));
+      send = body => fetch(`http://127.0.0.1:${server.address().port}/api/analyze`, {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+      });
+    } else {
+      const worker = (await import('../cloudflare/worker.mjs')).default;
+      const original = globalThis.fetch;
+      globalThis.fetch = upstream; t.after(() => {globalThis.fetch = original;});
+      const env = {GEMINI_API_KEY:'test-only',ENABLE_LIVE_ANALYSIS:'true',DB:{
+        prepare(sql) {return {bind(){return this;},async first(){
+          return sql.includes('FROM testers') ? {tester_id:'test',is_active:1} : {request_count:0};
+        },async run(){return {success:true};}};},
+        async batch(){return [{success:true,meta:{changes:1}},{success:true,meta:{changes:1}}];}
+      }};
+      send = body => worker.fetch(new Request('https://test/api/analyze', {
+        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)
+      }),env);
+    }
+    let res = await send({...requestBody, context:koreanReference}), data = await res.json();
+    assert.equal(res.status,200,JSON.stringify(data));
+    assert.equal(JSON.parse(sent.contents[0].parts[0].text).referenceTranslationLanguage,'en');
+    assert.equal(data.referenceTranslation,englishTranslation);
+    assert.equal(data.referenceTranslationLanguage,'en');
+
+    // An English sentence is still translated into Korean.
+    generated = {...output};
+    res = await send(requestBody); data = await res.json();
+    assert.equal(res.status,200);
+    assert.equal(JSON.parse(sent.contents[0].parts[0].text).referenceTranslationLanguage,'ko');
+    assert.equal(data.referenceTranslationLanguage,'ko');
+
+    // Korean sentence answered with a Korean "translation" is rejected (wrong direction).
+    generated = {...output, referenceTranslation:'전류가 흐릅니다.'};
+    res = await send({...requestBody, context:koreanReference});
+    assert.equal(res.status,502);
+    // English sentence answered with English is rejected too.
+    generated = {...output, referenceTranslation:'Current flows.'};
+    res = await send(requestBody);
+    assert.equal(res.status,502);
+  });
+}

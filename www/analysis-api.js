@@ -35,6 +35,7 @@
       koDef: analysis.koreanDefinition, exampleEn: analysis.exampleSentence,
       course: analysis.notebookName, pos: '', exampleKo: '',
       ...(typeof analysis.referenceTranslation === 'string' ? {referenceTranslation:analysis.referenceTranslation} : {}),
+      ...(['ko','en'].includes(analysis.referenceTranslationLanguage) ? {referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
       needsManualCompletion: true
     };
     // The modern analysis API intentionally omits POS and Korean example translation.

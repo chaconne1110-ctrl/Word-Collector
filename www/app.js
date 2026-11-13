@@ -24,6 +24,18 @@ function commit(next) {
   }
 }
 
+// A user's reference sentence is translated into the other language: mostly
+// Korean -> English translation, otherwise -> Korean translation. One Hangul
+// syllable is weighted as two Latin letters (same rule as the Worker).
+function referenceTranslationLanguage(text) {
+  const value = String(text || '');
+  const hangul = (value.match(/\p{Script=Hangul}/gu) || []).length;
+  const latin = (value.match(/[A-Za-z]/g) || []).length;
+  return hangul * 2 > latin ? 'en' : 'ko';
+}
+const referenceTranslationLabel = text =>
+  referenceTranslationLanguage(text) === 'en' ? '영어 번역' : '한국어 번역';
+
 const courseNames = id => state.courses?.[id] || [id || '단어장', ''];
 const allCourses = () => Object.fromEntries(Object.entries(state.courses || {})
   .filter(([id]) => !(state.deletedCourses || []).includes(id)));
@@ -399,7 +411,8 @@ function renderDeck() {
       while (walker.nextNode()) {
         if (sentence.contains(walker.currentNode) || translation?.contains(walker.currentNode)) continue;
         walker.currentNode.textContent = walker.currentNode.textContent
-          .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력');
+          .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력')
+          .replace('국문 번역', referenceTranslationLabel(referenceSentence));
       }
     }
     const savedImage = term.diagram ? diagramImage(term.diagram) : null;

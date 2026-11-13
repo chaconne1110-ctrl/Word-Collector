@@ -292,7 +292,10 @@ analysisButton.addEventListener('click', async () => {
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;
-    reviewForm.elements.referenceTranslation.parentElement.hidden = !context;
+    const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
+    translationLabel.hidden = !context;
+    // English sentence -> Korean translation; Korean sentence -> English translation.
+    translationLabel.firstChild.textContent = '참고 문장 ' + referenceTranslationLabel(context);
     let target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
     let newCourseName;

@@ -70,7 +70,7 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 5. 저장 단어가 없는 단어장을 추천할 때에는 비교할 저장 단어가 없다고 recommendationReason에 밝히고 단어장 이름과 입력 문맥에 따른 임시 추천임을 설명하세요. 존재하지 않는 저장 단어를 만들어 근거로 사용하지 마세요.
 6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 정확하고 간결한 영어 정의, koreanDefinition은 그 정의의 충실한 한국어 해석입니다. exampleSentence는 같은 의미를 사용하는 자연스러운 영어 예문 한 문장입니다.
 7. explanation은 짧은 한국어 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
-8. translateReference=true이면 referenceTranslation에 referenceText 전체의 충실한 한국어 해석을 1,200자 이내로 작성하세요. 생성 예문(exampleSentence)의 번역과 혼동하지 마세요. 원문이 한국어이면 의미를 유지한 자연스러운 한국어 문장으로 작성하세요.
+8. translateReference=true이면 referenceTranslation에 referenceText 전체를 referenceTranslationLanguage 언어로 충실하게 번역해 1,200자 이내로 작성하세요. referenceTranslationLanguage가 "ko"이면 자연스러운 한국어로, "en"이면 자연스러운 영어로 번역합니다(원문이 한국어 예문이면 영어 번역, 영어 예문이면 한국어 번역). 원문을 그대로 반복하지 말고, 생성 예문(exampleSentence)의 번역과 혼동하지 마세요.
 9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
 10. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
@@ -78,6 +78,23 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 function failInput(message) { throw new ApiError(400, message); }
+
+// Reference sentences are translated into the other language: a mostly Korean
+// sentence gets an English translation, anything else a Korean translation.
+const HANGUL = /\p{Script=Hangul}/gu;
+const LATIN = /[A-Za-z]/g;
+export function referenceTranslationLanguage(text) {
+  const value = String(text || '');
+  const hangul = (value.match(HANGUL) || []).length;
+  const latin = (value.match(LATIN) || []).length;
+  // One Hangul syllable carries about as much as two Latin letters.
+  return hangul * 2 > latin ? 'en' : 'ko';
+}
+function translationMatches(translation, language) {
+  const hangul = (translation.match(HANGUL) || []).length;
+  const latin = (translation.match(LATIN) || []).length;
+  return language === 'en' ? latin > 0 && latin >= hangul : hangul > 0;
+}
 function record(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function inputText(value, field, max, required = false) {
   if (value === undefined && !required) return '';
@@ -136,7 +153,8 @@ function validateInput(value) {
   });
   if (!value.autoSubject && !names.has(selectedSubject)) failInput('저장할 기존 단어장을 선택해 주세요.');
   return {word, referenceText, autoSubject: value.autoSubject, selectedSubject, notebooks,
-    ...(value.translateReference === true && referenceText ? {translateReference:true} : {}),
+    ...(value.translateReference === true && referenceText ? {translateReference:true,
+      referenceTranslationLanguage:referenceTranslationLanguage(referenceText)} : {}),
     ...(legacy ? {legacy:true} : {})};
 }
 function responseSchema(input) {
@@ -161,6 +179,9 @@ function validateOutput(value, input) {
     if (typeof value.referenceTranslation !== 'string' || !value.referenceTranslation.trim() ||
         value.referenceTranslation.length > 1200) invalid();
     analysis.referenceTranslation = value.referenceTranslation.trim();
+    // English sentence -> Korean translation, Korean sentence -> English translation.
+    if (!translationMatches(analysis.referenceTranslation, input.referenceTranslationLanguage)) invalid();
+    analysis.referenceTranslationLanguage = input.referenceTranslationLanguage;
   }
   // A model cannot move a manually selected save destination, even if it ignores the prompt.
   if (!input.autoSubject) analysis.notebookName = input.selectedSubject;
@@ -280,7 +301,8 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     return {en:analysis.englishTerm, ko:analysis.koreanMeaning, discipline:analysis.specialization,
       enDef:analysis.englishDefinition, koDef:analysis.koreanDefinition,
       exampleEn:analysis.exampleSentence, exampleKo:output.exampleKo.trim(), pos:output.pos.trim(),
-      ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation} : {}),
+      ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
+        referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
       course:analysis.notebookName, model:MODEL,
       ...(input.autoSubject ? {classification:{
         reason:analysis.recommendationReason,
