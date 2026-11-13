@@ -1,0 +1,86 @@
+name: Deploy latest chat-priority Word Collector web
+
+on:
+  push:
+    branches:
+      - integrate/consolidated-chat-priority-20261113
+    paths:
+      - '.github/workflows/deploy-chat-priority-web.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: word-collector-pages
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    name: Validate branch and deploy GitHub Pages
+    if: github.ref == 'refs/heads/integrate/consolidated-chat-priority-20261113'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout exact branch revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate version and bundle paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s www/index.html
+          test -s www/quick_capture/code.html
+          test -s www/analysis-api.js
+          test -s www/sw.js
+          grep -q 'id="analysis-action-bar"' www/quick_capture/code.html
+          ! grep -q 'id="tester-token"' www/quick_capture/code.html
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check www/app.js
+          node --check www/analysis-api.js
+          node --check www/anonymous-auth.js
+          node --check www/quick_capture/analysis.js
+          node --check www/sw.js
+
+      - name: Run regression tests (no paid Gemini calls)
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload only public web files
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+
+      - name: Deploy selected branch to existing Word Collector website
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Print deployed source revision
+        shell: bash
+        run: |
+          echo "Deployed branch: $GITHUB_REF_NAME"
+          echo "Deployed SHA: $GITHUB_SHA"
+          echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
