@@ -184,3 +184,27 @@ body[data-page="edit"] textarea { field-sizing: content; min-height: 72px; }
 /* Animate the visible surface without changing card sizing or scroll containers. */
 .card-flipper { transform-origin: center; }
 #cardsScrollContainer:focus-visible { outline: 2px solid #00236f; outline-offset: -2px; }
+
+/* Flashcard header (both faces): no front/back toggle; the 수정 and 저장
+   buttons stay on one line in the top-right corner, also on the back where
+   the title is longer. The title shrinks with an ellipsis instead. */
+body[data-page="card"] :is(.card-front, .card-back) > :first-child > :first-child > :first-child {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+body[data-page="card"] :is(.card-front, .card-back) > :first-child > :first-child > :first-child > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+body[data-page="card"] :is(.card-front, .card-back) > :first-child > :first-child > :first-child > :first-child > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body[data-page="card"] :is(.card-front, .card-back) > :first-child > :first-child > :first-child > :last-child {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-left: auto;
+  gap: 6px;
+}
