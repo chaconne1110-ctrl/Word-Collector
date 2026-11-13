@@ -40,7 +40,7 @@ test('requests without the relay secret never reach Gemini', async () => {
       method: 'POST', headers: {'x-goog-api-key': 'k', 'X-Relay-Secret': 'wrong'}, body: '{}'
     });
     assert.equal(res.status, 401);
-    const health = await fetch(base + '/healthz');
+    const health = await fetch(base + '/health');
     assert.equal(health.status, 200);
   });
   assert.equal(upstreamCalls, 0);

@@ -36,7 +36,18 @@ App ──► Cloudflare Worker ──► this relay (us-central1) ──► Gem
    `--allow-unauthenticated` only lets HTTPS requests reach the relay; every Gemini call still
    needs the exact `X-Relay-Secret`. The command prints the **Service URL**
    (`https://word-collector-gemini-relay-….run.app`).
-3. Check it: `curl <Service URL>/healthz` → `{"ok":true}`.
+3. Check it: `curl <Service URL>/health` → `{"ok":true}` (not `/healthz`: Cloud Run reserves
+   paths ending in "z" and answers them with a Google 404). A request without the secret, e.g.
+   `curl -X POST <Service URL>/v1beta/models/gemini-3.5-flash-lite:generateContent`, must return
+   `{"error":"relay-unauthorized"}`.
+
+   If the build fails with *PERMISSION_DENIED … default service account is missing required IAM
+   permissions*, grant the build role once and deploy again:
+
+   ```bash
+   PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
+   gcloud projects add-iam-policy-binding $(gcloud config get-value project)      --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role=roles/run.builder
+   ```
 
 ## Connect the Worker (operator)
 
@@ -56,6 +67,12 @@ Or set `GEMINI_RELAY_URL` under `vars` in the wrangler config. Then verify:
   falls back to calling Gemini directly.
 - **Rotating the secret:** deploy the relay with the new `RELAY_SECRET`, then
   `wrangler secret put GEMINI_RELAY_SECRET` with the same value.
+
+## Production (2026-11-13)
+
+- Relay: `https://word-collector-gemini-relay-557058448320.us-central1.run.app` (project
+  `gen-lang-client-0225521593`, us-central1). Worker version `5a8e0374` uses it; 8/8 live
+  analyses succeeded, including requests entering Cloudflare via HKG that always failed before.
 
 ## Cost and latency notes
 

@@ -62,7 +62,8 @@ export function createRelay({env = process.env, fetchImpl = fetch} = {}) {
   const models = allowedModels(env);
   return async function handle(req, res) {
     try {
-      if (req.method === 'GET' && req.url === '/healthz') return send(res, 200, '{"ok":true}');
+      // Cloud Run reserves paths ending in "z" (e.g. /healthz), so use /health.
+      if (req.method === 'GET' && req.url === '/health') return send(res, 200, '{"ok":true}');
       if (!secretMatches(req.headers['x-relay-secret'], secret)) return send(res, 401, '{"error":"relay-unauthorized"}');
       const path = upstreamPath(req.method, req.url, models);
       if (!path) return send(res, 404, '{"error":"relay-path-not-allowed"}');
