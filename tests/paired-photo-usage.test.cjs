@@ -1,12 +1,16 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-test('successful text analysis triggers exactly one photo generation and displays review first',()=>{
+test('successful text analysis triggers exactly one photo generation, then opens review after it (or after skip)',()=>{
   const s=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   assert.equal((s.match(/startReviewPhoto\(\{automatic:true\}\)/g)||[]).length,1);
   assert.match(s,/async function startReviewPhoto\(\{automatic = false\} = \{\}\)/);
-  const at=s.indexOf('void startReviewPhoto({automatic:true})');
-  assert.ok(at > s.indexOf("reviewForm.hidden = false;"));
+  // v6.1: the waiting screen stays until the photo finishes (or the user skips
+  // after 15 s); only then is the review shown.
+  const at=s.indexOf('startReviewPhoto({automatic:true})');
+  const race=s.indexOf('Promise.race([photoDone, skipped])', at);
+  const shown=s.indexOf('reviewForm.hidden = false;', at);
+  assert.ok(at > 0 && race > at && shown > race);
   assert.match(s,/photoRequestGate\.begin\(\)/);
   assert.match(s,/photoRequestGate\.isCurrent\(ticket\.id\)/);
   assert.match(s,/사진 생성에 실패했습니다/);
