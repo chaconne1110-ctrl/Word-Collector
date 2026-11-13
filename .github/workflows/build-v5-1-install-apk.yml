@@ -1,0 +1,113 @@
+name: Build Word Collector v5.1 Android install test APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-v5-1-install-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-v5-1:
+    name: Test and compile pinned v5.1 snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact v5.1 application source
+        uses: actions/checkout@v4
+        with:
+          ref: '238a67eee087e7387a70326b6be48be3200e65ce'
+          persist-credentials: false
+
+      - name: Verify source commit and app ID
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "238a67eee087e7387a70326b6be48be3200e65ce"
+          grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
+          grep -q '"webDir":  *"www"' capacitor.config.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install exact application dependencies
+        run: npm ci
+
+      - name: Verify JavaScript syntax
+        run: |
+          node --check www/app.js
+          node --check www/analysis-api.js
+          node --check www/quick_capture/analysis.js
+          node --check www/sw.js
+          node --check cloudflare/worker.mjs
+
+      - name: Run offline regression tests
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+
+      - name: Bundle v5.1 web files inside Android app
+        run: npx --no-install cap sync android
+
+      - name: Verify packaged source and app screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/app/src/main/assets/public/analysis-api.js
+          test -s android/app/src/main/assets/public/quick_capture/code.html
+          grep -q 'id="analysis-action-bar"' android/app/src/main/assets/public/quick_capture/code.html
+          ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
+
+      - name: Build Android debug APK
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
+
+      - name: Verify and package downloadable APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p release
+          NAME="WordCollector_v5.1_238a67eee_debug.apk"
+          cp "$APK" "release/$NAME"
+          (cd release && sha256sum "$NAME" > SHA256.txt)
+          {
+            echo "Version: v5.1"
+            echo "Source branch: v5.1"
+            echo "Source commit: 238a67eee087e7387a70326b6be48be3200e65ce"
+            echo "App ID: com.yechan.wordcollector"
+            echo "Package: Android debug signed test APK"
+            echo "Not production signed; no web or server deployment"
+            echo "If already installed version has different signing key, do not uninstall without first exporting a backup of all wordbooks/bookmarks"
+          } > release/BUILD_INFO.txt
+
+      - name: Upload installable APK and verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordcollector-v5-1-debug-apk
+          path: |
+            release/*.apk
+            release/SHA256.txt
+            release/BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 30
