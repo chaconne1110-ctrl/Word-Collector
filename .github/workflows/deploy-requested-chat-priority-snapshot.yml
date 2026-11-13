@@ -1,4 +1,4 @@
-name: Deploy approved Word Collector chat-priority snapshot
+name: Deploy approved Word Collector v1 snapshot
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Validate latest requested branch snapshot and deploy Pages
+    name: Validate pinned v1 snapshot and deploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -29,14 +29,14 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: 'ba068ac8bc26de3f40e6ebd3c852ceacd8303e50'
+          ref: '61e213a1aa5de8fc5d54510be0d503bfb82e15f3'
           persist-credentials: false
 
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "ba068ac8bc26de3f40e6ebd3c852ceacd8303e50"
+          test "$(git rev-parse HEAD)" = "61e213a1aa5de8fc5d54510be0d503bfb82e15f3"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -82,6 +82,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: feature/flashcard-3d-snapshot"
-          echo "Deployed source SHA: ba068ac8bc26de3f40e6ebd3c852ceacd8303e50"
+          echo "Deployed source branch: v1"
+          echo "Deployed source SHA: 61e213a1aa5de8fc5d54510be0d503bfb82e15f3"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
