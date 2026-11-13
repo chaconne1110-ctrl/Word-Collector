@@ -93,7 +93,12 @@
 </section>
 <form id="analysis-review" hidden class="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/30 space-y-3">
   <h2 class="font-bold text-lg">분석 결과 검토</h2>
-  <p id="review-target" class="font-semibold"></p>
+  <p id="review-target" class="font-semibold" hidden></p>
+  <div id="review-fields-top" class="space-y-2"></div>
+  <label id="review-course-row" class="block" hidden>단어장
+    <select id="review-course" class="block w-full rounded-lg p-2 bg-surface-container-low"></select>
+  </label>
+  <div id="review-fields" class="space-y-2"></div>
   <section id="recommendation-details" hidden class="rounded-lg p-3 bg-surface-container-low space-y-2">
     <h3 class="font-semibold">단어장 추천 근거</h3>
     <p id="recommendation-summary" class="text-sm text-on-surface-variant"></p>
@@ -101,16 +106,11 @@
     <p class="text-sm font-semibold">추천 단어장의 관련 단어</p>
     <ul id="recommendation-terms" class="list-disc pl-5 text-sm"></ul>
   </section>
-  <label id="review-course-row" hidden>저장할 과목
-    <select id="review-course" class="block w-full rounded-lg p-2 bg-surface-container-low"></select>
-  </label>
-  <section id="diagram-review">
-    <p class="font-semibold">관련 학습 도해</p>
-    <button id="diagram-choice" type="button" aria-pressed="false" class="block w-full rounded-lg border-2 border-transparent" hidden></button>
-    <button id="diagram-refresh" type="button" class="rounded-lg px-3 py-2 bg-surface-container disabled:opacity-50" disabled hidden>재분석</button>
-    <p id="diagram-status" aria-live="polite"></p>
+  <section id="diagram-review" hidden>
+    <button id="diagram-choice" type="button" aria-pressed="false" hidden></button>
+    <button id="diagram-refresh" type="button" disabled hidden></button>
+    <p id="diagram-status"></p>
   </section>
-  <div id="review-fields" class="space-y-2"></div>
 </form>
 </div></main>
 <div id="analysis-waiting" hidden role="dialog" aria-modal="true" aria-labelledby="analysis-waiting-title" aria-describedby="analysis-waiting-elapsed">

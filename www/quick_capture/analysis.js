@@ -80,15 +80,16 @@ function showError(message) {
 $('#analysis-back-to-input').addEventListener('click', goBackToInput);
 const reviewCourse = $('#review-course');
 const inputControls = [];
+// Display order of the review (전공 is shown above the 단어장 select).
 const resultFields = {
   discipline: '전공',
-  en: '영어 표제어',
+  en: '단어',
   ko: '한국어 뜻',
-  pos: '품사',
   enDef: '영어 정의',
-  koDef: '한국어 해설',
+  koDef: '한국어 정의',
   exampleEn: '영어 예문',
-  exampleKo: '예문 번역',
+  exampleKo: '한국어 예문',
+  pos: '품사',
   related: '관련 단어',
   referenceTranslation: '참고 문장 해석'
 };
@@ -212,7 +213,7 @@ for (const [key, title] of Object.entries(resultFields)) {
   }
   input.className = 'block w-full rounded-lg p-2 bg-surface-container-low';
   label.append(input);
-  $('#review-fields').append(label);
+  $(key === 'discipline' ? '#review-fields-top' : '#review-fields').append(label);
 }
 reviewForm.elements.en.addEventListener('input', () => {
   if (draft) updateDiagram();
@@ -282,10 +283,6 @@ async function runAnalysis() {
     // the separate reference-translation field would only repeat them.
     translationLabel.hidden = !context || fromReference;
     translationLabel.firstChild.textContent = '참고 문장 ' + referenceTranslationLabel(context);
-    reviewForm.elements.exampleEn.parentElement.firstChild.textContent =
-      fromReference ? '영어 문장 (참고 문장)' : resultFields.exampleEn;
-    reviewForm.elements.exampleKo.parentElement.firstChild.textContent =
-      fromReference ? '한국어 문장 (참고 문장)' : resultFields.exampleKo;
     let target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
     let newCourseName;
@@ -388,8 +385,6 @@ async function saveReview() {
     const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
     if (draft.exampleSource) word.exampleSource = draft.exampleSource;
     else delete word.exampleSource;
-    delete word.diagram;
-    if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
     if (commit({...state, courses, terms: {...state.terms, [id]: word}})) {
       draft = null;
       // Saved: the next visit to the input page starts empty.
