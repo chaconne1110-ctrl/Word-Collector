@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  build-v6.1:
+  build-v6-1:
     name: Test and compile pinned v6.1 snapshot
     runs-on: ubuntu-24.04
     timeout-minutes: 40
