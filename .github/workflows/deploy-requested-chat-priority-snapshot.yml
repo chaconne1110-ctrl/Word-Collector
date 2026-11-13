@@ -1,4 +1,4 @@
-name: Redeploy approved Word Collector v6 snapshot
+name: Redeploy approved Word Collector v6.1 snapshot
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Revalidate pinned v6 snapshot and redeploy Pages
+    name: Revalidate pinned v6.1 snapshot and redeploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -29,14 +29,14 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: '3b3cf81afce86f7a2d6d5eb7c7da8c8e382aa154'
+          ref: 'c4f291f43d4828bed8d96b683bdb510e5b4b9d2c'
           persist-credentials: false
 
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "3b3cf81afce86f7a2d6d5eb7c7da8c8e382aa154"
+          test "$(git rev-parse HEAD)" = "c4f291f43d4828bed8d96b683bdb510e5b4b9d2c"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -55,6 +55,7 @@ jobs:
 
       - name: Validate source JS
         run: |
+          node --check www/screen-scale.js
           node --check www/app.js
           node --check www/analysis-api.js
           node --check www/quick_capture/analysis.js
@@ -82,6 +83,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: v6"
-          echo "Deployed source SHA: 3b3cf81afce86f7a2d6d5eb7c7da8c8e382aa154"
+          echo "Deployed source branch: v6.1"
+          echo "Deployed source SHA: c4f291f43d4828bed8d96b683bdb510e5b4b9d2c"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
