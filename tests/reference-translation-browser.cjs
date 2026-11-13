@@ -55,10 +55,12 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(calls,1);
     await page.goto(base+'/flashcard.html?term='+id);
     await page.locator('.card-front [data-action=flip]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleEn]').textContent(),reference);
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),corrected);
     await page.reload();
     await page.locator('.card-front [data-action=flip]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),corrected);
 
     const longReference = ('Original sentence on the first line.\n'+'UnbrokenWord'.repeat(55)).slice(0,600);
@@ -93,6 +95,7 @@ const {createServer} = require('../server/server.cjs');
         await page.setViewportSize({width,height});
         await page.goto(base+'/flashcard.html?term=a');
         await page.locator('.card-front [data-action=flip]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
         const geometry = await page.evaluate(() => {
           const face = document.querySelector('.card-back'), rect = face.getBoundingClientRect();
           return {top:rect.top,bottom:rect.bottom,height:rect.height,left:rect.left,right:rect.right,
@@ -126,9 +129,11 @@ const {createServer} = require('../server/server.cjs');
     }
     await page.goto(base+'/flashcard.html?term=b');
     await page.locator('.card-front [data-action=flip]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),'생성 예문 번역.');
     await page.goto(base+'/flashcard.html?term=c');
     await page.locator('.card-front [data-action=flip]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.match(await page.locator('.card-back [data-field=exampleKo]').textContent(),/참고 문장 해석이 없습니다/);
     assert.deepEqual(errors,[]);
     console.log('PASS: one-call analysis → translation review/edit → save/reload; 600-character references and 1200-character translations at 320/390/844px, safe insets, no overlap/overflow, touch reading and edge navigation, old cards and no-reference fallback.');

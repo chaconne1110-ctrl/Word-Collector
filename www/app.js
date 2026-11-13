@@ -299,11 +299,58 @@ function renderList() {
 function renderDeck() {
   const container = $('#cardsScrollContainer');
   const back = $('#backNavigationBtn');
-  const prev = $('button[aria-label="이전 단어"]');
-  const next = $('button[aria-label="다음 단어"]');
   let current = termId;
   let cancelActivePhoto = () => {};
-  window.addEventListener('pagehide', () => cancelActivePhoto());
+  let moving = false;
+  let motionEpoch = 0;
+  const animations = new Set();
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  function stopMotion() {
+    motionEpoch++;
+    for (const animation of animations) animation.cancel();
+    animations.clear();
+    moving = false;
+    container.removeAttribute('aria-busy');
+  }
+  window.addEventListener('pagehide', () => { cancelActivePhoto(); stopMotion(); });
+  async function animateCard(element, frames, duration) {
+    if (!element?.animate) return;
+    const animation = element.animate(frames, {duration, easing:'cubic-bezier(.22,.61,.36,1)', fill:'forwards'});
+    animations.add(animation);
+    try { await animation.finished; } catch { /* Page navigation cancels motion. */ }
+    finally { animation.cancel(); animations.delete(animation); }
+  }
+  async function transition(change, kind, direction = 1) {
+    if (moving) return;
+    if (reducedMotion.matches || !container.firstElementChild?.animate) { change(); return; }
+    moving = true;
+    container.setAttribute('aria-busy', 'true');
+    const epoch = motionEpoch;
+    const rest = 'perspective(1100px) translateY(0) rotateX(0deg) rotateY(0deg) scale(1)';
+    const outgoing = kind === 'flip'
+      ? `perspective(1100px) rotateY(${direction * 90}deg)`
+      : `perspective(1100px) translateY(${-direction * 12}%) rotateX(${direction * 14}deg) scale(.94)`;
+    const incoming = kind === 'flip'
+      ? `perspective(1100px) rotateY(${-direction * 90}deg)`
+      : `perspective(1100px) translateY(${direction * 12}%) rotateX(${-direction * 14}deg) scale(.94)`;
+    try {
+      await animateCard($('.card-flipper', container), [{transform:rest,opacity:1}, {transform:outgoing,opacity:kind === 'flip' ? 1 : 0}], 140);
+      if (epoch !== motionEpoch) return;
+      // Switch content edge-on, retaining one visible, independently scrollable face.
+      change();
+      await animateCard($('.card-flipper', container), [{transform:incoming,opacity:kind === 'flip' ? 1 : 0}, {transform:rest,opacity:1}], 200);
+    } finally {
+      if (epoch === motionEpoch) { moving = false; container.removeAttribute('aria-busy'); }
+    }
+  }
+  function navigate(direction) {
+    const ids = idsFor(fromBookmark, course, listFilter, query);
+    if (!ids[ids.indexOf(current) + direction]) return;
+    void transition(() => draw(direction), 'word', direction);
+  }
+  function flip(flipper) {
+    void transition(() => flipper.classList.toggle('is-flipped'), 'flip', flipper.classList.contains('is-flipped') ? -1 : 1);
+  }
   let wheelGesture;
   const atEdge = (face, direction) => direction < 0 ? face.scrollTop <= 1 :
     face.scrollTop + face.clientHeight >= face.scrollHeight - 1;
@@ -322,10 +369,6 @@ function renderDeck() {
     $('#topActiveCounter').textContent = counter;
     $('#subjectBadgeKr').textContent = fromBookmark ? '북마크' : courseNames(course)[0];
     $('#subjectBadgeEn').textContent = term ? courseNames(term.course)[1] : '';
-    prev.disabled = position <= 0;
-    next.disabled = position < 0 || position >= ids.length - 1;
-    const dots = $('#verticalIndicators');
-    if (dots) dots.hidden = true;
     container.replaceChildren();
     if (!term) {
       container.textContent = '표시할 플래시카드가 없습니다.';
@@ -456,9 +499,9 @@ function renderDeck() {
     bookmarkButtons.forEach(button => paintBookmark(button, current));
     let suppressTapUntil = 0;
     card.addEventListener('click', event => {
-      if (Date.now() < suppressTapUntil) return;
+      if (moving || Date.now() < suppressTapUntil) return;
       const button = event.target.closest('button');
-      if (!button || button.dataset.action === 'flip') flipper.classList.toggle('is-flipped');
+      if (!button || button.dataset.action === 'flip') flip(flipper);
       else if (button.dataset.action === 'edit') location.href = cardUrl(current).replace('flashcard.html', 'edit.html');
       else if (button.dataset.action === 'bookmark' && toggleBookmark(current)) {
         if (fromBookmark || listFilter === 'saved') draw();
@@ -468,7 +511,7 @@ function renderDeck() {
     let start;
     card.addEventListener('touchstart', event => {
       const face = event.target.closest('.card-front, .card-back');
-      start = event.touches.length !== 1 || event.target.closest('button') || !face ? null : {
+      start = moving || event.touches.length !== 1 || event.target.closest('button') || !face ? null : {
         x: event.touches[0].clientX, y: event.touches[0].clientY,
         atTop: atEdge(face, -1), atBottom: atEdge(face, 1)
       };
@@ -499,10 +542,10 @@ function renderDeck() {
       suppressTapUntil = Date.now() + 400;
       if (Math.abs(x) > Math.abs(y)) {
         event.preventDefault();
-        flipper.classList.toggle('is-flipped');
+        flip(flipper);
       } else if (edge) {
         event.preventDefault();
-        draw(y < 0 ? 1 : -1);
+        navigate(y < 0 ? 1 : -1);
       }
     }, {passive: false});
     container.append(card);
@@ -511,10 +554,21 @@ function renderDeck() {
       photoStatus.textContent = error?.message || '저장된 사진을 읽지 못했습니다.';
     });
   }
-  prev.addEventListener('click', () => draw(-1));
-  next.addEventListener('click', () => draw(1));
+  container.addEventListener('keydown', event => {
+    if (event.target !== container) return;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(event.key)) {
+      event.preventDefault();
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') navigate(event.key === 'ArrowDown' ? 1 : -1);
+      else { const flipper = $('.card-flipper', container); if (flipper) flip(flipper); }
+    }
+  });
   container.addEventListener('wheel', event => {
     if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    if (moving) {
+      if (wheelGesture) wheelGesture.lastAt = performance.now();
+      event.preventDefault();
+      return;
+    }
     const face = event.target.closest('.card-front, .card-back');
     if (!face) return;
     const now = performance.now();
@@ -531,10 +585,10 @@ function renderDeck() {
     wheelGesture.distance += Math.abs(event.deltaY) * unit;
     if (wheelGesture.distance >= 50) {
       wheelGesture.consumed = true;
-      draw(direction);
+      navigate(direction);
     }
   }, {passive: false});
-  window.addEventListener('pageshow', () => { state = load(); draw(); });
+  window.addEventListener('pageshow', () => { stopMotion(); state = load(); draw(); });
 }
 
 const fields = {

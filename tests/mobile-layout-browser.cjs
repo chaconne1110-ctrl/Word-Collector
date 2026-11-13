@@ -63,20 +63,17 @@ const {createServer} = require('../server/server.cjs');
             const size = await page.locator(face).evaluate(e => ({scroll:e.scrollWidth, width:e.clientWidth, height:e.clientHeight}));
             assert.ok(size.scroll<=size.width+1 && size.height>80, JSON.stringify(size));
             await reachable(face+' [data-action=bookmark]');
-            const overlap = await page.evaluate(() => {
-              const card = document.querySelector('#cardsScrollContainer').getBoundingClientRect();
-              const nav = document.querySelector('#card-navigation').getBoundingClientRect();
-              return card.right > nav.left || nav.bottom > document.querySelector('nav').getBoundingClientRect().top;
-            });
-            assert.equal(overlap, false);
-            if (face === '.card-front') await page.locator(face+' [data-action=flip]').last().click();
+            assert.equal(await page.locator('#card-navigation').count(), 0);
+            if (face === '.card-front') { await page.locator(face+' [data-action=flip]').last().click();
+              await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy')); }
             else {
               await page.locator(face).evaluate(e => {e.scrollTop=e.scrollHeight;});
               assert.ok(await page.locator(face).evaluate(e => e.scrollTop>0));
             }
           }
-          await reachable('#card-navigation button:last-child');
-          await page.locator('#card-navigation button:last-child').click();
+          await page.locator('#cardsScrollContainer').focus();
+          await page.keyboard.press('ArrowDown');
+          await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
           assert.equal(await page.locator('article[data-term-id]').getAttribute('data-term-id'), 'b');
         } else if (file.startsWith('edit')) {
           await reachable('button[aria-label="단어 삭제"]');

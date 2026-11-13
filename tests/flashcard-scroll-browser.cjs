@@ -24,13 +24,14 @@ const {createServer} = require('../server/server.cjs');
       }]));
       localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses: {electromagnetics: ['검증 단어장', 'Test']}, terms, saved: ['a', 'b']}));
     });
-    const selected = () => page.locator('#cardsScrollContainer > article').getAttribute('data-term-id');
+    const selected = async () => { await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy')); return page.locator('#cardsScrollContainer > article').getAttribute('data-term-id'); };
     const open = async id => {
       await page.goto(base + '/flashcard.html?term=' + id);
       await page.waitForSelector('.card-front');
       await page.mouse.move(140, 340);
     };
     const bottom = async face => {
+      await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
       await page.locator(face).evaluate(e => { e.scrollTop = e.scrollHeight; });
       await page.waitForTimeout(220); // A separate wheel/swipe gesture.
     };
@@ -50,6 +51,7 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(await page.locator('.card-front').evaluate(e => e.scrollTop), 0);
     await page.mouse.wheel(0, -80);
     await page.waitForFunction(() => document.querySelector('article[data-term-id]')?.dataset.termId === 'a');
+    await selected();
     await page.waitForTimeout(220);
     await page.mouse.wheel(0, -80);
     assert.equal(await selected(), 'a', 'the first word must not wrap');

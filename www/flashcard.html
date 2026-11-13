@@ -183,14 +183,14 @@
       </span>
 </div>
 <div class="flex items-center gap-1">
-<span class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary font-label-mono text-[12px] font-bold shadow-xs tracking-wide" id="topActiveCounter">01 / 05</span>
+<span class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary font-label-mono text-[12px] font-bold shadow-xs tracking-wide" id="topActiveCounter" aria-live="polite" aria-atomic="true">01 / 05</span>
 </div>
 </div>
 <!-- Controls / Hints: Vertical Navigation Hint & Flip Gesture Banner -->
 
 <!-- Main Flashcard Vertical Scroll Snap Container -->
 <div class="deck-stage relative px-margin flex-1 min-h-0 flex flex-col items-center">
-<div class="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth space-y-4 pb-4 overscroll-y-contain rounded-2xl" id="cardsScrollContainer" style="overflow:hidden">
+<div class="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth space-y-4 pb-4 overscroll-y-contain rounded-2xl" id="cardsScrollContainer" tabindex="0" role="group" aria-label="플래시카드. 좌우로 밀면 뒤집기, 내용 끝에서 위아래로 밀면 단어 이동. 키보드는 좌우 화살표로 뒤집기, 위아래 화살표로 단어 이동." style="overflow:hidden">
 <!-- CARD 1: Skin Effect (표피 효과) -->
 <!-- CARD 2: Permittivity (유전율) -->
 <!-- CARD 3: Lorentz Force (로렌츠 힘) -->
@@ -941,17 +941,7 @@
 </div>
 </article>
 </template><!-- Vertical Quick Jump Floating Controls -->
-<div id="card-navigation" class="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-20 pointer-events-auto">
-<button aria-label="이전 단어" class="w-7 h-7 rounded-full bg-surface-container-lowest/90 backdrop-blur border border-surface-container-high shadow-sm flex items-center justify-center text-primary active:scale-90"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span></button>
-<div class="flex flex-col gap-1 py-1" id="verticalIndicators">
-<span class="w-1.5 h-3 rounded-full bg-primary transition-all duration-300" data-dot-index="1"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="2"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="3"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="4"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-outline-variant transition-all duration-300" data-dot-index="5"></span>
-</div>
-<button aria-label="다음 단어" class="w-7 h-7 rounded-full bg-surface-container-lowest/90 backdrop-blur border border-surface-container-high shadow-sm flex items-center justify-center text-primary active:scale-90"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span></button>
-</div>
+
 </div>
 </div>
 </main>

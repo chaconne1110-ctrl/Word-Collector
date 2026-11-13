@@ -57,3 +57,24 @@ faces and scrollable dialogs. Keep the capture, export-layout, flashcard-render,
 flashcard-scroll, notebook-editor and reference-translation browser checks as
 regression coverage. Chromium simulation does not substitute for final checks
 on an installed Android APK or an iOS device.
+
+## Flashcard 3D motion (2026-11-13)
+
+This update builds on the currently pinned deployment snapshot `3d99cd3`,
+preserving its device authentication and layout changes. The right-hand
+previous/next controls are removed and the card uses the full available width.
+Horizontal swipes/taps rotate the card around its vertical axis; vertical edge
+swipes and wheel gestures transition between words with a tilted slide. Long
+content keeps native scrolling. Keyboard users can focus the deck and use
+left/right to flip and up/down to change words.
+
+Motion uses two short Web Animations phases (140 + 200 ms) around the existing
+single visible face, avoiding persistent nested 3D layers in Android WebView.
+Repeated input is ignored during motion, wheel momentum remains one gesture,
+page navigation cancels animation, and reduced-motion preference skips it.
+
+Validation: `flashcard-motion-browser.cjs`, `flashcard-render-browser.cjs`,
+`flashcard-scroll-browser.cjs`, `reference-translation-browser.cjs` and
+`mobile-layout-browser.cjs` in `tests/`; all 117 unit tests pass. Browser checks
+cover 320×568, 390×844 and 844×390 with safe insets. Actual device/APK checks
+remain separate from Chromium simulation.
