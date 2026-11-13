@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v6-screen-scale';
+const CACHE_NAME = PREFIX + '20261113-v6-1-waiting-screen';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

@@ -3,6 +3,62 @@ const reviewForm = $('#analysis-review');
 const status = $('#analysis-status');
 const analysisButton = $('#submit-action-btn');
 const analysisLabel = $('#submit-btn-text');
+const saveActionButton = $('#save-action-btn');
+const actionMicrocopy = $('#analysis-microcopy');
+const waiting = $('#analysis-waiting');
+const waitingTitle = $('#analysis-waiting-title');
+const waitingTerm = $('#analysis-waiting-term');
+const waitingElapsed = $('#analysis-waiting-elapsed');
+const waitingSkip = $('#analysis-waiting-skip');
+const waitingCancel = $('#analysis-waiting-cancel');
+const WAITING_SKIP_AFTER_S = 15;
+const STEP_STATES = {
+  waiting: ['schedule', '대기'], active: ['pending', '진행 중'], done: ['check_circle', '완료'],
+  failed: ['error', '실패 · 검수 화면에서 다시 시도'], skipped: ['skip_next', '백그라운드에서 계속']
+};
+let waitingTimer = null;
+let waitingStartedAt = 0;
+let waitingSkipResolve = null;
+function setWaitingStep(step, state) {
+  const item = waiting.querySelector('[data-step="' + step + '"]');
+  if (!item) return;
+  item.dataset.state = state;
+  item.querySelector('.wc-step-icon').textContent = STEP_STATES[state][0];
+  item.querySelector('.wc-step-state').textContent = STEP_STATES[state][1];
+}
+// Full-screen waiting screen from the analysis request until the photo is done.
+function showWaiting(term) {
+  waitingTitle.textContent = 'AI가 단어를 분석하고 있어요';
+  waitingTerm.textContent = '“' + term + '”';
+  setWaitingStep('analysis', 'active');
+  setWaitingStep('photo', 'waiting');
+  waitingSkip.hidden = true;
+  waitingStartedAt = Date.now();
+  waitingElapsed.textContent = '0초 경과';
+  clearInterval(waitingTimer);
+  waitingTimer = setInterval(() => {
+    const seconds = Math.floor((Date.now() - waitingStartedAt) / 1000);
+    waitingElapsed.textContent = seconds + '초 경과';
+    const photoItem = waiting.querySelector('[data-step="photo"]');
+    if (photoItem.dataset.state === 'active' && seconds >= WAITING_SKIP_AFTER_S) waitingSkip.hidden = false;
+  }, 1000);
+  waiting.hidden = false;
+  waitingCancel.focus({preventScroll: true});
+}
+function hideWaiting() {
+  clearInterval(waitingTimer);
+  waitingTimer = null;
+  waitingSkipResolve = null;
+  waitingSkip.hidden = true;
+  waiting.hidden = true;
+}
+// In review mode the bottom bar shows only "단어장에 저장" where the analysis button was.
+function setReviewMode(on) {
+  analysisButton.hidden = on;
+  saveActionButton.hidden = !on;
+  actionMicrocopy.hidden = on;
+}
+waitingSkip.addEventListener('click', () => { waitingSkipResolve?.(); });
 const termInput = $('#term-unified-input');
 const courseInput = $('#subject-select');
 const reviewCourse = $('#review-course');
@@ -117,6 +173,15 @@ window.addEventListener('pagehide', () => {
   analysisRequestGate.cancel();
   photoRequestGate.cancel();
 });
+waitingCancel.addEventListener('click', () => {
+  analysisRequestGate.cancel();
+  invalidateReview();
+  hideWaiting();
+  analyzing = false;
+  for (const item of inputControls) item.disabled = false;
+  analysisLabel.textContent = '단어 분석 + 사진 자동 생성';
+  status.textContent = '요청을 취소했습니다. 서버에서 이미 처리된 요청은 사용량에 포함될 수 있습니다.';
+});
 // Keep the selected notebook ID (not the display name) across UI navigation and new notebooks.
 // This also handles Safari PWA resumes and another tab creating/deleting a notebook.
 const initialCourseId = new URLSearchParams(location.search).get('course');
@@ -228,6 +293,7 @@ function invalidateReview() {
   reviewPhotoImage.removeAttribute('src');
   reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
+  setReviewMode(false);
   status.textContent = '';
 }
 
@@ -278,6 +344,8 @@ analysisButton.addEventListener('click', async () => {
   reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   for (const item of inputControls) item.disabled = true;
+  setReviewMode(false);
+  showWaiting(term);
   // Leave this button active so an unfinished request can be retried after 3 seconds.
   analysisLabel.textContent = '분석 중 · 3초 후 재요청 가능';
   status.textContent = ticket.replaced ?
@@ -327,23 +395,36 @@ analysisButton.addEventListener('click', async () => {
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
+    // Start exactly one independent photo request after a successful analysis and
+    // keep the waiting screen until it finishes (success or failure); then open
+    // the review. After WAITING_SKIP_AFTER_S seconds the user may skip waiting: the photo keeps
+    // generating and appears in the review when ready. Saving waits for it.
+    setWaitingStep('analysis', 'done');
+    setWaitingStep('photo', 'active');
+    waitingTitle.textContent = 'AI 학습 사진을 만들고 있어요';
+    const photoDone = Promise.resolve(startReviewPhoto({automatic:true})).then(() => 'done');
+    const skipped = new Promise(resolve => { waitingSkipResolve = () => resolve('skip'); });
+    const outcome = await Promise.race([photoDone, skipped]);
+    if (!analysisRequestGate.isCurrent(ticket.id)) return;
+    setWaitingStep('photo', outcome === 'skip' ? 'skipped' : photoDraft ? 'done' : 'failed');
+    hideWaiting();
     reviewForm.hidden = false;
+    setReviewMode(true);
     reviewForm.scrollIntoView({block: 'start'});
-    // Start exactly one independent photo request after a successful analysis.
-    // Review is already visible and remains saveable if photo generation fails.
-    void startReviewPhoto({automatic:true});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
       '분석 완료. 아래 결과를 검토하세요.';
     if (createFirstCourse && !result.needsManualCompletion) await saveReview();
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
+    hideWaiting();
     status.textContent = ['TimeoutError','AbortError'].includes(error.name) ?
       '분석 시간이 초과됐습니다. 다시 시도해 주세요.' :
       error instanceof TypeError || error instanceof SyntaxError ?
       'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
   } finally {
     if (analysisRequestGate.finish(ticket.id)) {
+      if (reviewForm.hidden) hideWaiting();
       analyzing = false;
       for (const item of inputControls) item.disabled = false;
       analysisLabel.textContent = '단어 분석 + 사진 자동 생성';

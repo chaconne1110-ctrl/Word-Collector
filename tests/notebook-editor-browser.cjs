@@ -46,7 +46,7 @@ const {createServer} = require('../server/server.cjs');
     await page.locator('#context-sentence-input').fill('자기장에 의한 전류');
     await page.locator('#submit-action-btn').click();
     await page.waitForFunction(()=>document.querySelector('#analysis-status').textContent.includes('사진 생성이 끝나면'));
-    assert.equal(await page.locator('#analysis-review button[type=submit]').isDisabled(),true);
+    assert.equal(await page.locator('#save-action-btn').isDisabled(),true);
     assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1'))),{courses:{},terms:{},saved:[]});
     await page.evaluate(()=>{
       const canvas=document.createElement('canvas');canvas.width=12;canvas.height=8;canvas.getContext('2d').fillRect(0,0,12,8);

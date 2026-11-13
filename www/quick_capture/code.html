@@ -28,6 +28,46 @@
     padding-bottom: 0;
     overflow-y: auto;
   }
+  /* Waiting screen shown while the word is analysed and its photo generated. */
+  #analysis-waiting {
+    position: fixed; inset: 0; z-index: 70;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    background: rgba(250, 248, 255, .96);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  #analysis-waiting .wc-wait-card {
+    width: 100%; max-width: 360px; box-sizing: border-box;
+    padding: 28px 22px 22px; border-radius: 20px; background: #fff;
+    box-shadow: 0 12px 40px rgba(19, 27, 46, .12); text-align: center; color: #131b2e;
+  }
+  #analysis-waiting .wc-spinner {
+    width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 50%;
+    border: 5px solid #dde1ff; border-top-color: #00236f;
+    animation: wc-spin .9s linear infinite;
+  }
+  @keyframes wc-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #analysis-waiting .wc-spinner { animation-duration: 2.4s; } }
+  #analysis-waiting h2 { margin: 0 0 6px; font-size: 18px; font-weight: 700; line-height: 1.4; word-break: keep-all; }
+  #analysis-waiting .wc-wait-term { margin: 0 0 18px; font-size: 14px; color: #44464f; overflow-wrap: anywhere; }
+  #analysis-waiting ol { list-style: none; margin: 0 0 14px; padding: 0; text-align: left; }
+  #analysis-waiting li {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px;
+    border-radius: 12px; background: #f2f3ff; font-size: 14px; line-height: 1.4;
+  }
+  #analysis-waiting li .wc-step-icon { flex-shrink: 0; width: 22px; text-align: center; font-size: 20px; }
+  #analysis-waiting li .wc-step-label { flex: 1; min-width: 0; word-break: keep-all; }
+  #analysis-waiting li .wc-step-state { flex-shrink: 0; font-size: 12px; color: #44464f; white-space: nowrap; }
+  #analysis-waiting li[data-state="active"] { background: #dde1ff; font-weight: 700; }
+  #analysis-waiting li[data-state="done"] .wc-step-icon { color: #1b6d24; }
+  #analysis-waiting li[data-state="failed"] .wc-step-icon { color: #ba1a1a; }
+  #analysis-waiting .wc-wait-elapsed { margin: 0 0 14px; font-size: 12px; color: #44464f; }
+  #analysis-waiting .wc-wait-actions { display: flex; flex-direction: column; gap: 8px; }
+  #analysis-waiting button {
+    min-height: 44px; border-radius: 12px; font-size: 14px; font-weight: 600; padding: 10px 14px;
+  }
+  #analysis-waiting #analysis-waiting-skip { background: #00236f; color: #fff; }
+  #analysis-waiting #analysis-waiting-cancel { background: transparent; color: #44464f; }
   #analysis-action-bar {
     position: relative;
     flex-shrink: 0;
@@ -75,7 +115,6 @@
     <button id="review-photo-generate" type="button" class="rounded-lg px-3 py-2 bg-primary text-on-primary">사진 생성 (별도 유료 API 1회)</button>
     <p id="review-photo-status" class="text-sm text-on-surface-variant" role="status">단어 분석 성공 시 사진을 자동 요청합니다. 사진 생성이 실패해도 단어 분석 결과를 저장할 수 있습니다.</p>
   </section>
-  <button type="submit" class="w-full rounded-lg p-3 bg-primary text-on-primary">단어장에 저장</button>
 </form>
 <!-- Toast Notification Template -->
 <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-inverse-surface text-inverse-on-surface font-label-ui text-label-ui shadow-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300" id="lexicon-toast">
@@ -84,9 +123,25 @@
 </div>
 </div>
 </main>
+<div id="analysis-waiting" hidden role="dialog" aria-modal="true" aria-labelledby="analysis-waiting-title" aria-describedby="analysis-waiting-elapsed">
+  <div class="wc-wait-card">
+    <div class="wc-spinner" aria-hidden="true"></div>
+    <h2 id="analysis-waiting-title">AI가 단어를 분석하고 있어요</h2>
+    <p class="wc-wait-term" id="analysis-waiting-term"></p>
+    <ol>
+      <li data-step="analysis" data-state="active"><span class="wc-step-icon material-symbols-outlined" aria-hidden="true">pending</span><span class="wc-step-label">단어 분석</span><span class="wc-step-state">진행 중</span></li>
+      <li data-step="photo" data-state="waiting"><span class="wc-step-icon material-symbols-outlined" aria-hidden="true">schedule</span><span class="wc-step-label">AI 학습 사진 생성</span><span class="wc-step-state">대기</span></li>
+    </ol>
+    <p class="wc-wait-elapsed" id="analysis-waiting-elapsed" aria-live="polite">0초 경과</p>
+    <div class="wc-wait-actions">
+      <button type="button" id="analysis-waiting-skip" hidden>사진은 기다리지 않고 검수하기</button>
+      <button type="button" id="analysis-waiting-cancel">취소</button>
+    </div>
+  </div>
+</div>
 <div class="p-margin bg-surface/90 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2 z-40" id="analysis-action-bar">
-<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="submit-action-btn" type="button"><span class="material-symbols-outlined text-[20px]">cloud_upload</span><span id="submit-btn-text" class="">단어 분석 + 사진 자동 생성</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span></button><p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p>
-<div class="flex items-center justify-center gap-1.5 text-center"><span class="material-symbols-outlined text-[15px] text-secondary">verified_user</span><p class="font-caption text-caption text-on-surface-variant">등록 후 AI 분석 결과 통합 검수 단계로 이동합니다.</p></div></div>
+<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="submit-action-btn" type="button"><span class="material-symbols-outlined text-[20px]">cloud_upload</span><span id="submit-btn-text" class="">단어 분석 + 사진 자동 생성</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span></button><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="save-action-btn" type="submit" form="analysis-review" hidden><span class="material-symbols-outlined text-[20px]">bookmark_add</span><span>단어장에 저장</span></button><p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p>
+<div id="analysis-microcopy" class="flex items-center justify-center gap-1.5 text-center"><span class="material-symbols-outlined text-[15px] text-secondary">verified_user</span><p class="font-caption text-caption text-on-surface-variant">등록 후 AI 분석 결과 통합 검수 단계로 이동합니다.</p></div></div>
 </div>
 
 

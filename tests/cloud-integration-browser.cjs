@@ -35,7 +35,7 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
   await page.locator('#submit-action-btn').click();
   await page.locator('#analysis-review').waitFor({state:'visible'});assert.equal(calls,1);
   assert.equal(await page.locator('[name="ko"]').inputValue(),'트랜스포머');
-  await page.locator('#analysis-review button[type="submit"]').click();
+  await page.locator('#save-action-btn').click();
   await page.waitForURL('**/words.html?**');
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1')));
   const added=Object.values(saved.terms).find(t=>t.en==='Transformer');assert.equal(added.course,'electrical-machines');

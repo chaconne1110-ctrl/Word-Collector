@@ -48,7 +48,7 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(await page.locator('[name=exampleKo]').inputValue(),'전류를 측정합니다.');
     const corrected = translation+'\n직접 검수한 해석입니다.';
     await page.locator('[name=referenceTranslation]').fill(corrected);
-    await page.locator('#analysis-review button[type=submit]').click();
+    await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const [id, word] = await page.evaluate(() => Object.entries(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
     assert.equal(word.referenceSentence,reference); assert.equal(word.referenceTranslation,corrected);

@@ -45,7 +45,7 @@ const {createServer}=require('../server/server.cjs');
    await page.locator('#submit-action-btn').click();
    await page.locator('#analysis-review').waitFor({state:'visible'});
    await page.locator('[name=referenceTranslation]').fill('화면 검증용 해석');
-   await page.locator('#analysis-review button[type=submit]').click();
+   await page.locator('#save-action-btn').click();
    await page.waitForURL('**/words.html?**');
    await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));s.terms={};localStorage.setItem('lexicon-word-collector-v1',JSON.stringify(s));});
    if(width===320 && safe===34){await page.goto(base+'/quick_capture/code.html');await page.screenshot({path:'/tmp/capture-clean-320.png',fullPage:true});}
