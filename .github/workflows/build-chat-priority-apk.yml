@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integrate/consolidated-chat-priority-20261113
+      - 'v[0-9]*'
     paths:
       - '.github/workflows/build-chat-priority-apk.yml'
   workflow_dispatch:
@@ -26,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113"
+          [[ "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113" || "$GITHUB_REF_NAME" =~ ^v[0-9]+$ ]]
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
           grep -q '"webDir":  *"www"' capacitor.config.json

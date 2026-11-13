@@ -1,6 +1,9 @@
 # Word Collector consolidated branch — integration record (2026-11-13 KST)
 
-## Priority override (branch `integrate/consolidated-chat-priority-20261113`)
+## Priority override (branches `integrate/consolidated-chat-priority-20261113` → `v1`, `v2`, …)
+Work continues on version branches: `v1` was created from this branch, and every later round of
+changes goes to a new branch `v<N+1>` based on the newest `v<N>`.
+
 This branch is `integrate/consolidated-review-20261113` with the owner's decisions from the
 `feature/public-ai-400-per-device` work applied as the **highest-priority** source. Where this
 section disagrees with anything below, this section wins.
@@ -13,7 +16,9 @@ section disagrees with anything below, this section wins.
   output refunds the reserved call. The global (and, for Turnstile identities, registration-IP)
   counters keep the attempt so failures stay bounded per day.
 - **"User location is not supported" is re-sent up to twice** (3 attempts total); other errors are
-  returned after one call. Charged once per request.
+  returned after one call. Charged once per request. The rejected response body is released before
+  re-sending. Measured effect is small (rejections follow the Cloudflare entry location, so re-sending
+  inside one request usually hits the same block); the US placement below matters more.
 - **Worker placement `gcp:us-central1`** (see `cloudflare/wrangler.example.jsonc`) must be kept on deploy.
 - Turnstile enrollment code stays in the Worker/`www/anonymous-auth.js` but is **dormant and not used by
   the app**; per-device identities are exempt from the registration-IP cap.
@@ -41,17 +46,36 @@ Working branch: `integrate/consolidated-review-20261113`. Draft PR #12 targets `
 5. `feature/xlsx-export` only adds a Flutter package; current Capacitor/web app already has XLSX export and tests. Do not copy the Flutter dependency.
 6. Newest `fix/main-layout-review` corrections supersede older mobile overlap fixes in `feature/ui-ux-notebook-settings` and `feature/public-ai-400-per-device` (layout only; that branch's auth, refund and tester-UI removal are applied here).
 
-## Release blockers — do NOT deploy, merge, or delete needed source branches yet
-- Configure production Turnstile widget for `chaconne1110-ctrl.github.io`; Worker secrets `TURNSTILE_SECRET`, `AUTO_AUTH_IP_SECRET`, site key `TURNSTILE_SITE_KEY` and explicit `AUTO_AUTH_ENABLED=true`. Back up D1; apply additive migration `0004` before enabling enrollment.
-- Test the HTTPS native iframe page on a physical Android device (including 401/429, bad challenges, restart/reinstall and offline behavior). Test narrow-screen and flashcard UI on real devices.
-- Run staging Worker test with a disposable D1 database, mocked Gemini API calls and controlled quota limits. No production Gemini charges during validation.
-- Verify deploy process and environment protections. Changes to this branch must not trigger GitHub Pages release or Worker deployment.
-- Rate limit remains a **per-issued identity + network abuse guard**, not an enforceable per-human quota across VPNs/devices.
+## Release checklist (device-ID design)
+Required for the current design:
+- **Web (GitHub Pages):** `.github/workflows/deploy-chat-priority-web.yml` deploys the pushed `v<N>`
+  branch's `www` to the existing Pages URL on every push (newest push wins). The `github-pages`
+  environment must allow branches matching `v*` (Settings → Environments → github-pages →
+  Deployment branches); until then the deploy job is rejected. `main`'s `deploy-web.yml` targets
+  the same URL, so a later `main` deploy replaces the `v<N>` site and vice versa.
+- **Worker:** deploy with `cloudflare/wrangler.example.jsonc` settings (placement `gcp:us-central1`,
+  live analysis and image flags) and the existing D1. Migration 0003 is already applied in production.
+  Keep `X-WC-Device` support — installed APKs depend on it.
+- **Android:** install a new APK built from the `v<N>` branch (APK workflow runs only on request:
+  manual dispatch or a change to its workflow file). Test analysis without a code, the leftover-code
+  recovery (unreadable / 401 code), narrow-screen and flashcard UI on a real device.
+- Run `node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs` (no paid Gemini calls).
+
+Only if the optional Turnstile enrollment is ever switched on (not needed for the device-ID design):
+- Configure the Turnstile widget for `chaconne1110-ctrl.github.io`, Worker secrets `TURNSTILE_SECRET`,
+  `AUTO_AUTH_IP_SECRET`, site key `TURNSTILE_SITE_KEY`, back up D1 and apply additive migration
+  `0004` **before** setting `AUTO_AUTH_ENABLED=true`; then test the HTTPS native iframe page on a
+  physical Android device and run a staging Worker with a disposable D1 and mocked Gemini calls.
+
+Limits are per device (or per issued identity) plus the global caps; they are an abuse guard, not an
+enforceable per-human quota — clearing app data or reinstalling yields a new device ID.
 
 ## Branch disposition (not yet deleted)
 | Branch | Recommendation | Reason |
 |---|---|---|
 | `main` | KEEP | deployed production history and releases |
+| `v1`, `v2`, … (newest `v<N>`) | KEEP | current work; each round of changes is a new version branch |
+| `integrate/consolidated-chat-priority-20261113` | Delete after `v1` is accepted | `v1` was created from it |
 | `integrate/consolidated-review-20261113` | KEEP pending QA | all reviewed changes live here |
 | `feature/ai-photo-generation-20261111` | Safe to delete now if desired | ancestor of main, zero unique commits in comparison |
 | `fix/main-layout-review` | Delete after consolidated PR is merged | its newest fixes are included here |

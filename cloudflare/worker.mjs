@@ -154,6 +154,9 @@ async function fetchWithLocationRetry(fetchImpl, url, options) {
   for (let attempt = 1; ; attempt++) {
     const response = await fetchImpl(url, options);
     if (attempt >= LOCATION_RETRY_ATTEMPTS || !(await isLocationBlocked(response))) return response;
+    // The decision read a clone; release the original body before re-sending so
+    // unread upstream responses never pile up on the Worker's connection limit.
+    try { await response.body?.cancel(); } catch { /* already closed */ }
   }
 }
 

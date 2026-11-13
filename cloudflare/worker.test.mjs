@@ -585,3 +585,26 @@ test('other Gemini 400 errors are not retried', async () => {
     assert.equal(calls, 1);
   } finally { globalThis.fetch = previous; }
 });
+
+test('a location-rejected response body is released before the call is re-sent', async () => {
+  const {env} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  let cancelled = 0;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    if (calls === 1) {
+      const res = LOCATION_ERROR();
+      const stream = res.body;
+      Object.defineProperty(res, 'body', {value: {cancel: async () => { cancelled++; await stream.cancel(); }}});
+      return res;
+    }
+    return OK_ANALYSIS();
+  };
+  try {
+    const res = await sendAnalyze(env, '9');
+    assert.equal(res.status, 200, await res.clone().text());
+    assert.equal(calls, 2);
+    assert.equal(cancelled, 1, 'rejected body released before re-sending');
+  } finally { globalThis.fetch = previous; }
+});

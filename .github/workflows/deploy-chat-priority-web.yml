@@ -1,11 +1,14 @@
-name: Deploy latest chat-priority Word Collector web
+name: Deploy latest version-branch (v<N>) Word Collector web
 
+# Work is saved on version branches v1, v2, ... Every push to a version branch
+# deploys that branch's www to the existing GitHub Pages URL, so the newest
+# push wins. The github-pages environment must allow branches matching "v*"
+# (Settings > Environments > github-pages > Deployment branches).
 on:
   push:
     branches:
-      - integrate/consolidated-chat-priority-20261113
-    paths:
-      - '.github/workflows/deploy-chat-priority-web.yml'
+      - 'v[0-9]*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,7 +20,7 @@ concurrency:
 jobs:
   test-and-deploy:
     name: Validate branch and deploy GitHub Pages
-    if: github.ref == 'refs/heads/integrate/consolidated-chat-priority-20261113'
+    if: startsWith(github.ref, 'refs/heads/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -37,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+$ ]]
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -s www/index.html
           test -s www/quick_capture/code.html
