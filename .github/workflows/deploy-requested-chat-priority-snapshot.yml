@@ -1,4 +1,4 @@
-name: Deploy approved Word Collector v5.1 snapshot
+name: Redeploy approved Word Collector v5.1 snapshot
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Validate pinned v5.1 snapshot and deploy Pages
+    name: Revalidate pinned v5.1 snapshot and redeploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
