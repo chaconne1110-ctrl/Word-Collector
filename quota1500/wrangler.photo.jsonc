@@ -1,0 +1,18 @@
+{
+    "name":  "word-collector-api",
+    "main":  "worker.photo.fixed.mjs",
+    "compatibility_date":  "2026-11-09",
+    "workers_dev":  true,
+    "keep_vars":  true,
+    "d1_databases":  [
+                         {
+                             "binding":  "DB",
+                             "database_name":  "word-collector-db",
+                             "database_id":  "b1809132-4fb2-4473-8dd9-66a47f79b45b"
+                         }
+                     ],
+    "vars":  {
+                 "ENABLE_LIVE_ANALYSIS":  "true",
+                 "ENABLE_IMAGE_GENERATION":  "true"
+             }
+}

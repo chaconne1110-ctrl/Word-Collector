@@ -1,0 +1,9 @@
+{
+  "name": "word-collector-api",
+  "main": "../cloudflare/worker.mjs",
+  "compatibility_date": "2026-11-09",
+  "workers_dev": true,
+  "placement": { "region": "gcp:us-central1" },
+  "vars": { "ENABLE_LIVE_ANALYSIS": "true", "ENABLE_IMAGE_GENERATION": "true", "GEMINI_RELAY_URL": "https://word-collector-gemini-relay-557058448320.us-central1.run.app" },
+  "d1_databases": [{ "binding": "DB", "database_name": "word-collector-db", "database_id": "b1809132-4fb2-4473-8dd9-66a47f79b45b" }]
+}
