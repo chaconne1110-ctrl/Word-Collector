@@ -107,7 +107,9 @@
           }
         }
       }
-      if (!(status >= 200 && status < 300)) throw new Error(result?.error || '분석 요청에 실패했습니다.');
+      if (!(status >= 200 && status < 300)) {
+        throw Object.assign(new Error(result?.error || '분석 요청에 실패했습니다.'), {status});
+      }
       if (!result || result.model !== MODEL) throw new Error('분석 서버의 모델 설정을 확인해 주세요.');
       const required = ['en','ko','discipline','enDef','koDef','exampleEn','course'];
       if (!result.needsManualCompletion) required.push('pos','exampleKo');
@@ -149,7 +151,9 @@
         status = response.status;
         result = await response.json();
       }
-      if (!(status >= 200 && status < 300)) throw new Error(result?.error || '사진 생성 요청이 실패했습니다.');
+      if (!(status >= 200 && status < 300)) {
+        throw Object.assign(new Error(result?.error || '사진 생성 요청이 실패했습니다.'), {status});
+      }
       if (!['image/png','image/jpeg','image/webp'].includes(result?.image?.mimeType) ||
           typeof result?.image?.data !== 'string' || result.image.data.length < 100) {
         throw new Error('사진 생성 결과가 올바르지 않습니다.');
@@ -195,6 +199,24 @@
       }
       return deviceId;
     }
+    async function dropStoredToken() {
+      token = '';
+      try { await secureStore()?.clear?.(); } catch { /* best effort */ }
+    }
+    // Public access never needs a code. If a leftover stored code is rejected
+    // (401: expired/revoked/unknown), forget it and send the same request once
+    // more with the device ID only. 401 is returned before any quota or Gemini
+    // call, so this retry cannot double-charge.
+    async function withoutRejectedToken(send) {
+      try {
+        return await send();
+      } catch (error) {
+        if (error?.status !== 401 || !token) throw error;
+        try { await root.WordCollectorAI.clearTesterToken(); } catch { token = ''; }
+        token = '';
+        return send();
+      }
+    }
     root.WordCollectorAI = {
       // Retained for callers that only want temporary credentials.
       configure({testerToken = '', useLocal = false}) {
@@ -229,10 +251,17 @@
           token = candidate;
           return true;
         }
-        const saved = await requireSecureStore('read').read();
-        if (saved?.token && !/^wc_[a-f0-9]{64}$/.test(saved.token)) {
-          throw new Error('저장된 인증 코드 형식을 확인해 주세요. 코드를 지우고 다시 등록하세요.');
-        }
+        // A stored code is optional. If it cannot be read (e.g. the Keystore key
+        // was lost after a reinstall/restore) or is malformed, drop it and fall
+        // back to the per-device public quota instead of asking for a code.
+        // A missing secure-store plugin still fails loudly here (never fall back
+        // to insecure storage); request()/createImage() ignore that and use the
+        // device ID. A record that exists but cannot be decrypted is dropped.
+        const store = requireSecureStore('read');
+        let saved;
+        try { saved = await store.read(); }
+        catch { await dropStoredToken(); return false; }
+        if (saved?.token && !/^wc_[a-f0-9]{64}$/.test(saved.token)) { await dropStoredToken(); return false; }
         token = saved?.token || '';
         return Boolean(token);
       },
@@ -267,21 +296,21 @@
       // Public access uses the per-install device ID (X-WC-Device). A token is
       // sent only if one is already stored; no Turnstile enrollment is started.
       async createImage(payload, options = {}) {
-        if (!token) await root.WordCollectorAI.restoreTesterToken();
-        return createClient({
+        if (!token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);
+        return withoutRejectedToken(() => createClient({
           baseUrl:CLOUD_URL, token, deviceId:getDeviceId(), native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
-        }).requestImage(payload, options);
+        }).requestImage(payload, options));
       },
       async request(payload, options = {}) {
-        if (!local && !token) await root.WordCollectorAI.restoreTesterToken();
-        return createClient({
+        if (!local && !token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);
+        return withoutRejectedToken(() => createClient({
           baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
           token,
           deviceId: local ? '' : getDeviceId(),
           native: isNative(),
           nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
-        }).request(payload, options);
+        }).request(payload, options));
       }
     };
   }

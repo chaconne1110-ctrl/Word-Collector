@@ -136,3 +136,67 @@ test('Android securely persists newly issued anonymous credentials and reuses th
   assert.equal(requests.length,2);
   assert.ok(requests.every(c=>c.headers.Authorization==='Bearer '+code));
 });
+
+function makeNativeWith(store, handler) {
+  const memory = new Map();
+  const scope = {
+    crypto: require('node:crypto').webcrypto,
+    localStorage: {getItem: k => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, v), removeItem: k => memory.delete(k)},
+    Capacitor: {
+      getPlatform: () => 'android',
+      Plugins: {TesterTokenStore: store, CapacitorHttp: {request: handler}}
+    }
+  };
+  scope.globalThis = scope;
+  vm.runInNewContext(source, scope, {filename: 'www/analysis-api.js'});
+  return scope.WordCollectorAI;
+}
+
+test('Android: an unreadable stored code is dropped and analysis proceeds with the device ID', async () => {
+  let cleared = 0;
+  const calls = [];
+  const store = {
+    async read() { throw new Error('저장된 인증 코드를 읽지 못했습니다. 인증 코드를 지우고 다시 등록해 주세요.'); },
+    async save() { return {}; },
+    async clear() { cleared++; return {}; }
+  };
+  const ai = makeNativeWith(store, async call => { calls.push(call); return {status: 200, data: response}; });
+  await ai.request({term: 'Transformer'});
+  assert.equal(cleared, 1);
+  assert.equal(calls.length, 1);
+  assert.equal(Object.hasOwn(calls[0].headers, 'Authorization'), false);
+  assert.match(calls[0].headers['X-WC-Device'], /^wd_[a-f0-9]{64}$/);
+});
+
+test('Android: a stored code rejected with 401 is forgotten and the request is re-sent once without it', async () => {
+  let stored = code;
+  const calls = [];
+  const store = {
+    async read() { return {token: stored}; },
+    async save(v) { stored = v.token; return {}; },
+    async clear() { stored = ''; return {}; }
+  };
+  const ai = makeNativeWith(store, async call => {
+    calls.push(call);
+    return call.headers.Authorization
+      ? {status: 401, data: {error: '유효한 테스터 인증이 필요합니다.'}}
+      : {status: 200, data: response};
+  });
+  await ai.request({term: 'Transformer'});
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].headers.Authorization, 'Bearer ' + code);
+  assert.equal(Object.hasOwn(calls[1].headers, 'Authorization'), false);
+  assert.equal(stored, '');
+  // Later requests go straight to the device-ID path.
+  await ai.request({term: 'Transformer'});
+  assert.equal(calls.length, 3);
+  assert.equal(Object.hasOwn(calls[2].headers, 'Authorization'), false);
+});
+
+test('Android: non-401 errors with a stored code are not retried', async () => {
+  const calls = [];
+  const store = {async read() { return {token: code}; }, async save() { return {}; }, async clear() { return {}; }};
+  const ai = makeNativeWith(store, async call => { calls.push(call); return {status: 429, data: {error: '한도 초과'}}; });
+  await assert.rejects(() => ai.request({term: 'Transformer'}), /한도 초과/);
+  assert.equal(calls.length, 1);
+});
