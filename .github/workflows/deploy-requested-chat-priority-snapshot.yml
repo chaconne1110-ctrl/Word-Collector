@@ -1,0 +1,84 @@
+name: Deploy approved Word Collector chat-priority snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-requested-chat-priority-snapshot.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: word-collector-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-requested-snapshot:
+    name: Validate latest requested branch snapshot and deploy Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout pinned requested branch revision
+        uses: actions/checkout@v4
+        with:
+          ref: '3d99cd32e990017b3018a99efb35a0b1f74b9dd2'
+          persist-credentials: false
+
+      - name: Verify immutable source revision and app assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "3d99cd32e990017b3018a99efb35a0b1f74b9dd2"
+          test -s www/index.html
+          test -s www/quick_capture/code.html
+          test -s www/analysis-api.js
+          test -s www/sw.js
+          grep -q 'id="analysis-action-bar"' www/quick_capture/code.html
+          ! grep -q 'id="tester-token"' www/quick_capture/code.html
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate source JS
+        run: |
+          node --check www/app.js
+          node --check www/analysis-api.js
+          node --check www/quick_capture/analysis.js
+          node --check www/anonymous-auth.js
+          node --check www/sw.js
+
+      - name: Run regression tests with mocked API (no Gemini charges)
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload public web assets from requested branch
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+
+      - name: Deploy approved web snapshot to existing Pages URL
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Summarize deployment
+        shell: bash
+        run: |
+          echo "Deployed source branch: integrate/consolidated-chat-priority-20261113"
+          echo "Deployed source SHA: 3d99cd32e990017b3018a99efb35a0b1f74b9dd2"
+          echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
