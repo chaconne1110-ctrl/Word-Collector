@@ -26,6 +26,7 @@ const {createServer} = require('../server/server.cjs');
       const pressed = await page.locator('.card-front [data-action="bookmark"]').getAttribute('aria-pressed');
       assert.equal(await page.locator('.card-back [data-action="bookmark"]').getAttribute('aria-pressed'), pressed);
       await page.locator('.card-front [data-action="flip"]').last().click();
+        await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
       assert.equal(await page.locator('.card-back').isVisible(), true);
       assert.equal(await page.getByRole('button', {name: 'AI 사진 생성 (유료 · 1회)', exact: true}).count(), 1);
     }

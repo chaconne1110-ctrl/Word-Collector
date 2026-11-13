@@ -44,7 +44,7 @@ body[data-page="edit"] main, body[data-page="capture"] main {
 #exportContent .grid > label { min-width: 0; overflow-wrap: anywhere; }
 
 /* Keep notebook names compact in the deck toolbar; full names remain in the
-   notebook settings. Counters and navigation get their own space. */
+   notebook settings. Counters keep their own space. */
 .deck-summary { gap: 8px; }
 .deck-summary > :first-child { flex: 1; min-width: 0; }
 .deck-summary > :last-child { flex-shrink: 0; }
@@ -59,9 +59,7 @@ body[data-page="edit"] main, body[data-page="capture"] main {
 #subjectBadgeEn { max-width: 40%; }
 #subjectBadgeEn:empty { display: none; }
 #topActiveCounter { white-space: nowrap; }
-#cardsScrollContainer { right: 60px; }
-#card-navigation { right: 8px; gap: 12px; }
-#card-navigation button { width: 44px; height: 44px; flex-shrink: 0; }
+#cardsScrollContainer { right: 16px; }
 .card-front, .card-back { overflow-wrap: anywhere; }
 .card-front [data-field], .card-back [data-field] { min-width: 0; max-width: 100%; }
 .card-front [data-field="en"], .card-back [data-field="en"] { flex: 1; }
@@ -182,3 +180,7 @@ body[data-page="card"] [data-action="generate-photo"]:disabled { opacity: .6; }
 #englishTermInput { padding-right: 44px; text-overflow: ellipsis; }
 #subjectSelect { padding-right: 40px; text-overflow: ellipsis; }
 body[data-page="edit"] textarea { field-sizing: content; min-height: 72px; }
+
+/* Animate the visible surface without changing card sizing or scroll containers. */
+.card-flipper { transform-origin: center; }
+#cardsScrollContainer:focus-visible { outline: 2px solid #00236f; outline-offset: -2px; }
