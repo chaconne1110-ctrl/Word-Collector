@@ -32,7 +32,8 @@ test('English duplicates still match ignoring case and whitespace',()=>{
 test('review and edit UI both use common partial validation, no required review inputs',()=>{
   const capture=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   const app=fs.readFileSync('www/app.js','utf8');
-  const page=fs.readFileSync('www/quick_capture/code.html','utf8');
+  // v7: the review runs on the separate analysis page
+  const page=fs.readFileSync('www/quick_capture/review.html','utf8');
   const edit=fs.readFileSync('www/edit.html','utf8');
   assert.match(capture,/input\.required = false/);
   assert.doesNotMatch(capture,/검토 항목을 모두 입력하세요/);

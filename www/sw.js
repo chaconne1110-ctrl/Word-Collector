@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v6-1-waiting-screen';
+const CACHE_NAME = PREFIX + '20261113-v7-analysis-page';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -54,6 +54,8 @@ const APP_SHELL = [
   "pwa-register.js",
   "quick_capture/analysis.js",
   "quick_capture/code.html",
+  "quick_capture/review.html",
+  "quick_capture/capture.js",
   "request-gate.js",
   "word-export.js",
   "words.html"

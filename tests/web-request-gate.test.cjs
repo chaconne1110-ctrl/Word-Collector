@@ -66,7 +66,8 @@ test('web UI uses separate gates for analysis and both image-generation buttons'
   const fs=require('node:fs');
   const review=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   const deck=fs.readFileSync('www/app.js','utf8');
-  const captureHtml=fs.readFileSync('www/quick_capture/code.html','utf8');
+  // v7: analysis requests are sent from the separate analysis page
+  const captureHtml=fs.readFileSync('www/quick_capture/review.html','utf8');
   const deckHtml=fs.readFileSync('www/flashcard.html','utf8');
   const sw=fs.readFileSync('www/sw.js','utf8');
   assert.match(review,/const analysisRequestGate = WordCollectorRequestGate\.create\(\)/);

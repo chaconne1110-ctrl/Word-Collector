@@ -1,10 +1,15 @@
-const captureScreen = $('main');
+// Word analysis page (review.html). The input page (code.html + capture.js)
+// stores the request in sessionStorage and navigates here; this page runs the
+// analysis and the photo generation behind a waiting screen, then shows the
+// review with a single "단어장에 저장" button in the bottom bar.
+const CAPTURE_REQUEST_KEY = 'word-collector-capture-request-v1';
+const CAPTURE_STARTED_KEY = 'word-collector-capture-started-v1';
 const reviewForm = $('#analysis-review');
 const status = $('#analysis-status');
-const analysisButton = $('#submit-action-btn');
-const analysisLabel = $('#submit-btn-text');
 const saveActionButton = $('#save-action-btn');
-const actionMicrocopy = $('#analysis-microcopy');
+const errorCard = $('#analysis-error');
+const errorMessage = $('#analysis-error-message');
+const retryButton = $('#analysis-retry');
 const waiting = $('#analysis-waiting');
 const waitingTitle = $('#analysis-waiting-title');
 const waitingTerm = $('#analysis-waiting-term');
@@ -52,18 +57,38 @@ function hideWaiting() {
   waitingSkip.hidden = true;
   waiting.hidden = true;
 }
-// In review mode the bottom bar shows only "단어장에 저장" where the analysis button was.
+// The bottom bar shows only "단어장에 저장", and only once the review is ready.
 function setReviewMode(on) {
-  analysisButton.hidden = on;
   saveActionButton.hidden = !on;
-  actionMicrocopy.hidden = on;
 }
+function readCaptureRequest() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(CAPTURE_REQUEST_KEY) || 'null');
+    return saved && typeof saved.term === 'string' && typeof saved.id === 'string' ? saved : null;
+  } catch {
+    return null;
+  }
+}
+const request = readCaptureRequest();
+// Back to the input page; history.back() keeps the typed values when possible.
+function goBackToInput() {
+  let fromInput = false;
+  try { fromInput = new URL(document.referrer).pathname.endsWith('/quick_capture/code.html'); } catch {}
+  if (fromInput) history.back();
+  else location.href = 'code.html' + (request?.selected ? '?course=' + encodeURIComponent(request.selected) : '');
+}
+function showError(message) {
+  hideWaiting();
+  reviewForm.hidden = true;
+  setReviewMode(false);
+  errorMessage.textContent = message;
+  errorCard.hidden = false;
+  status.textContent = '';
+}
+$('#analysis-back-to-input').addEventListener('click', goBackToInput);
 waitingSkip.addEventListener('click', () => { waitingSkipResolve?.(); });
-const termInput = $('#term-unified-input');
-const courseInput = $('#subject-select');
 const reviewCourse = $('#review-course');
-const contextInput = $('#context-sentence-input');
-const inputControls = [termInput, courseInput, contextInput, ...$$('[id^="btn-mode-"]')];
+const inputControls = [];
 const resultFields = {
   discipline: '전공',
   en: '영어 표제어',
@@ -178,38 +203,18 @@ waitingCancel.addEventListener('click', () => {
   invalidateReview();
   hideWaiting();
   analyzing = false;
-  for (const item of inputControls) item.disabled = false;
-  analysisLabel.textContent = '단어 분석 + 사진 자동 생성';
-  status.textContent = '요청을 취소했습니다. 서버에서 이미 처리된 요청은 사용량에 포함될 수 있습니다.';
+  // The typed word stays saved, so the input page shows it again.
+  goBackToInput();
 });
-// Keep the selected notebook ID (not the display name) across UI navigation and new notebooks.
-// This also handles Safari PWA resumes and another tab creating/deleting a notebook.
-const initialCourseId = new URLSearchParams(location.search).get('course');
+// Notebook choices for the review's "저장할 과목" select (IDs, not display names).
 function refreshNotebookChoices() {
-  const oldSelection = courseInput.value || initialCourseId;
   const oldReview = reviewCourse.value;
   state = load();
   const notebookEntries = Object.entries(allCourses());
-  const options = () => notebookEntries.map(([id, [name]]) => new Option(name, id));
-  courseInput.replaceChildren(...options());
-  reviewCourse.replaceChildren(...options());
-  if (oldSelection && hasCourse(oldSelection)) courseInput.value = oldSelection;
+  reviewCourse.replaceChildren(...notebookEntries.map(([id, [name]]) => new Option(name, id)));
   if (oldReview && hasCourse(oldReview)) reviewCourse.value = oldReview;
-  $('#existing-notebook-count').textContent = '등록된 ' + notebookEntries.length + '개 단어장';
-  const existingButton = $('#btn-mode-existing');
-  existingButton.disabled = notebookEntries.length === 0;
-  $('#no-notebooks').hidden = notebookEntries.length !== 0;
-  if (!notebookEntries.length) {
-    existingButton.setAttribute('aria-label', '단어장이 없어 AI 자동 분류로 새 단어장을 만듭니다.');
-    setCategoryMode('ai');
-  } else {
-    existingButton.removeAttribute('aria-label');
-  }
 }
 refreshNotebookChoices();
-window.addEventListener('pageshow', () => {
-  if (!analyzing) refreshNotebookChoices();
-});
 
 function supportsEddyDiagram(en, selected) {
   return ['eddy current', 'eddy currents'].includes(normalize(en)) &&
@@ -301,41 +306,32 @@ function showToast(message) {
   status.textContent = message;
 }
 
-captureScreen.addEventListener('input', event => {
-  if (!analyzing && inputControls.includes(event.target)) invalidateReview();
-});
-for (const control of inputControls.filter(control => control.tagName === 'BUTTON')) {
-  control.addEventListener('click', invalidateReview, {capture: true});
-}
-
-analysisButton.addEventListener('click', async () => {
-  if (draft && !reviewForm.hidden) {
-    reviewForm.scrollIntoView({block:'start'});
-    status.textContent = '이미 분석이 완료됐습니다. 검수한 후 저장하거나 입력 내용을 바꿔 새로 분석할 수 있습니다.';
-    return;
-  }
+async function runAnalysis() {
   refreshNotebookChoices();
-  const autoCourse = !$('#section-mode-ai').classList.contains('hidden');
+  const autoCourse = Boolean(request.autoCourse);
   const createFirstCourse = autoCourse && Object.keys(allCourses()).length === 0;
-  const term = termInput.value.trim();
-  const selected = courseInput.value;
-  const context = contextInput.value.trim();
+  const term = request.term.trim();
+  const selected = request.selected || '';
+  const context = (request.context || '').trim();
+  errorCard.hidden = true;
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
-    status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
+    showError('한국어 또는 영어 전공 단어를 입력하세요.');
     return;
   }
   if (!autoCourse && (!selected || !hasCourse(selected))) {
-    status.textContent = '저장할 기존 단어장을 선택하거나 홈에서 새 단어장을 만들어 주세요.';
+    showError('저장할 단어장이 없거나 삭제됐습니다. 입력 화면에서 단어장을 다시 선택해 주세요.');
     return;
   }
   const remaining = analysisRequestGate.remainingMs();
   if (remaining > 0) {
     status.textContent = '3초 이내 중복 요청을 차단했습니다. ' +
-      Math.ceil(remaining / 1000) + '초 후에도 미완료라면 다시 눌러 재요청할 수 있습니다.';
+      Math.ceil(remaining / 1000) + '초 후 다시 눌러 주세요.';
     return;
   }
   const ticket = analysisRequestGate.begin();
   if (!ticket.allowed) return;
+  // A reload must not silently pay for the same analysis twice.
+  try { sessionStorage.setItem(CAPTURE_STARTED_KEY, request.id); } catch {}
   analyzing = true;
   draft = null;
   photoDraft = null;
@@ -345,12 +341,9 @@ analysisButton.addEventListener('click', async () => {
   reviewForm.hidden = true;
   for (const item of inputControls) item.disabled = true;
   setReviewMode(false);
+  errorCard.hidden = true;
   showWaiting(term);
-  // Leave this button active so an unfinished request can be retried after 3 seconds.
-  analysisLabel.textContent = '분석 중 · 3초 후 재요청 가능';
-  status.textContent = ticket.replaced ?
-    '이전 브라우저 요청을 중단하고 재요청했습니다. 이전 서버 요청도 과금될 수 있습니다.' :
-    'Gemini에 분석을 요청했습니다. 3초 이내 중복 요청은 차단됩니다.';
+  status.textContent = '';
   try {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
@@ -417,20 +410,37 @@ analysisButton.addEventListener('click', async () => {
     if (createFirstCourse && !result.needsManualCompletion) await saveReview();
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    hideWaiting();
-    status.textContent = ['TimeoutError','AbortError'].includes(error.name) ?
+    showError(['TimeoutError','AbortError'].includes(error.name) ?
       '분석 시간이 초과됐습니다. 다시 시도해 주세요.' :
       error instanceof TypeError || error instanceof SyntaxError ?
-      'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결과 선택한 서버를 확인하세요.' : error.message;
+      'AI 분석 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.' : error.message);
   } finally {
     if (analysisRequestGate.finish(ticket.id)) {
       if (reviewForm.hidden) hideWaiting();
       analyzing = false;
-      for (const item of inputControls) item.disabled = false;
-      analysisLabel.textContent = '단어 분석 + 사진 자동 생성';
     }
   }
+}
+
+retryButton.addEventListener('click', () => {
+  if (!analyzing && request) void runAnalysis();
 });
+
+// Start as soon as the page opens. Without a request (opened directly) go to
+// the input page; after a reload of an already started request, ask before
+// spending another API call.
+if (!request) {
+  location.replace('code.html');
+} else {
+  let alreadyStarted = false;
+  try { alreadyStarted = sessionStorage.getItem(CAPTURE_STARTED_KEY) === request.id; } catch {}
+  if (alreadyStarted) {
+    showError('이 단어는 이미 분석을 요청했어요. 화면을 새로 고치면 결과가 사라집니다.\n' +
+      '다시 분석하면 API 사용량이 추가됩니다.');
+  } else {
+    void runAnalysis();
+  }
+}
 
 let saving = false;
 async function saveReview() {
@@ -445,7 +455,7 @@ async function saveReview() {
   }
   const savingDraft = draft;
   saving = true;
-  const controls = [...new Set([...inputControls, analysisButton, ...reviewForm.elements])];
+  const controls = [...new Set([...inputControls, ...reviewForm.elements])];
   const disabled = controls.map(control => control.disabled);
   controls.forEach(control => { control.disabled = true; });
   try {
@@ -479,6 +489,8 @@ async function saveReview() {
         }
       }
       draft = null;
+      // Saved: the next visit to the input page starts empty.
+      try { sessionStorage.removeItem(CAPTURE_REQUEST_KEY); sessionStorage.removeItem(CAPTURE_STARTED_KEY); } catch {}
       location.href = '../' + route('words.html', {course: word.course});
     }
   } finally {

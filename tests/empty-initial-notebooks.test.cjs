@@ -57,7 +57,8 @@ test('home can create empty notebooks without requiring AI usage', () => {
   const bookmarks=fs.readFileSync('www/bookmarks.html','utf8');
   assert.match(bookmarks,/id="bookmark-filters"/);
   assert.doesNotMatch(bookmarks,/data-filter="circuit"/);
-  const add=fs.readFileSync('www/quick_capture/analysis.js','utf8');
+  // v7: the word input page (notebook choice) lives in capture.js
+  const add=fs.readFileSync('www/quick_capture/capture.js','utf8');
   assert.match(add,/if \(!notebookEntries\.length\)/);
   assert.match(add,/setCategoryMode\('ai'\)/);
   const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
