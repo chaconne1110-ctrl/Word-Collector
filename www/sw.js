@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v5-1-reference-example';
+const CACHE_NAME = PREFIX + '20261113-v6-screen-scale';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -22,6 +22,7 @@ const APP_SHELL = [
   "assets/styles/ai_code_html.css",
   "assets/styles/bookmarks_html.css",
   "assets/styles/bottom-navigation.css",
+  "screen-scale.js",
   "assets/styles/mobile-layout.css",
   "assets/styles/edit_html.css",
   "assets/styles/flashcard_html.css",
