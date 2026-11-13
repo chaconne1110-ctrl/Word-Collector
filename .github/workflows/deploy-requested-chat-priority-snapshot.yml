@@ -29,14 +29,14 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: '3d99cd32e990017b3018a99efb35a0b1f74b9dd2'
+          ref: 'ba068ac8bc26de3f40e6ebd3c852ceacd8303e50'
           persist-credentials: false
 
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "3d99cd32e990017b3018a99efb35a0b1f74b9dd2"
+          test "$(git rev-parse HEAD)" = "ba068ac8bc26de3f40e6ebd3c852ceacd8303e50"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -79,6 +79,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: integrate/consolidated-chat-priority-20261113"
-          echo "Deployed source SHA: 3d99cd32e990017b3018a99efb35a0b1f74b9dd2"
+          echo "Deployed source branch: feature/flashcard-3d-snapshot"
+          echo "Deployed source SHA: ba068ac8bc26de3f40e6ebd3c852ceacd8303e50"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
