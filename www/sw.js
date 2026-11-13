@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v9-korean-pos';
+const CACHE_NAME = PREFIX + '20261113-v10-proper-noun';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

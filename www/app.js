@@ -88,7 +88,7 @@ function relatedEnglishWords(term) {
 // Part of speech in Korean. Words saved before this change hold English
 // labels ("noun", "adj.", "noun, verb"); anything unrecognised is kept as is.
 const KOREAN_PART_OF_SPEECH = {
-  noun: '명사', n: '명사', 'noun phrase': '명사구', phrase: '구', 'proper noun': '고유명사',
+  noun: '명사', n: '명사', 'noun phrase': '명사구', phrase: '구', 'proper noun': '고유명사', proper: '고유명사', 'proper n': '고유명사', 'proper name': '고유명사',
   verb: '동사', v: '동사', 'phrasal verb': '구동사', 'verb phrase': '동사구',
   adjective: '형용사', adj: '형용사', adverb: '부사', adv: '부사',
   pronoun: '대명사', pron: '대명사', preposition: '전치사', prep: '전치사',

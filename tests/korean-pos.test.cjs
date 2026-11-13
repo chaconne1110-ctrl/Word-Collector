@@ -17,7 +17,11 @@ test('part of speech is shown in Korean, including words saved with English labe
   assert.equal(ko('noun, verb'), '명사, 동사');
   assert.equal(ko('noun / adjective'), '명사, 형용사');
   assert.equal(ko('noun phrase'), '명사구');
+  assert.equal(ko('proper noun'), '고유명사');
+  assert.equal(ko('Proper Noun'), '고유명사');
+  assert.equal(ko('proper n.'), '고유명사');
   assert.equal(ko('명사'), '명사', 'already Korean');
+  assert.equal(ko('고유명사'), '고유명사', 'already Korean');
   assert.equal(ko('/ɪˈlɛktrɪk/'), '/ɪˈlɛktrɪk/', 'unrecognised text (e.g. old pronunciation) is kept');
   assert.equal(ko(''), '');
   assert.equal(ko(undefined), '');
@@ -27,7 +31,9 @@ test('servers ask for the part of speech in Korean', () => {
   for (const file of ['cloudflare/worker.mjs', 'server/server.cjs']) {
     const src = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(src, /pos는 영어 품사/, file);
-    assert.equal((src.match(/pos는 한국어 품사\(예: 명사, 동사, 형용사, 부사, 명사구\)/g) || []).length, 2, file);
+    // Korean labels including 고유명사 for names (people, places, laws named after people …).
+    assert.equal((src.match(/pos는 한국어 품사입니다\. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고/g) || []).length, 2, file);
+    assert.equal((src.match(/명사가 아니라 고유명사라고 쓰세요\. /g) || []).length, 2, file);
   }
 });
 
