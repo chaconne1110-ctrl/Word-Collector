@@ -8,7 +8,10 @@ test('client sends user-created empty notebooks for all classification modes',()
   assert.match(c,/!hasCourse\(selected\)/);
   assert.match(c,/review-course-row'\)\.hidden = false/);
   assert.match(c,/needsManualCompletion/);
-  assert.match(c,/reviewedWords === 0/);
+  // v8: the review no longer shows the analysis-basis note; the recommendation
+  // summary still reports how many saved words were compared.
+  assert.match(c,/분류 참고 단어 ' \+ reviewedWords/);
+  assert.doesNotMatch(c,/review-analysis-basis/);
   const html=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.match(html,/저장된 단어가 없어도/);
   assert.doesNotMatch(html,/value="Permittivity \(유전율\)"/);
