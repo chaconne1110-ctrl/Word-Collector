@@ -293,9 +293,16 @@ analysisButton.addEventListener('click', async () => {
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;
     const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
-    translationLabel.hidden = !context;
-    // English sentence -> Korean translation; Korean sentence -> English translation.
+    const fromReference = Boolean(context) && result.exampleSource === 'reference';
+    // A reference sentence replaces the generated example: the example field
+    // holds the English sentence and the translation field the Korean one, so
+    // the separate reference-translation field would only repeat them.
+    translationLabel.hidden = !context || fromReference;
     translationLabel.firstChild.textContent = '참고 문장 ' + referenceTranslationLabel(context);
+    reviewForm.elements.exampleEn.parentElement.firstChild.textContent =
+      fromReference ? '영어 문장 (참고 문장)' : resultFields.exampleEn;
+    reviewForm.elements.exampleKo.parentElement.firstChild.textContent =
+      fromReference ? '한국어 문장 (참고 문장)' : resultFields.exampleKo;
     let target = autoCourse ?
       Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
     let newCourseName;
@@ -311,7 +318,8 @@ analysisButton.addEventListener('click', async () => {
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, newCourseName, referenceSentence: context, model: result.model, recommended: autoCourse ? target : null, selected: target,
+    draft = {term, newCourseName, referenceSentence: context,
+      exampleSource: context && result.exampleSource === 'reference' ? 'reference' : '', model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     reviewCourse.value = target;
     // Users always control the destination, including when the notebook contains no words.
@@ -377,6 +385,8 @@ async function saveReview() {
     if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
     const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
     const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
+    if (draft.exampleSource) word.exampleSource = draft.exampleSource;
+    else delete word.exampleSource;
     delete word.diagram;
     if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
     if (commit({...state, courses, terms: {...state.terms, [id]: word}})) {

@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v5-reference-translation';
+const CACHE_NAME = PREFIX + '20261113-v5-1-reference-example';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

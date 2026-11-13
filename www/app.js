@@ -393,8 +393,13 @@ function renderDeck() {
     card.dataset.termId = current;
     const flipper = $('.card-flipper', card);
     const referenceSentence = typeof term.referenceSentence === 'string' ? term.referenceSentence.trim() : '';
-    bindFields(card, {...term, exampleEn: referenceSentence || term.exampleEn,
-      exampleKo: referenceSentence ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
+    // New words: the example/translation were built from the reference sentence
+    // (English sentence + Korean sentence), so show them as stored. Older words
+    // kept a generated example and showed the reference + its translation instead.
+    const exampleFromReference = term.exampleSource === 'reference';
+    const legacyReference = referenceSentence && !exampleFromReference;
+    bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
+      exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문')});
     if (referenceSentence) {
       const sentence = $('[data-field="exampleEn"]', card);
@@ -412,7 +417,7 @@ function renderDeck() {
         if (sentence.contains(walker.currentNode) || translation?.contains(walker.currentNode)) continue;
         walker.currentNode.textContent = walker.currentNode.textContent
           .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력')
-          .replace('국문 번역', referenceTranslationLabel(referenceSentence));
+          .replace('국문 번역', exampleFromReference ? '국문 번역' : referenceTranslationLabel(referenceSentence));
       }
     }
     const savedImage = term.diagram ? diagramImage(term.diagram) : null;

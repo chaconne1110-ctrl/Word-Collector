@@ -17,7 +17,7 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 3. autoSubject=true이면 실제 terms가 있는 단어장에서는 영어 표제어, 한국어 뜻, 영어 정의, 한국어 정의를 우선 비교하세요. 저장 단어의 의미가 주된 분류 기준이며, 이를 토대로 맞는 단어장을 추천하세요. 저장 단어가 전혀 없으면 입력 단어, 참고 문장, 단어장 이름을 활용해 임시 추천하세요. 후보는 제공된 notebooks의 이름뿐입니다.
 4. autoSubject=false이면 notebookName은 selectedSubject와 반드시 같아야 합니다. 단어장은 저장 위치입니다. 참고 문장이 다른 분야를 뜻하면 참고 문장에 맞는 뜻을 분석하고 선택한 저장 위치를 유지하세요.
 5. 저장 단어가 없는 단어장을 추천할 때에는 비교할 저장 단어가 없다고 recommendationReason에 밝히고 단어장 이름과 입력 문맥에 따른 임시 추천임을 설명하세요. 존재하지 않는 저장 단어를 만들어 근거로 사용하지 마세요.
-6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 정확하고 간결한 영어 정의, koreanDefinition은 그 정의의 충실한 한국어 해석입니다. exampleSentence는 같은 의미를 사용하는 자연스러운 영어 예문 한 문장입니다.
+6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 정확하고 간결한 영어 정의, koreanDefinition은 그 정의의 충실한 한국어 해석입니다. exampleSentence는 같은 의미를 사용하는 자연스러운 영어 예문 한 문장입니다. 단, translateReference=true이면 exampleSentence를 만들지 마세요(스키마에 없음). 이때 예문은 사용자가 입력한 referenceText와 그 번역으로 대신합니다.
 7. explanation은 짧은 한국어 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
 8. translateReference=true이면 referenceTranslation에 referenceText 전체를 referenceTranslationLanguage 언어로 충실하게 번역해 1,200자 이내로 작성하세요. referenceTranslationLanguage가 "ko"이면 자연스러운 한국어로, "en"이면 자연스러운 영어로 번역합니다(원문이 한국어 예문이면 영어 번역, 영어 예문이면 한국어 번역). 원문을 그대로 반복하지 말고, 생성 예문(exampleSentence)의 번역과 혼동하지 마세요.
 9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
@@ -112,13 +112,19 @@ function responseSchema(input) {
   properties.relatedTerms = {type: 'ARRAY', items: {type: 'STRING'}, maxItems: 5};
   if (input.translateReference) properties.referenceTranslation = {type:'STRING'};
   if (input.legacy) { properties.pos = {type:'STRING'}; properties.exampleKo = {type:'STRING'}; }
-  return {type: 'OBJECT', properties, required: [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms', ...(input.translateReference ? ['referenceTranslation'] : []), ...(input.legacy ? ['pos','exampleKo'] : [])]};
+  // With a reference sentence the example is built from it, not generated.
+  if (input.translateReference) { delete properties.exampleSentence; delete properties.exampleKo; }
+  const required = [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms',
+    ...(input.translateReference ? ['referenceTranslation'] : []), ...(input.legacy ? ['pos','exampleKo'] : [])]
+    .filter(field => Object.hasOwn(properties, field));
+  return {type: 'OBJECT', properties, required};
 }
 function validateOutput(value, input) {
   const invalid = () => { throw new ApiError(502, 'AI 분석 결과의 형식이 올바르지 않습니다. 다시 분석해 주세요.'); };
   if (!record(value)) invalid();
   const analysis = {};
   for (const field of [...CORE_FIELDS, 'explanation', 'recommendationReason']) {
+    if (field === 'exampleSentence' && input.translateReference) continue;
     if (typeof value[field] !== 'string' || !value[field].trim() || value[field].length > 12000) invalid();
     analysis[field] = value[field].trim();
   }
@@ -129,6 +135,14 @@ function validateOutput(value, input) {
     // English sentence -> Korean translation, Korean sentence -> English translation.
     if (!translationMatches(analysis.referenceTranslation, input.referenceTranslationLanguage)) invalid();
     analysis.referenceTranslationLanguage = input.referenceTranslationLanguage;
+    // The example and its Korean translation come from the user's sentence:
+    // English input -> (input, Korean translation); Korean input -> (English
+    // translation, input). No example is generated.
+    const english = input.referenceTranslationLanguage === 'ko' ? input.referenceText : analysis.referenceTranslation;
+    const korean = input.referenceTranslationLanguage === 'ko' ? analysis.referenceTranslation : input.referenceText;
+    analysis.exampleSentence = english;
+    analysis.exampleTranslation = korean;
+    analysis.exampleSource = 'reference';
   }
   // A model cannot move a manually selected save destination, even if it ignores the prompt.
   if (!input.autoSubject) analysis.notebookName = input.selectedSubject;
@@ -196,7 +210,9 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       method: 'POST', signal: controller.signal, redirect: 'error',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
-        systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? '\n추가 항목 pos는 영어 품사, exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.' : '')}]},
+        systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? (input.translateReference
+          ? '\n추가 항목 pos는 영어 품사입니다. 1,200자 이내로 작성하세요.'
+          : '\n추가 항목 pos는 영어 품사, exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.') : '')}]},
         contents: [{role: 'user', parts: [{text: JSON.stringify(input)}]}],
         generationConfig: {maxOutputTokens: 4096,
           responseMimeType: 'application/json', responseSchema: responseSchema(input)}
@@ -223,7 +239,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     catch { throw new ApiError(502, 'AI가 올바른 JSON을 반환하지 않았습니다. 다시 분석해 주세요.'); }
     const analysis = validateOutput(output, input);
     if (!input.legacy) return {analysis, model:MODEL};
-    for (const name of ['pos','exampleKo']) {
+    for (const name of input.translateReference ? ['pos'] : ['pos','exampleKo']) {
       if (typeof output[name] !== 'string' || !output[name].trim() || output[name].length > 1200) {
         throw new ApiError(502, 'AI 분석 결과의 품사 또는 예문 번역을 확인하지 못했습니다. 다시 분석해 주세요.');
       }
@@ -234,7 +250,9 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     const chosen = input.notebooks.find(book => book.name === analysis.notebookName);
     return {en:analysis.englishTerm, ko:analysis.koreanMeaning, discipline:analysis.specialization,
       enDef:analysis.englishDefinition, koDef:analysis.koreanDefinition,
-      exampleEn:analysis.exampleSentence, exampleKo:output.exampleKo.trim(), pos:output.pos.trim(),
+      exampleEn:analysis.exampleSentence,
+      exampleKo:input.translateReference ? analysis.exampleTranslation : output.exampleKo.trim(), pos:output.pos.trim(),
+      ...(input.translateReference ? {exampleSource:'reference'} : {}),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
       course:analysis.notebookName, model:MODEL,

@@ -36,6 +36,9 @@
       course: analysis.notebookName, pos: '', exampleKo: '',
       ...(typeof analysis.referenceTranslation === 'string' ? {referenceTranslation:analysis.referenceTranslation} : {}),
       ...(['ko','en'].includes(analysis.referenceTranslationLanguage) ? {referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
+      // With a reference sentence the server builds the example from it.
+      ...(analysis.exampleSource === 'reference' && typeof analysis.exampleTranslation === 'string'
+        ? {exampleKo:analysis.exampleTranslation, exampleSource:'reference'} : {}),
       needsManualCompletion: true
     };
     // The modern analysis API intentionally omits POS and Korean example translation.
@@ -117,7 +120,8 @@
       for (const key of required) {
         if (typeof result[key] !== 'string' || !result[key].trim()) throw new Error('필수 분석 항목을 받지 못했습니다. 다시 분석해 주세요.');
       }
-      if (result.needsManualCompletion && (result.pos !== '' || result.exampleKo !== '')) {
+      if (result.needsManualCompletion && (result.pos !== '' ||
+          (result.exampleKo !== '' && result.exampleSource !== 'reference'))) {
         throw new Error('검수할 항목을 확인할 수 없습니다.');
       }
       if (result.referenceTranslation !== undefined &&

@@ -51,8 +51,13 @@ for (const target of ['server', 'worker']) {
     assert.equal(res.status,200,JSON.stringify(data));
     assert.equal(calls,1);
     assert.equal(data.referenceTranslation,translation);
-    assert.equal(data.exampleKo,output.exampleKo);
-    assert.notEqual(data.referenceTranslation,data.exampleKo);
+    // With a reference sentence no example is generated: the example slot holds
+    // the English sentence (here the input) and the translation slot the Korean.
+    assert.equal(data.exampleEn,reference);
+    assert.equal(data.exampleKo,translation);
+    assert.equal(data.exampleSource,'reference');
+    assert.ok(!sent.generationConfig.responseSchema.required.includes('exampleSentence'));
+    assert.ok(!Object.hasOwn(sent.generationConfig.responseSchema.properties,'exampleSentence'));
     assert.equal(JSON.parse(sent.contents[0].parts[0].text).referenceText,reference);
     assert.ok(sent.generationConfig.responseSchema.required.includes('referenceTranslation'));
 
@@ -60,6 +65,8 @@ for (const target of ['server', 'worker']) {
       notebooks:[{name:'전기',terms:[]}],translateReference:true};
     res = await send(modern); data = await res.json();
     assert.equal(res.status,200); assert.equal(data.analysis.referenceTranslation,translation);
+    assert.equal(data.analysis.exampleSentence,reference);
+    assert.equal(data.analysis.exampleTranslation,translation);
     for (const bad of [undefined, '', 17, '가'.repeat(1201)]) {
       generated = {...output,referenceTranslation:bad};
       res = await send(requestBody); assert.equal(res.status,502);
@@ -69,7 +76,11 @@ for (const target of ['server', 'worker']) {
     assert.equal(res.status,200);
     assert.ok(!sent.generationConfig.responseSchema.required.includes('referenceTranslation'));
     res = await send({...requestBody,context:''}); assert.equal(res.status,200);
-    assert.ok(!Object.hasOwn(await res.json(),'referenceTranslation'));
+    data = await res.json();
+    assert.ok(!Object.hasOwn(data,'referenceTranslation'));
+    assert.equal(data.exampleEn,output.exampleSentence);
+    assert.equal(data.exampleKo,output.exampleKo);
+    assert.ok(!Object.hasOwn(data,'exampleSource'));
   });
 }
 test('modern compatibility fallback preserves reference translation without another model request', async () => {
@@ -122,6 +133,9 @@ for (const target of ['server', 'worker']) {
     assert.equal(JSON.parse(sent.contents[0].parts[0].text).referenceTranslationLanguage,'en');
     assert.equal(data.referenceTranslation,englishTranslation);
     assert.equal(data.referenceTranslationLanguage,'en');
+    // Korean input: English translation goes to the example slot, the input to the translation slot.
+    assert.equal(data.exampleEn,englishTranslation);
+    assert.equal(data.exampleKo,koreanReference);
 
     // An English sentence is still translated into Korean.
     generated = {...output};
