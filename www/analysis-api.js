@@ -39,6 +39,8 @@
       // With a reference sentence the server builds the example from it.
       ...(analysis.exampleSource === 'reference' && typeof analysis.exampleTranslation === 'string'
         ? {exampleKo:analysis.exampleTranslation, exampleSource:'reference'} : {}),
+      relatedWords: Array.isArray(analysis.relatedWords) ? analysis.relatedWords
+        .map(word => ({en: word?.englishTerm || '', ko: word?.koreanMeaning || ''})) : [],
       needsManualCompletion: true
     };
     // The modern analysis API intentionally omits POS and Korean example translation.

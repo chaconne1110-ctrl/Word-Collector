@@ -63,7 +63,7 @@ function cardUrl(id, bookmark = fromBookmark, subject = course, filter = listFil
 }
 
 function matches(term, q) {
-  return [term.en, term.ko, term.formula, term.koDef].some(value => value?.toLowerCase().includes(q.trim().toLowerCase()));
+  return [term.en, term.ko, term.formula, term.related, term.koDef].some(value => value?.toLowerCase().includes(q.trim().toLowerCase()));
 }
 
 function idsFor(bookmark, subject, filter, q) {
@@ -400,7 +400,20 @@ function renderDeck() {
     const legacyReference = referenceSentence && !exampleFromReference;
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
-      counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문')});
+      counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문'),
+      related: typeof term.related === 'string' ? term.related.trim() : ''});
+    // "관련 단어" (two related words from the analysis) replaces the old formula box.
+    $$('[data-field="related"]', card).forEach(node => {
+      const box = node.parentElement;
+      const related = typeof term.related === 'string' ? term.related.trim() : '';
+      box.hidden = !related;
+      box.style.alignItems = 'flex-start';
+      box.style.gap = '10px';
+      node.style.whiteSpace = 'pre-line';
+      node.style.textAlign = 'right';
+      node.style.overflowWrap = 'anywhere';
+      node.style.minWidth = '0';
+    });
     if (referenceSentence) {
       const sentence = $('[data-field="exampleEn"]', card);
       sentence.style.whiteSpace = 'pre-wrap';

@@ -72,6 +72,7 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 7. explanation은 짧은 한국어 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
 8. translateReference=true이면 referenceTranslation에 referenceText 전체를 referenceTranslationLanguage 언어로 충실하게 번역해 1,200자 이내로 작성하세요. referenceTranslationLanguage가 "ko"이면 자연스러운 한국어로, "en"이면 자연스러운 영어로 번역합니다(원문이 한국어 예문이면 영어 번역, 영어 예문이면 한국어 번역). 원문을 그대로 반복하지 말고, 생성 예문(exampleSentence)의 번역과 혼동하지 마세요.
 9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
+11. relatedWords에는 입력 단어와 같은 분야에서 의미가 밀접한 다른 전공 단어를 정확히 2개 넣으세요. 각 항목은 영어 표제어 englishTerm과 한국어 뜻 koreanMeaning입니다. 입력 단어 자신이나 같은 단어의 변형은 제외하고, 저장된 단어장에 없어도 됩니다(relatedTerms와 다릅니다).
 10. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
 class ApiError extends Error {
@@ -163,14 +164,37 @@ function responseSchema(input) {
   properties.explanation = {type: 'STRING'};
   properties.recommendationReason = {type: 'STRING'};
   properties.relatedTerms = {type: 'ARRAY', items: {type: 'STRING'}, maxItems: 5};
+  properties.relatedWords = {type: 'ARRAY', minItems: 2, maxItems: 2, items: {type: 'OBJECT',
+    properties: {englishTerm: {type: 'STRING'}, koreanMeaning: {type: 'STRING'}},
+    required: ['englishTerm', 'koreanMeaning']}};
   if (input.translateReference) properties.referenceTranslation = {type:'STRING'};
   if (input.legacy) { properties.pos = {type:'STRING'}; properties.exampleKo = {type:'STRING'}; }
   // With a reference sentence the example is built from it, not generated.
   if (input.translateReference) { delete properties.exampleSentence; delete properties.exampleKo; }
-  const required = [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms',
+  const required = [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms', 'relatedWords',
     ...(input.translateReference ? ['referenceTranslation'] : []), ...(input.legacy ? ['pos','exampleKo'] : [])]
     .filter(field => Object.hasOwn(properties, field));
   return {type: 'OBJECT', properties, required};
+}
+// Two words closely related to the analysed word, shown on the flashcard.
+// Invalid entries, duplicates and the word itself are dropped (never an error).
+function cleanRelatedWords(value, englishTerm) {
+  if (!Array.isArray(value)) return [];
+  const self = String(englishTerm || '').trim().toLowerCase();
+  const seen = new Set();
+  const words = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const en = typeof item.englishTerm === 'string' ? item.englishTerm.trim() : '';
+    const ko = typeof item.koreanMeaning === 'string' ? item.koreanMeaning.trim() : '';
+    if ((!en && !ko) || en.length > 120 || ko.length > 120) continue;
+    const key = (en || ko).toLowerCase();
+    if (key === self || seen.has(key)) continue;
+    seen.add(key);
+    words.push({englishTerm: en, koreanMeaning: ko});
+    if (words.length === 2) break;
+  }
+  return words;
 }
 function validateOutput(value, input) {
   const invalid = () => { throw new ApiError(502, 'AI 분석 결과의 형식이 올바르지 않습니다. 다시 분석해 주세요.'); };
@@ -207,6 +231,7 @@ function validateOutput(value, input) {
     const label = term.englishTerm || term.koreanMeaning;
     return [label.toLocaleLowerCase('en'), label];
   }));
+  analysis.relatedWords = cleanRelatedWords(value.relatedWords, analysis.englishTerm);
   analysis.relatedTerms = [...new Set(value.relatedTerms.map(term => saved.get(term.trim().toLocaleLowerCase('en'))).filter(Boolean))];
   if (!input.autoSubject) {
     analysis.recommendationReason = input.referenceText
@@ -319,6 +344,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       exampleEn:analysis.exampleSentence,
       exampleKo:input.translateReference ? analysis.exampleTranslation : output.exampleKo.trim(), pos:output.pos.trim(),
       ...(input.translateReference ? {exampleSource:'reference'} : {}),
+      relatedWords:analysis.relatedWords.map(word => ({en:word.englishTerm, ko:word.koreanMeaning})),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
       course:analysis.notebookName, model:MODEL,

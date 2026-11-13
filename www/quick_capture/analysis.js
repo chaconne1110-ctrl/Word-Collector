@@ -89,6 +89,7 @@ const resultFields = {
   koDef: '한국어 해설',
   exampleEn: '영어 예문',
   exampleKo: '예문 번역',
+  related: '관련 단어',
   referenceTranslation: '참고 문장 해석'
 };
 let draft;
@@ -204,6 +205,7 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
   input.rows = ['en', 'ko', 'pos'].includes(key) ? 1 : 2;
+  if (key === 'related') input.placeholder = '예: capacitance · 정전용량';
   if (key === 'referenceTranslation') {
     label.hidden = true;
     input.placeholder = '해석이 없으면 직접 입력하거나 다시 분석해 주세요.';
@@ -267,6 +269,10 @@ async function runAnalysis() {
       translateReference: Boolean(context),
       notebooks: currentNotebooks()}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
+    // Two related words, one per line ("english · 한국어 뜻"), editable before saving.
+    result.related = Array.isArray(result.relatedWords) ? result.relatedWords
+      .map(word => [word?.en, word?.ko].map(value => String(value ?? '').trim()).filter(Boolean).join(' · '))
+      .filter(Boolean).slice(0, 2).join('\n') : '';
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;
