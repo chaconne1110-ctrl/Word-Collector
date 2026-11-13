@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><script src="./screen-scale.js"></script><meta content="mobile_tab" name="shell-type">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/wordcollector-app-icon.webp" type="image/webp">
+<link rel="apple-touch-icon" href="icons/wordcollector-app-icon.webp">
 <meta name="theme-color" content="#00236f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -22,7 +22,28 @@
       min-height: max(884px, 100dvh);
     }
   </style>
-  <title>홈 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"><style>body[data-page="home"] > header { position: sticky; top: 0; flex-shrink: 0; } body[data-page="home"] > main { padding-top: 0; }</style><link rel="stylesheet" href="./assets/styles/mobile-layout.css"></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="home"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-container"><span class="material-symbols-outlined text-[22px]">menu_book</span></div><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate">홈</h1></div><div class="flex items-center gap-space-xs"><a href="backup.html" class="wc-header-link" aria-label="데이터 백업 및 복원">백업·복원</a><button class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">search</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-32 bg-surface"><div class="flex flex-col w-full pb-8">
+  <title>홈 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"><style>body[data-page="home"] > header { position: sticky; top: 0; flex-shrink: 0; } body[data-page="home"] > main { padding-top: 0; }</style><link rel="stylesheet" href="./assets/styles/mobile-layout.css"></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col" data-page="home"><style id="wc-startup-brand-style">
+#wc-startup-brand{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;padding:20px;box-sizing:border-box}
+#wc-startup-brand img{display:block;width:min(80vw,320px);height:auto;max-height:70vh;object-fit:contain}
+#wc-startup-brand[hidden]{display:none!important}
+</style>
+<div id="wc-startup-brand" role="status" aria-label="Word Collector 시작 화면"><img src="./assets/images/wordcollector-startup-logo.webp" width="472" height="480" alt="워드콜렉터 WordCollector 로고"></div>
+<script>
+(function(){
+  var el=document.getElementById('wc-startup-brand');
+  if(!el)return;
+  try {
+    if(sessionStorage.getItem('wc-brand-started')==='1'){el.hidden=true;return;}
+    sessionStorage.setItem('wc-brand-started','1');
+  }catch(_error){}
+  var since=Date.now(), closed=false;
+  function closeBrand(){if(closed)return;closed=true;el.hidden=true;}
+  function loaded(){setTimeout(closeBrand,Math.max(0,700-(Date.now()-since)));}
+  if(document.readyState==='complete')loaded();
+  else window.addEventListener('load',loaded,{once:true});
+  setTimeout(closeBrand,4000);
+})();
+</script><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-container"><span class="material-symbols-outlined text-[22px]">menu_book</span></div><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate">홈</h1></div><div class="flex items-center gap-space-xs"><a href="backup.html" class="wc-header-link" aria-label="데이터 백업 및 복원">백업·복원</a><button class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">search</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-32 bg-surface"><div class="flex flex-col w-full pb-8">
 <!-- Search & Stats Bar Section -->
 <section class="px-margin pt-space-sm pb-space-xs">
 <div class="relative flex items-center w-full">

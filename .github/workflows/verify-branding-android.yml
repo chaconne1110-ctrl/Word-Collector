@@ -1,0 +1,53 @@
+name: Validate Word Collector branding and Android build
+
+on:
+  push:
+    branches: [v8]
+    paths:
+      - '.github/workflows/verify-branding-android.yml'
+      - 'android/app/src/main/AndroidManifest.xml'
+      - 'android/app/src/main/res/**'
+      - 'www/index.html'
+      - 'www/icons/**'
+      - 'www/assets/images/wordcollector-startup-logo.webp'
+      - 'www/sw.js'
+      - 'www/manifest.webmanifest'
+      - 'tests/branding-resources.test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-branding:
+    name: Check branding assets, tests, and Android debug compilation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout branded branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify brand-specific assets and automated tests
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+      - name: Sync web assets to Android
+        run: npx --no-install cap sync android
+      - name: Build debug APK to verify resources
+        run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
