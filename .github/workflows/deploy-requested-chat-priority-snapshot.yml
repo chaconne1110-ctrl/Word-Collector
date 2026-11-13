@@ -71,10 +71,13 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: www
+          name: github-pages-attempt-${{ github.run_attempt }}
 
       - name: Deploy approved web snapshot to existing Pages URL
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-attempt-${{ github.run_attempt }}
 
       - name: Summarize deployment
         shell: bash
