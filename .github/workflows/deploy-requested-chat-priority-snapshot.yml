@@ -1,4 +1,4 @@
-name: Deploy approved Word Collector v5 snapshot
+name: Deploy approved Word Collector v5.1 snapshot
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Validate pinned v5 snapshot and deploy Pages
+    name: Validate pinned v5.1 snapshot and deploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -29,14 +29,14 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: 'd3ed4db858a62639e2a032a3135fae676f642aa6'
+          ref: '238a67eee087e7387a70326b6be48be3200e65ce'
           persist-credentials: false
 
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "d3ed4db858a62639e2a032a3135fae676f642aa6"
+          test "$(git rev-parse HEAD)" = "238a67eee087e7387a70326b6be48be3200e65ce"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -82,6 +82,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: v5"
-          echo "Deployed source SHA: d3ed4db858a62639e2a032a3135fae676f642aa6"
+          echo "Deployed source branch: v5.1"
+          echo "Deployed source SHA: 238a67eee087e7387a70326b6be48be3200e65ce"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
