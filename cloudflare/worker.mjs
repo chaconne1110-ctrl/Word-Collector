@@ -7,7 +7,31 @@ const MODEL = 'gemini-3.5-flash-lite';
 const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
 const IMAGE_PERSONAL_LIMIT = 200;
 const IMAGE_GLOBAL_LIMIT = 1500;
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
+const ENDPOINT = `${GEMINI_ORIGIN}/v1beta/models/${MODEL}:generateContent`;
+
+// Gemini rejects some Cloudflare egress locations ("User location is not
+// supported"). When GEMINI_RELAY_URL is set, every Gemini call is sent to that
+// US relay (relay/ - Cloud Run) instead, with the same path, method, body and
+// API key, plus the shared X-Relay-Secret. Without it, calls go direct as before.
+// Users and the app are unaffected; the secret exists only server-side.
+export function geminiFetch(env, fetchImpl = fetch) {
+  const relay = typeof env?.GEMINI_RELAY_URL === 'string' ? env.GEMINI_RELAY_URL.trim().replace(/\/+$/, '') : '';
+  if (!relay) return fetchImpl;
+  const secret = typeof env.GEMINI_RELAY_SECRET === 'string' ? env.GEMINI_RELAY_SECRET : '';
+  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(relay) || secret.length < 32) {
+    // Misconfiguration fails closed instead of silently calling Gemini direct.
+    return async () => { throw new ApiError(503, 'AI 중계 서버 설정을 확인해 주세요.'); };
+  }
+  return (url, options = {}) => {
+    const target = String(url);
+    if (!target.startsWith(GEMINI_ORIGIN + '/')) return fetchImpl(url, options);
+    return fetchImpl(relay + target.slice(GEMINI_ORIGIN.length), {
+      ...options,
+      headers: {...(options.headers || {}), 'X-Relay-Secret': secret}
+    });
+  };
+}
 const BODY_LIMIT = 256 * 1024;
 const CORE_FIELDS = ['englishTerm', 'koreanMeaning', 'specialization', 'notebookName',
   'englishDefinition', 'koreanDefinition', 'exampleSentence'];
@@ -183,6 +207,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       })
     });
     } catch (error) {
+      if (error instanceof ApiError) throw error; // e.g. relay misconfiguration
       if (error?.name === 'AbortError') {
         throw new ApiError(504, 'Gemini HTTPS 응답 시간이 초과되었습니다.');
       }
@@ -563,7 +588,7 @@ async function reserveImage(env, testerId) {
   return {table, testerId, date};
 }
 
-async function generatePhoto(input, apiKey) {
+async function generatePhoto(input, apiKey, fetchImpl = fetch) {
   const prompt = [
     'Create exactly ONE original, square (1:1), educational visual for an engineering vocabulary flashcard.',
     'Vocabulary: ' + input.word,
@@ -579,7 +604,7 @@ async function generatePhoto(input, apiKey) {
   ].join(' ');
   let response;
   try {
-    response = await fetchWithLocationRetry(fetch,
+    response = await fetchWithLocationRetry(fetchImpl,
       'https://generativelanguage.googleapis.com/v1beta/models/' + IMAGE_MODEL + ':generateContent',
       {
         method: 'POST',
@@ -595,7 +620,8 @@ async function generatePhoto(input, apiKey) {
         })
       }
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) throw error; // e.g. relay misconfiguration
     throw new ApiError(502, '사진 생성 서버에 연결하지 못했습니다.');
   }
   if (!response.ok) {
@@ -747,7 +773,7 @@ const handler = {
         const imageReservation = await reserveImage(env, tester.tester_id);
         phase = 'IMAGE_GENERATION';
         try {
-          return workerJson(await generatePhoto(imageInput, env.GEMINI_API_KEY));
+          return workerJson(await generatePhoto(imageInput, env.GEMINI_API_KEY, geminiFetch(env)));
         } catch (error) {
           await refundPersonal(env, imageReservation);
           throw error;
@@ -767,8 +793,8 @@ const handler = {
         const keyFingerprint = Array.from(new Uint8Array(digest)).slice(0, 8)
           .map(n => n.toString(16).padStart(2, '0')).join('');
         try {
-          const r = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`,
+          const r = await geminiFetch(env)(
+            `${GEMINI_ORIGIN}/v1beta/models/${MODEL}`,
             {method: 'GET', redirect: 'manual', headers: {'x-goog-api-key': env.GEMINI_API_KEY}}
           );
           if (!r.ok) {
@@ -816,7 +842,7 @@ const handler = {
       let output;
       try {
         output = await analyze(input, {
-          apiKey: env.GEMINI_API_KEY, fetchImpl: fetch, timeoutMs: 30000
+          apiKey: env.GEMINI_API_KEY, fetchImpl: geminiFetch(env), timeoutMs: 30000
         });
       } catch (error) {
         await refundPersonal(env, reservation);

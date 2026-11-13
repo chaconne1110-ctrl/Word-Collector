@@ -1,0 +1,13 @@
+{
+  "name": "word-collector-gemini-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "US relay so the Cloudflare Worker can reach Gemini from a supported location",
+  "type": "module",
+  "main": "server.mjs",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test server.test.mjs"
+  }
+}

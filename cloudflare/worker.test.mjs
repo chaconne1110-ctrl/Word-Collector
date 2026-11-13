@@ -608,3 +608,52 @@ test('a location-rejected response body is released before the call is re-sent',
     assert.equal(cancelled, 1, 'rejected body released before re-sending');
   } finally { globalThis.fetch = previous; }
 });
+
+const RELAY_SECRET = 'r'.repeat(40);
+test('with GEMINI_RELAY_URL set, analysis goes through the relay with the relay secret', async () => {
+  const {env, state} = mockEnv({live:true});
+  env.GEMINI_RELAY_URL = 'https://relay.example.run.app/';
+  env.GEMINI_RELAY_SECRET = RELAY_SECRET;
+  const previous = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (url, options) => { seen.push({url: String(url), options}); return OK_ANALYSIS(); };
+  try {
+    const res = await sendAnalyze(env, 'a');
+    assert.equal(res.status, 200, await res.clone().text());
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].url, 'https://relay.example.run.app/v1beta/models/gemini-3.5-flash-lite:generateContent');
+    assert.equal(seen[0].options.headers['X-Relay-Secret'], RELAY_SECRET);
+    assert.equal(seen[0].options.headers['x-goog-api-key'], env.GEMINI_API_KEY);
+    assert.equal(state.used, 1);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('without GEMINI_RELAY_URL, analysis calls Gemini directly as before', async () => {
+  const {env} = mockEnv({live:true});
+  const previous = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (url, options) => { seen.push({url: String(url), options}); return OK_ANALYSIS(); };
+  try {
+    assert.equal((await sendAnalyze(env, 'b')).status, 200);
+    assert.match(seen[0].url, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\//);
+    assert.equal(seen[0].options.headers['X-Relay-Secret'], undefined);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('a misconfigured relay fails closed: no Gemini call and the quota is refunded', async () => {
+  for (const [url, secret] of [['http://relay.example', RELAY_SECRET], ['https://relay.example', 'short'], ['not a url', RELAY_SECRET]]) {
+    const {env, state} = mockEnv({live:true});
+    env.GEMINI_RELAY_URL = url;
+    env.GEMINI_RELAY_SECRET = secret;
+    const previous = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return OK_ANALYSIS(); };
+    try {
+      const res = await sendAnalyze(env, 'c');
+      assert.equal(res.status, 503);
+      assert.match((await res.json()).error, /중계 서버 설정/);
+      assert.equal(calls, 0);
+      assert.equal(state.used, 0);
+    } finally { globalThis.fetch = previous; }
+  }
+});

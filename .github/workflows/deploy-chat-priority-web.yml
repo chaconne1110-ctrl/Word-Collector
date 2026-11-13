@@ -67,7 +67,7 @@ jobs:
           node --check www/sw.js
 
       - name: Run regression tests (no paid Gemini calls)
-        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs relay/*.test.mjs
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

@@ -20,6 +20,10 @@ section disagrees with anything below, this section wins.
   re-sending. Measured effect is small (rejections follow the Cloudflare entry location, so re-sending
   inside one request usually hits the same block); the US placement below matters more.
 - **Worker placement `gcp:us-central1`** (see `cloudflare/wrangler.example.jsonc`) must be kept on deploy.
+- **v2: Gemini relay.** Placement and retries did not stop "User location is not supported" (400).
+  From `v2`, the Worker sends Gemini calls through a US Cloud Run relay when `GEMINI_RELAY_URL` and
+  the secret `GEMINI_RELAY_SECRET` are set (`relay/README.md`). Users enter nothing; no new APK.
+  Without the variable, calls go direct as before; a bad relay config fails closed and is refunded.
 - Turnstile enrollment code stays in the Worker/`www/anonymous-auth.js` but is **dormant and not used by
   the app**; per-device identities are exempt from the registration-IP cap.
 - **Production state (2026-11-12):** the live Worker already runs this device-ID/refund/retry

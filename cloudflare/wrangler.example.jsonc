@@ -6,7 +6,16 @@
   // Production runs the Worker in a US region: Gemini rejects some Cloudflare
   // edge locations with "User location is not supported". Keep this on deploy.
   "placement": { "region": "gcp:us-central1" },
-  "vars": { "ENABLE_LIVE_ANALYSIS": "true", "ENABLE_IMAGE_GENERATION": "true" },
+  // GEMINI_RELAY_URL: US Cloud Run relay (relay/README.md). Placement alone does not
+  // stop Gemini's location rejections; the relay does. Its secret is set with
+  // `wrangler secret put GEMINI_RELAY_SECRET` (never in this file).
+  // Uncomment and fill in only after the relay is deployed: a wrong value makes
+  // every AI call fail closed (503) instead of silently calling Gemini direct.
+  "vars": {
+    "ENABLE_LIVE_ANALYSIS": "true",
+    "ENABLE_IMAGE_GENERATION": "true"
+    // , "GEMINI_RELAY_URL": "https://word-collector-gemini-relay-XXXX.us-central1.run.app"
+  },
   "d1_databases": [{
     "binding": "DB",
     "database_name": "REPLACE_WITH_EXISTING_DATABASE_NAME",

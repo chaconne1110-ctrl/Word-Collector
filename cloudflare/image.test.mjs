@@ -192,3 +192,19 @@ test('photo generation re-sends a "location not supported" rejection', async()=>
     assert.equal(f.used(),1);
   } finally { globalThis.fetch=priorFetch; }
 });
+
+test('photo generation also goes through the relay when it is configured', async()=>{
+  const f=await fixture({photoEnabled:true});
+  f.env.GEMINI_RELAY_URL='https://relay.example.run.app';
+  f.env.GEMINI_RELAY_SECRET='r'.repeat(40);
+  const priorFetch=globalThis.fetch;
+  const seen=[];
+  globalThis.fetch=async(url,options)=>{seen.push({url:String(url),options});
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{inlineData:{mimeType:'image/png',data:'iVBORw0KGgo='}}]}}]}));};
+  try {
+    const res=await worker.fetch(request(),f.env);
+    assert.equal(res.status,200, await res.clone().text());
+    assert.equal(seen[0].url,'https://relay.example.run.app/v1beta/models/gemini-3.1-flash-lite-image:generateContent');
+    assert.equal(seen[0].options.headers['X-Relay-Secret'],'r'.repeat(40));
+  } finally { globalThis.fetch=priorFetch; }
+});
