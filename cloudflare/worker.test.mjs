@@ -657,3 +657,50 @@ test('a misconfigured relay fails closed: no Gemini call and the quota is refund
     } finally { globalThis.fetch = previous; }
   }
 });
+
+function relayEnv() {
+  const m = mockEnv({live:true});
+  m.env.GEMINI_RELAY_URL = 'https://relay.example.run.app';
+  m.env.GEMINI_RELAY_SECRET = 'r'.repeat(40);
+  return m;
+}
+test('a relay secret mismatch is reported as a relay auth error (not Gemini) and refunded', async () => {
+  const {env, state} = relayEnv();
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response('{"error":"relay-unauthorized"}', {status:401, headers:{'content-type':'application/json'}}); };
+  try {
+    const res = await sendAnalyze(env, 'd');
+    const body = await res.json();
+    assert.equal(res.status, 502);
+    assert.match(body.error, /^RELAY_AUTH: AI 중계 서버 인증에 실패/);
+    assert.doesNotMatch(body.error, /Gemini가 요청을 거부/);
+    assert.equal(calls, 1, 'not retried');
+    assert.equal(state.used, 0, 'refunded');
+  } finally { globalThis.fetch = previous; }
+});
+
+test('a non-JSON relay/Cloud Run failure is reported as relay unavailable', async () => {
+  const {env, state} = relayEnv();
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => new Response('<html>Service Unavailable</html>', {status:503, headers:{'content-type':'text/html'}});
+  try {
+    const res = await sendAnalyze(env, 'e');
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).error, /^RELAY_UNAVAILABLE_503: AI 중계 서버가 응답하지 않습니다/);
+    assert.equal(state.used, 0);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('Gemini errors passed through the relay keep their Gemini meaning and location retry', async () => {
+  const {env} = relayEnv();
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => (++calls === 1 ? LOCATION_ERROR() : new Response(JSON.stringify({error:{status:'INVALID_ARGUMENT',message:'x'}}), {status:400}));
+  try {
+    const res = await sendAnalyze(env, 'f');
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).error, /^GEMINI_UPSTREAM_HTTP_400/);
+    assert.equal(calls, 2, 'location rejection re-sent once, other 400 not retried');
+  } finally { globalThis.fetch = previous; }
+});

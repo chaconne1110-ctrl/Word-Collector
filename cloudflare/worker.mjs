@@ -23,14 +23,40 @@ export function geminiFetch(env, fetchImpl = fetch) {
     // Misconfiguration fails closed instead of silently calling Gemini direct.
     return async () => { throw new ApiError(503, 'AI 중계 서버 설정을 확인해 주세요.'); };
   }
-  return (url, options = {}) => {
+  return async (url, options = {}) => {
     const target = String(url);
     if (!target.startsWith(GEMINI_ORIGIN + '/')) return fetchImpl(url, options);
-    return fetchImpl(relay + target.slice(GEMINI_ORIGIN.length), {
+    const response = await fetchImpl(relay + target.slice(GEMINI_ORIGIN.length), {
       ...options,
       headers: {...(options.headers || {}), 'X-Relay-Secret': secret}
     });
+    if (!response.ok) await throwIfRelayFailure(response);
+    return response;
   };
+}
+
+// Gemini's own errors (passed through by the relay) are JSON with an `error`
+// object. The relay's errors are JSON {"error":"relay-…"}; Cloud Run/Google
+// front-end failures are not JSON. Report those as relay problems instead of
+// the misleading "Gemini가 요청을 거부했습니다".
+const RELAY_ERRORS = {
+  'relay-unauthorized': 'RELAY_AUTH: AI 중계 서버 인증에 실패했습니다. 서버의 중계 비밀값 설정을 확인해 주세요.',
+  'relay-path-not-allowed': 'RELAY_PATH: AI 중계 서버가 이 요청을 허용하지 않습니다. 중계 서버 버전을 확인해 주세요.',
+  'relay-missing-key': 'RELAY_KEY: AI 중계 서버로 API 키가 전달되지 않았습니다.',
+  'relay-upstream-unreachable': 'RELAY_UPSTREAM: AI 중계 서버가 Gemini에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+};
+async function throwIfRelayFailure(response) {
+  let body;
+  try { body = await response.clone().json(); }
+  catch {
+    try { await response.body?.cancel(); } catch {}
+    throw new ApiError(502, `RELAY_UNAVAILABLE_${response.status}: AI 중계 서버가 응답하지 않습니다. 잠시 후 다시 시도해 주세요.`);
+  }
+  if (typeof body?.error === 'string' && body.error.startsWith('relay-')) {
+    try { await response.body?.cancel(); } catch {}
+    throw new ApiError(502, RELAY_ERRORS[body.error] ||
+      `RELAY_ERROR: AI 중계 서버 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.`);
+  }
 }
 const BODY_LIMIT = 256 * 1024;
 const CORE_FIELDS = ['englishTerm', 'koreanMeaning', 'specialization', 'notebookName',

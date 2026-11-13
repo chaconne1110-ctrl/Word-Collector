@@ -208,3 +208,16 @@ test('photo generation also goes through the relay when it is configured', async
     assert.equal(seen[0].options.headers['X-Relay-Secret'],'r'.repeat(40));
   } finally { globalThis.fetch=priorFetch; }
 });
+
+test('photo generation reports a relay secret mismatch as a relay auth error', async()=>{
+  const f=await fixture({photoEnabled:true});
+  f.env.GEMINI_RELAY_URL='https://relay.example.run.app';
+  f.env.GEMINI_RELAY_SECRET='r'.repeat(40);
+  const priorFetch=globalThis.fetch;
+  globalThis.fetch=async()=>new Response('{"error":"relay-unauthorized"}',{status:401});
+  try {
+    const res=await worker.fetch(request(),f.env);
+    assert.equal(res.status,502);
+    assert.match((await res.json()).error,/^RELAY_AUTH/);
+  } finally { globalThis.fetch=priorFetch; }
+});
