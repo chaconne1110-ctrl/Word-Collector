@@ -63,7 +63,7 @@ function cardUrl(id, bookmark = fromBookmark, subject = course, filter = listFil
 }
 
 function matches(term, q) {
-  return [term.en, term.ko, term.formula, term.related, term.koDef].some(value => value?.toLowerCase().includes(q.trim().toLowerCase()));
+  return [term.en, term.ko, term.related, term.koDef].some(value => value?.toLowerCase().includes(q.trim().toLowerCase()));
 }
 
 function idsFor(bookmark, subject, filter, q) {
@@ -76,6 +76,13 @@ function idsFor(bookmark, subject, filter, q) {
     if (filter === 'saved') return state.saved.includes(id);
     return !['high', 'medium'].includes(filter) || term.importance === filter;
   });
+}
+
+// Related words (from the analysis) replace the old formula field everywhere.
+// Only the English words are shown; any "word · 뜻" text keeps the word part.
+function relatedEnglishWords(term) {
+  return String(term?.related ?? '').split(/\n+/)
+    .map(line => line.split(' · ')[0].trim()).filter(Boolean).slice(0, 2);
 }
 
 function bindFields(root, values) {
@@ -282,7 +289,10 @@ function renderList() {
     for (const id of ids) {
       const row = template.content.firstElementChild.cloneNode(true);
       row.dataset.termId = id;
-      bindFields(row, state.terms[id]);
+      bindFields(row, {...state.terms[id], related: relatedEnglishWords(state.terms[id]).join(', ')});
+      $$('[data-field="related"]', row).forEach(chip => {
+        chip.hidden = !relatedEnglishWords(state.terms[id]).length;
+      });
       rowLink(row, cardUrl(id, bookmark, course, filter, q));
       const button = $('[data-action="bookmark"]', row);
       paintBookmark(button, id);
@@ -401,11 +411,11 @@ function renderDeck() {
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문'),
-      related: typeof term.related === 'string' ? term.related.trim() : ''});
+      related: relatedEnglishWords(term).join('\n')});
     // "관련 단어" (two related words from the analysis) replaces the old formula box.
     $$('[data-field="related"]', card).forEach(node => {
       const box = node.parentElement;
-      const related = typeof term.related === 'string' ? term.related.trim() : '';
+      const related = relatedEnglishWords(term).join('\n');
       box.hidden = !related;
       box.style.alignItems = 'flex-start';
       box.style.gap = '10px';

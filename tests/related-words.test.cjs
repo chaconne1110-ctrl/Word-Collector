@@ -73,9 +73,29 @@ test('flashcard shows "관련 단어" instead of the formula box; review lets th
   assert.equal((card.match(/data-field="related"/g) || []).length, 6);
   assert.match(card, />관련 단어</);
   const app = fs.readFileSync('www/app.js', 'utf8');
-  assert.match(app, /related: typeof term\.related === 'string'/);
+  assert.match(app, /function relatedEnglishWords\(term\)/);
+  assert.match(app, /related: relatedEnglishWords\(term\)\.join/);
   assert.match(app, /box\.hidden = !related/);
+  assert.doesNotMatch(app, /term\.formula/);
   const review = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
   assert.match(review, /related: '관련 단어'/);
   assert.match(review, /result\.related = Array\.isArray\(result\.relatedWords\)/);
+  // English words only: the Korean meaning is not put into the field.
+  assert.doesNotMatch(review, /word\?\.ko/);
+  // The word lists show the related-words chip where the formula chip was.
+  for (const page of ['www/words.html', 'www/bookmarks.html']) {
+    const html = fs.readFileSync(page, 'utf8');
+    assert.doesNotMatch(html, /data-field="formula"/);
+    assert.match(html, /data-field="related"/);
+  }
+});
+
+test('related words show only the English word, at most two', () => {
+  const app = fs.readFileSync('www/app.js', 'utf8').replace(/\r\n/g, '\n');
+  const start = app.indexOf('function relatedEnglishWords');
+  const end = app.indexOf('\n}\n', start) + 2;
+  const relatedEnglishWords = new Function(app.slice(start, end) + '\nreturn relatedEnglishWords;')();
+  assert.deepEqual(relatedEnglishWords({related: 'capacitance\ndielectric'}), ['capacitance', 'dielectric']);
+  assert.deepEqual(relatedEnglishWords({related: 'capacitance · 정전용량\ndielectric · 유전체\nextra'}), ['capacitance', 'dielectric']);
+  assert.deepEqual(relatedEnglishWords({}), []);
 });

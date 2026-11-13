@@ -205,7 +205,7 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
   input.rows = ['en', 'ko', 'pos'].includes(key) ? 1 : 2;
-  if (key === 'related') input.placeholder = '예: capacitance · 정전용량';
+  if (key === 'related') input.placeholder = '예: capacitance';
   if (key === 'referenceTranslation') {
     label.hidden = true;
     input.placeholder = '해석이 없으면 직접 입력하거나 다시 분석해 주세요.';
@@ -269,10 +269,9 @@ async function runAnalysis() {
       translateReference: Boolean(context),
       notebooks: currentNotebooks()}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    // Two related words, one per line ("english · 한국어 뜻"), editable before saving.
+    // Two related English words, one per line (no meanings), editable before saving.
     result.related = Array.isArray(result.relatedWords) ? result.relatedWords
-      .map(word => [word?.en, word?.ko].map(value => String(value ?? '').trim()).filter(Boolean).join(' · '))
-      .filter(Boolean).slice(0, 2).join('\n') : '';
+      .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join('\n') : '';
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
     referencePreview.hidden = !context;
@@ -385,7 +384,7 @@ async function saveReview() {
     }
     const existing = WordCollectorPartialTerm.findExisting(state.terms, draft.selected, result);
     if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
-    const [id, previous] = existing || ['term_' + crypto.randomUUID(), {formula: ''}];
+    const [id, previous] = existing || ['term_' + crypto.randomUUID(), {}];
     const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
     if (draft.exampleSource) word.exampleSource = draft.exampleSource;
     else delete word.exampleSource;
