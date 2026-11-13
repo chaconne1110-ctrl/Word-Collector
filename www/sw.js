@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261113-v8-branding-original-logo';
+const CACHE_NAME = PREFIX + '20261113-v8-branding-photo-on-card';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

@@ -1,25 +1,24 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-test('successful text analysis triggers exactly one photo generation, then opens review after it (or after skip)',()=>{
+test('word analysis never requests or saves a photo; the review page has no photo UI',()=>{
   const s=fs.readFileSync('www/quick_capture/analysis.js','utf8');
-  assert.equal((s.match(/startReviewPhoto\(\{automatic:true\}\)/g)||[]).length,1);
-  assert.match(s,/async function startReviewPhoto\(\{automatic = false\} = \{\}\)/);
-  // v6.1: the waiting screen stays until the photo finishes (or the user skips
-  // after 15 s); only then is the review shown.
-  const at=s.indexOf('startReviewPhoto({automatic:true})');
-  const race=s.indexOf('Promise.race([photoDone, skipped])', at);
-  const shown=s.indexOf('reviewForm.hidden = false;', at);
-  assert.ok(at > 0 && race > at && shown > race);
-  assert.match(s,/photoRequestGate\.begin\(\)/);
-  assert.match(s,/photoRequestGate\.isCurrent\(ticket\.id\)/);
-  assert.match(s,/사진 생성에 실패했습니다/);
+  const page=fs.readFileSync('www/quick_capture/review.html','utf8');
+  assert.doesNotMatch(s,/createImage|startReviewPhoto|WordCollectorPhoto|photoRequestGate/);
+  assert.doesNotMatch(page,/photo-review|review-photo|data-step="photo"|analysis-waiting-skip|photo-store\.js/);
 });
-test('photo request includes fallback Korean meaning and definition',()=>{
-  const s=fs.readFileSync('www/quick_capture/analysis.js','utf8');
-  assert.match(s,/const word = .* \|\| draft\.term;/);
-  assert.match(s,/const koreanMeaning = .* \|\| word;/);
-  assert.match(s,/const definition = /);
+test('photos are generated only from the flashcard back button, then shown and saved',()=>{
+  const app=fs.readFileSync('www/app.js','utf8');
+  assert.match(app,/photoButton\.dataset\.action = 'generate-photo'/);
+  const click=app.indexOf("photoButton.addEventListener('click'");
+  const call=app.indexOf('WordCollectorAI.createImage(', click);
+  const save=app.indexOf('WordCollectorPhoto.save(photoTermId, result.image)', call);
+  const show=app.indexOf('await refreshPhoto()', save);
+  assert.ok(click > 0 && call > click && save > call && show > save, 'button -> generate -> save -> show');
+  assert.equal((app.match(/WordCollectorAI\.createImage\(/g)||[]).length,1, 'no other photo request');
+  // Fallback meaning and definition are sent with the request.
+  assert.match(app,/koreanMeaning:term\.ko/);
+  assert.match(app,/definition:\(term\.koDef \|\| term\.enDef \|\| term\.ko \|\| term\.en\)\.slice\(0, 700\)/);
 });
 test('new per-tester caps represent 400 actual API attempts and at most 200 pairs',()=>{
   const worker=fs.readFileSync('cloudflare/worker.mjs','utf8');

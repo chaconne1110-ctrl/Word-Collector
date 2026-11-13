@@ -1,6 +1,6 @@
 // Word analysis page (review.html). The input page (code.html + capture.js)
 // stores the request in sessionStorage and navigates here; this page runs the
-// analysis and the photo generation behind a waiting screen, then shows the
+// analysis behind a waiting screen, then shows the
 // review with a single "단어장에 저장" button in the bottom bar.
 const CAPTURE_REQUEST_KEY = 'word-collector-capture-request-v1';
 const CAPTURE_STARTED_KEY = 'word-collector-capture-started-v1';
@@ -14,16 +14,13 @@ const waiting = $('#analysis-waiting');
 const waitingTitle = $('#analysis-waiting-title');
 const waitingTerm = $('#analysis-waiting-term');
 const waitingElapsed = $('#analysis-waiting-elapsed');
-const waitingSkip = $('#analysis-waiting-skip');
 const waitingCancel = $('#analysis-waiting-cancel');
-const WAITING_SKIP_AFTER_S = 15;
 const STEP_STATES = {
   waiting: ['schedule', '대기'], active: ['pending', '진행 중'], done: ['check_circle', '완료'],
   failed: ['error', '실패 · 검수 화면에서 다시 시도'], skipped: ['skip_next', '백그라운드에서 계속']
 };
 let waitingTimer = null;
 let waitingStartedAt = 0;
-let waitingSkipResolve = null;
 function setWaitingStep(step, state) {
   const item = waiting.querySelector('[data-step="' + step + '"]');
   if (!item) return;
@@ -31,21 +28,18 @@ function setWaitingStep(step, state) {
   item.querySelector('.wc-step-icon').textContent = STEP_STATES[state][0];
   item.querySelector('.wc-step-state').textContent = STEP_STATES[state][1];
 }
-// Full-screen waiting screen from the analysis request until the photo is done.
+// Full-screen waiting screen while the word is analysed. No photo is generated
+// here; photos are created only from the flashcard back ("AI 사진 생성").
 function showWaiting(term) {
   waitingTitle.textContent = 'AI가 단어를 분석하고 있어요';
   waitingTerm.textContent = '“' + term + '”';
   setWaitingStep('analysis', 'active');
-  setWaitingStep('photo', 'waiting');
-  waitingSkip.hidden = true;
   waitingStartedAt = Date.now();
   waitingElapsed.textContent = '0초 경과';
   clearInterval(waitingTimer);
   waitingTimer = setInterval(() => {
     const seconds = Math.floor((Date.now() - waitingStartedAt) / 1000);
     waitingElapsed.textContent = seconds + '초 경과';
-    const photoItem = waiting.querySelector('[data-step="photo"]');
-    if (photoItem.dataset.state === 'active' && seconds >= WAITING_SKIP_AFTER_S) waitingSkip.hidden = false;
   }, 1000);
   waiting.hidden = false;
   waitingCancel.focus({preventScroll: true});
@@ -53,8 +47,6 @@ function showWaiting(term) {
 function hideWaiting() {
   clearInterval(waitingTimer);
   waitingTimer = null;
-  waitingSkipResolve = null;
-  waitingSkip.hidden = true;
   waiting.hidden = true;
 }
 // The bottom bar shows only "단어장에 저장", and only once the review is ready.
@@ -86,7 +78,6 @@ function showError(message) {
   status.textContent = '';
 }
 $('#analysis-back-to-input').addEventListener('click', goBackToInput);
-waitingSkip.addEventListener('click', () => { waitingSkipResolve?.(); });
 const reviewCourse = $('#review-course');
 const inputControls = [];
 const resultFields = {
@@ -104,63 +95,6 @@ let draft;
 const diagramChoice = $('#diagram-choice');
 const diagramRefresh = $('#diagram-refresh');
 const diagramStatus = $('#diagram-status');
-const reviewPhotoButton = $('#review-photo-generate');
-const reviewPhotoImage = $('#review-photo-image');
-const reviewPhotoStatus = $('#review-photo-status');
-let photoDraft = null;
-let photoBusy = false;
-let photoTask = Promise.resolve();
-const photoRequestGate = WordCollectorRequestGate.create();
-async function startReviewPhoto({automatic = false} = {}) {
-  if (!draft) return;
-  const remaining = photoRequestGate.remainingMs();
-  if (remaining > 0) {
-    if (!automatic) reviewPhotoStatus.textContent = '3초 이내 중복 사진 요청을 차단했습니다. ' +
-      Math.ceil(remaining / 1000) + '초 후 미완료면 다시 누를 수 있습니다.';
-    return;
-  }
-  if (!automatic) {
-    if (photoBusy) {
-      if (!confirm('이전 사진 생성이 진행 중입니다. 재요청하면 추가 API 사용량이 발생할 수 있습니다. 계속할까요?')) return;
-    } else if (photoDraft) {
-      if (!confirm('새 사진 요청은 API 1회가 추가됩니다. 기존 사진을 교체할까요?')) return;
-    } else if (!confirm('사진을 다시 요청하면 API 사용량 1회가 추가됩니다. 계속할까요?')) return;
-  }
-  const ticket = photoRequestGate.begin();
-  if (!ticket.allowed) return;
-  photoBusy = true;
-  reviewPhotoButton.textContent = '사진 생성 중 · 3초 후 재요청 가능';
-  reviewPhotoStatus.textContent = automatic ?
-    '단어 분석 완료. AI 학습 사진을 자동 생성 중입니다(별도 API 1회).' :
-    '사진을 다시 요청했습니다. 이전 요청도 서버에서 처리됐다면 과금될 수 있습니다.';
-  const word = reviewForm.elements.en.value.trim() || reviewForm.elements.ko.value.trim() || draft.term;
-  const koreanMeaning = reviewForm.elements.ko.value.trim() || word;
-  const definition = (reviewForm.elements.koDef.value || reviewForm.elements.enDef.value ||
-    koreanMeaning || word).trim().slice(0, 700);
-  photoTask = (async () => {
-  try {
-    const r = await WordCollectorAI.createImage({
-      word, koreanMeaning, subject:draft.newCourseName || courseNames(draft.selected)[0], definition
-    }, {signal:ticket.signal});
-    if (!photoRequestGate.isCurrent(ticket.id) || !draft) return;
-    photoDraft = r.image;
-    reviewPhotoImage.src = 'data:' + r.image.mimeType + ';base64,' + r.image.data;
-    reviewPhotoImage.hidden = false;
-    reviewPhotoStatus.textContent = '';
-  } catch (error) {
-    if (!photoRequestGate.isCurrent(ticket.id)) return;
-    reviewPhotoStatus.textContent = '내용 분석은 완료됐지만 사진 생성에 실패했습니다: ' +
-      (error?.message || '원인 불명') + ' · 단어만 저장하거나 사진을 재요청할 수 있습니다.';
-  } finally {
-    if (photoRequestGate.finish(ticket.id)) {
-      photoBusy = false;
-      reviewPhotoButton.textContent = photoDraft ? '사진 다시 생성 (추가 API 1회)' : '사진 다시 시도 (추가 API 1회)';
-    }
-  }
-  })();
-  return photoTask;
-}
-reviewPhotoButton.addEventListener('click', () => { void startReviewPhoto(); });
 
 const referencePreview = document.createElement('p');
 referencePreview.id = 'review-reference-sentence';
@@ -196,7 +130,6 @@ let analyzing = false;
 const analysisRequestGate = WordCollectorRequestGate.create();
 window.addEventListener('pagehide', () => {
   analysisRequestGate.cancel();
-  photoRequestGate.cancel();
 });
 waitingCancel.addEventListener('click', () => {
   analysisRequestGate.cancel();
@@ -284,13 +217,7 @@ reviewForm.elements.en.addEventListener('input', () => {
 });
 
 function invalidateReview() {
-  photoRequestGate.cancel();
-  photoBusy = false;
   draft = null;
-  photoDraft = null;
-  reviewPhotoImage.hidden = true;
-  reviewPhotoImage.removeAttribute('src');
-  reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   setReviewMode(false);
   status.textContent = '';
@@ -328,10 +255,6 @@ async function runAnalysis() {
   try { sessionStorage.setItem(CAPTURE_STARTED_KEY, request.id); } catch {}
   analyzing = true;
   draft = null;
-  photoDraft = null;
-  reviewPhotoImage.hidden = true;
-  reviewPhotoImage.removeAttribute('src');
-  reviewPhotoButton.textContent = '사진 생성 (별도 유료 API 1회)';
   reviewForm.hidden = true;
   for (const item of inputControls) item.disabled = true;
   setReviewMode(false);
@@ -382,18 +305,8 @@ async function runAnalysis() {
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
-    // Start exactly one independent photo request after a successful analysis and
-    // keep the waiting screen until it finishes (success or failure); then open
-    // the review. After WAITING_SKIP_AFTER_S seconds the user may skip waiting: the photo keeps
-    // generating and appears in the review when ready. Saving waits for it.
+    // Analysis only: no photo is requested from this page.
     setWaitingStep('analysis', 'done');
-    setWaitingStep('photo', 'active');
-    waitingTitle.textContent = 'AI 학습 사진을 만들고 있어요';
-    const photoDone = Promise.resolve(startReviewPhoto({automatic:true})).then(() => 'done');
-    const skipped = new Promise(resolve => { waitingSkipResolve = () => resolve('skip'); });
-    const outcome = await Promise.race([photoDone, skipped]);
-    if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    setWaitingStep('photo', outcome === 'skip' ? 'skipped' : photoDraft ? 'done' : 'failed');
     hideWaiting();
     reviewForm.hidden = false;
     setReviewMode(true);
@@ -453,8 +366,6 @@ async function saveReview() {
   const disabled = controls.map(control => control.disabled);
   controls.forEach(control => { control.disabled = true; });
   try {
-    if (photoBusy) status.textContent = '사진 생성이 끝나면 단어와 함께 저장합니다.';
-    await photoTask;
     if (draft !== savingDraft) return;
     state = load();
     const courses = {...allCourses()};
@@ -475,13 +386,6 @@ async function saveReview() {
     delete word.diagram;
     if (draft.diagram && supportsEddyDiagram(result.en, draft.selected)) word.diagram = draft.diagram;
     if (commit({...state, courses, terms: {...state.terms, [id]: word}})) {
-      if (photoDraft) {
-        try { await WordCollectorPhoto.save(id, photoDraft); }
-        catch (error) {
-          status.textContent = '단어는 저장됐지만 사진 저장에 실패했습니다: ' + error.message;
-          return;
-        }
-      }
       draft = null;
       // Saved: the next visit to the input page starts empty.
       try { sessionStorage.removeItem(CAPTURE_REQUEST_KEY); sessionStorage.removeItem(CAPTURE_STARTED_KEY); } catch {}

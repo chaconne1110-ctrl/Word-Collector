@@ -62,7 +62,7 @@ test('web photo fetch forwards cancellation',async()=>{
   assert.equal(signal.aborted,true);
 });
 
-test('web UI uses separate gates for analysis and both image-generation buttons',()=>{
+test('web UI uses separate gates for analysis and the flashcard image-generation button',()=>{
   const fs=require('node:fs');
   const review=fs.readFileSync('www/quick_capture/analysis.js','utf8');
   const deck=fs.readFileSync('www/app.js','utf8');
@@ -71,11 +71,10 @@ test('web UI uses separate gates for analysis and both image-generation buttons'
   const deckHtml=fs.readFileSync('www/flashcard.html','utf8');
   const sw=fs.readFileSync('www/sw.js','utf8');
   assert.match(review,/const analysisRequestGate = WordCollectorRequestGate\.create\(\)/);
-  assert.match(review,/const photoRequestGate = WordCollectorRequestGate\.create\(\)/);
   assert.match(review,/analysisRequestGate\.begin\(\)/);
-  assert.match(review,/photoRequestGate\.begin\(\)/);
   assert.match(review,/analysisRequestGate\.isCurrent\(ticket\.id\)/);
-  assert.match(review,/photoRequestGate\.isCurrent\(ticket\.id\)/);
+  // v9: the analysis page no longer generates photos (flashcard back only).
+  assert.doesNotMatch(review,/photoRequestGate/);
   assert.match(review,/reviewForm\.scrollIntoView\(\{block: 'start'\}\)/);
   assert.doesNotMatch(review,/reviewForm\.requestSubmit\(\)/);
   assert.doesNotMatch(review,/analysisButton\.disabled = true/);
