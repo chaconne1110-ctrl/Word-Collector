@@ -33,3 +33,12 @@ test('review shows 전공, 단어장, 단어, 한국어 뜻, 영어 정의, 한�
   assert.match(html, /<section id="diagram-review" hidden>/);
   assert.doesNotMatch(html, /photo-review|<img/);
 });
+
+test('review keeps the order but groups 단어 / 정의 / 예문 in boxes with full accessible names', () => {
+  const js = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
+  assert.match(js, /\['단어', \['en', 'ko'\], \{\}\]/);
+  assert.match(js, /\['정의', \['enDef', 'koDef'\], \{enDef: '영어', koDef: '한국어'\}\]/);
+  assert.match(js, /\['예문', \['exampleEn', 'exampleKo'\], \{exampleEn: '영어', exampleKo: '한국어'\}\]/);
+  assert.match(js, /setAttribute\('aria-label', resultFields\[key\]\)/);
+  assert.match(fs.readFileSync('www/assets/styles/mobile-layout.css', 'utf8'), /\.review-group > legend/);
+});

@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261116-no-mic';
+const CACHE_NAME = PREFIX + '20261116-review-groups';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

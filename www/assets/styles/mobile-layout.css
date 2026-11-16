@@ -221,3 +221,13 @@ body[data-capture-step="review"] main { scroll-padding-block: 8px; }
   body[data-capture-step="review"] > header > div { height: 48px; }
   body[data-capture-step="review"] #analysis-action-bar { padding: 8px 16px; }
 }
+
+/* Review: 단어 / 정의 / 예문 boxes (same order, grouped for reading). */
+body[data-capture-step="review"] .review-group {
+  margin: 0; min-width: 0; padding: 10px 12px 12px;
+  border: 1px solid rgba(117, 119, 128, .28); border-radius: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+body[data-capture-step="review"] .review-group > legend {
+  padding: 0 6px; font-weight: 600; font-size: 13px; color: #00236f;
+}

@@ -257,6 +257,31 @@ for (const [key, title] of Object.entries(resultFields)) {
   posLabel.style.cssText = 'flex:0 0 6.5rem;min-width:0';
   row.append(wordLabel, posLabel);
 }
+// Same order, shown as three boxes: 단어 (단어|품사, 한국어 뜻), 정의 and 예문
+// (영어/한국어). Inside 정의 and 예문 the visible labels are short; the full
+// name (e.g. "영어 정의") stays the field's accessible name.
+for (const [title, keys, shortLabels] of [
+  ['단어', ['en', 'ko'], {}],
+  ['정의', ['enDef', 'koDef'], {enDef: '영어', koDef: '한국어'}],
+  ['예문', ['exampleEn', 'exampleKo'], {exampleEn: '영어', exampleKo: '한국어'}],
+]) {
+  const group = document.createElement('fieldset');
+  group.className = 'review-group';
+  const legend = document.createElement('legend');
+  legend.textContent = title;
+  group.append(legend);
+  // The word field lives in the 단어|품사 row, which moves as a whole.
+  const blockOf = key => key === 'en' ? reviewForm.elements.en.closest('.review-word-row') :
+    reviewForm.elements[key].parentElement;
+  blockOf(keys[0]).before(group);
+  for (const key of keys) {
+    if (shortLabels[key]) {
+      reviewForm.elements[key].setAttribute('aria-label', resultFields[key]);
+      blockOf(key).firstChild.textContent = shortLabels[key];
+    }
+    group.append(blockOf(key));
+  }
+}
 reviewForm.elements.en.addEventListener('input', () => {
   if (draft) updateDiagram();
 });
