@@ -40,6 +40,27 @@ test('model per app: X-WC-Models with Gemini 4 gets Gemini 4; older apps (no hea
     'gemini-4-hydrogen:generateContent', 'gemini-3.5-flash-lite:generateContent', 'gemini-3.5-flash-lite:generateContent']);
 });
 
+test('Gemini 4 thinks at MEDIUM; Gemini 3.5 gets no thinking setting; a rejected setting is retried once without it', async t => {
+  const bodies = [];
+  let reject = false;
+  const {url} = await serverFor(t, {fetchImpl: async (_, init) => {
+    const body = JSON.parse(init.body);
+    bodies.push(body.generationConfig.thinkingConfig);
+    if (reject && body.generationConfig.thinkingConfig) {
+      return new Response(JSON.stringify({error: {code: 400, message: 'Unknown name "thinkingLevel" at generation_config.thinking_config'}}), {status: 400});
+    }
+    return upstream(output());
+  }});
+  const call = headers => fetch(`${url}/api/analyze`, {method: 'POST',
+    headers: {'content-type': 'application/json', ...headers}, body: JSON.stringify(fixture())});
+  assert.equal((await call({'x-wc-models': 'gemini-4-hydrogen'})).status, 200);
+  assert.equal((await call({})).status, 200);
+  assert.deepEqual(bodies, [{thinkingLevel: 'medium'}, undefined]);
+  reject = true; bodies.length = 0;
+  assert.equal((await call({'x-wc-models': 'gemini-4-hydrogen'})).status, 200);
+  assert.deepEqual(bodies, [{thinkingLevel: 'medium'}, undefined]);
+});
+
 test('the app asks for Gemini 4 and accepts both models; the Worker allows the header (CORS) and negotiates', () => {
   const fs = require('node:fs');
   const api = fs.readFileSync('www/analysis-api.js', 'utf8');

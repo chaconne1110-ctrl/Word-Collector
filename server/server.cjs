@@ -247,6 +247,14 @@ async function readJson(req) {
     req.on('error', () => reject(new ApiError(400, '분석 요청을 끝까지 읽지 못했습니다.')));
   });
 }
+// Gemini 4 thinks at HIGH by default; word analysis is short, so MEDIUM is used
+// (faster and cheaper). If Google rejects the setting, the request is sent once
+// more without it (a rejected request is not billed).
+const THINKING_LEVEL = 'medium';
+async function rejectsThinkingConfig(response) {
+  if (response.status !== 400) return false;
+  try { return /thinking/i.test(await response.clone().text()); } catch { return false; }
+}
 async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODEL}) {
   const controller = new AbortController();
   let timeout;
@@ -257,18 +265,25 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
     }, timeoutMs);
   });
   const request = (async () => {
-    const response = await fetchImpl(endpointFor(model), {
-      method: 'POST', signal: controller.signal, redirect: 'error',
-      headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
-      body: JSON.stringify({
+    const body = {
         systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? (withoutGeneratedExample(input)
           ? '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. 1,200자 이내로 작성하세요.'
           : '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.') : '')}]},
         contents: [{role: 'user', parts: [{text: JSON.stringify(input)}]}],
         generationConfig: {maxOutputTokens: 8192, // thinking tokens count toward this limit
-          responseMimeType: 'application/json', responseSchema: responseSchema(input)}
-      })
+          responseMimeType: 'application/json', responseSchema: responseSchema(input),
+          ...(model === MODEL ? {thinkingConfig: {thinkingLevel: THINKING_LEVEL}} : {})}
+    };
+    const send = () => fetchImpl(endpointFor(model), {
+      method: 'POST', signal: controller.signal, redirect: 'error',
+      headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
+      body: JSON.stringify(body)
     });
+    let response = await send();
+    if (body.generationConfig.thinkingConfig && await rejectsThinkingConfig(response)) {
+      delete body.generationConfig.thinkingConfig;
+      response = await send();
+    }
     if (!response.ok) {
       // Never return the upstream body: it can include request details or credentials.
       if (response.status === 429) throw new ApiError(429, 'Gemini 호출 한도를 초과했습니다. 잠시 후 다시 분석해 주세요.');

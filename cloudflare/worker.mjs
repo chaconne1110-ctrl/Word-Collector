@@ -296,6 +296,14 @@ async function fetchWithLocationRetry(fetchImpl, url, options) {
   }
 }
 
+// Gemini 4 thinks at HIGH by default; word analysis is short, so MEDIUM is used
+// (faster and cheaper). If Google rejects the setting, the request is sent once
+// more without it (a rejected request is not billed).
+const THINKING_LEVEL = 'medium';
+async function rejectsThinkingConfig(response) {
+  if (response.status !== 400) return false;
+  try { return /thinking/i.test(await response.clone().text()); } catch { return false; }
+}
 async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODEL}) {
   const controller = new AbortController();
   let timeout;
@@ -308,18 +316,26 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
   const request = (async () => {
     let response;
     try {
-    response = await fetchWithLocationRetry(fetchImpl, endpointFor(model), {
-      method: 'POST', signal: controller.signal, redirect: 'manual',
-      headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
-      body: JSON.stringify({
+    const body = {
         systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? (withoutGeneratedExample(input)
           ? '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. 1,200자 이내로 작성하세요.'
           : '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.') : '')}]},
         contents: [{role: 'user', parts: [{text: JSON.stringify(input)}]}],
         generationConfig: {maxOutputTokens: 8192, // thinking tokens count toward this limit
-          responseMimeType: 'application/json', responseSchema: responseSchema(input)}
-      })
+          responseMimeType: 'application/json', responseSchema: responseSchema(input),
+          ...(model === MODEL ? {thinkingConfig: {thinkingLevel: THINKING_LEVEL}} : {})}
+    };
+    const send = () => fetchWithLocationRetry(fetchImpl, endpointFor(model), {
+      method: 'POST', signal: controller.signal, redirect: 'manual',
+      headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
+      body: JSON.stringify(body)
     });
+    response = await send();
+    if (body.generationConfig.thinkingConfig && await rejectsThinkingConfig(response)) {
+      try { await response.body?.cancel(); } catch { /* already closed */ }
+      delete body.generationConfig.thinkingConfig;
+      response = await send();
+    }
     } catch (error) {
       if (error instanceof ApiError) throw error; // e.g. relay misconfiguration
       if (error?.name === 'AbortError') {
