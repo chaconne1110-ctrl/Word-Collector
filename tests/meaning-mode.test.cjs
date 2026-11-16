@@ -29,6 +29,19 @@ test('일반 의미 is the default; 전공 의미 needs a typed major', () => {
   }
 });
 
+test('일반 의미 shows every commonly used part of speech with its meanings', () => {
+  for (const file of ['cloudflare/worker.mjs', 'server/server.cjs']) {
+    const src = fs.readFileSync(file, 'utf8');
+    assert.match(src, /그 단어가 일상에서 많이 쓰이는 품사를 모두 보여 주세요/, file);
+    assert.match(src, /"명사: 흐름, 해류 \/ 형용사: 현재의, 지금의"/, file);
+    assert.match(src, /pos에는 그 품사들을 같은 순서로 쉼표로 모두 적으세요\(예: 명사, 형용사\)/, file);
+    assert.match(src, /"\(noun\) \.\.\.; \(adjective\) \.\.\." 형식/, file);
+    assert.match(src, /"\(명사\) \.\.\.; \(형용사\) \.\.\." 형식으로 충실하게 번역/, file);
+    assert.doesNotMatch(src, /대표적인 일반 뜻을 1~3개 쉼표로 나열/, file);
+  }
+  assert.match(fs.readFileSync('www/quick_capture/analysis.js', 'utf8'), /input\.rows = \['en', 'pos'\]\.includes\(key\) \? 1 : 2;/);
+});
+
 test('modern request fallback carries the meaning choice', () => {
   const api = fs.readFileSync('www/analysis-api.js', 'utf8');
   assert.match(api, /meaningMode:payload\.meaningMode/);

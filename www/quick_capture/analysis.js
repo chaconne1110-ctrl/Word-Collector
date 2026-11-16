@@ -241,7 +241,7 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.name = key;
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
-  input.rows = ['en', 'ko', 'pos'].includes(key) ? 1 : 2;
+  input.rows = ['en', 'pos'].includes(key) ? 1 : 2; // 한국어 뜻 may list several parts of speech
   if (key === 'related') input.placeholder = '예: capacitance';
   if (key === 'referenceTranslation') {
     label.hidden = true;
