@@ -280,6 +280,9 @@ async function runAnalysis() {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
       translateReference: Boolean(context),
+      // 의미 기준: everyday meaning, or the meaning in the major the user typed.
+      meaningMode: request.meaningMode === 'general' ? 'general' : 'major',
+      ...(request.meaningMode !== 'general' && request.majorField ? {majorField: String(request.majorField).trim().slice(0, 60)} : {}),
       notebooks: currentNotebooks()}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     // Two related English words, one per line (no meanings), editable before saving.

@@ -20,7 +20,9 @@
     return {
       word: payload.term, referenceText: payload.context || '',
       autoSubject: payload.autoCourse, selectedSubject: payload.course || '', notebooks,
-      ...(payload.translateReference === true ? {translateReference:true} : {})
+      ...(payload.translateReference === true ? {translateReference:true} : {}),
+      ...(payload.meaningMode ? {meaningMode:payload.meaningMode} : {}),
+      ...(payload.majorField ? {majorField:payload.majorField} : {})
     };
   }
   function normalizeModernNotebookResponse(response, payload) {

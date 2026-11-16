@@ -45,7 +45,8 @@ test('Korean auto classification sends actual notebook definitions, strict schem
   assert.equal(response.status, 200); assert.equal(calls, 1); assert.equal(data.model, MODEL);
   assert.equal(data.analysis.notebookName, '전자기학');
   assert.deepEqual(data.analysis.relatedTerms, ['eddy current']);
-  assert.deepEqual(JSON.parse(sent.contents[0].parts[0].text), request);
+  // Requests without a meaning choice default to the major meaning (older apps).
+  assert.deepEqual(JSON.parse(sent.contents[0].parts[0].text), {...request, meaningMode: 'major'});
   assert.match(sent.systemInstruction.parts[0].text, /참고 문장.*최우선/);
   assert.match(sent.systemInstruction.parts[0].text, /저장 단어의 의미가 주된 분류 기준/);
   assert.equal(sent.generationConfig.responseMimeType, 'application/json');

@@ -7,6 +7,7 @@ const analysisButton = $('#submit-action-btn');
 const termInput = $('#term-unified-input');
 const courseInput = $('#subject-select');
 const contextInput = $('#context-sentence-input');
+const majorInput = $('#major-input');
 
 function showToast(message) {
   status.textContent = message;
@@ -48,6 +49,8 @@ function restoreInputs() {
   if (!saved || termInput.value || contextInput.value) return;
   termInput.value = saved.term;
   contextInput.value = saved.context || '';
+  setMeaningMode(saved.meaningMode === 'general' ? 'general' : 'major');
+  majorInput.value = saved.majorField || '';
   if (saved.autoCourse) setCategoryMode('ai');
   else if (saved.selected && hasCourse(saved.selected)) {
     setCategoryMode('existing');
@@ -68,6 +71,8 @@ analysisButton.addEventListener('click', () => {
   const term = termInput.value.trim();
   const selected = courseInput.value;
   const context = contextInput.value.trim();
+  const meaningMode = currentMeaningMode();
+  const majorField = meaningMode === 'major' ? majorInput.value.trim() : '';
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     termInput.focus();
@@ -78,7 +83,7 @@ analysisButton.addEventListener('click', () => {
     return;
   }
   const request = {id: crypto.randomUUID(), term, autoCourse, selected: autoCourse ? '' : selected,
-    context, createdAt: Date.now()};
+    context, meaningMode, majorField, createdAt: Date.now()};
   try {
     sessionStorage.setItem(CAPTURE_REQUEST_KEY, JSON.stringify(request));
   } catch {
