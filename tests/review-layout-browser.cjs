@@ -24,6 +24,7 @@ const {setupAnalysisClient}=require('./browser-client-fixture.cjs');
    await page.evaluate(()=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{book:['아주 긴 단어장 이름 '.repeat(5),'']},terms:{},saved:[]})));
    await page.goto(base+'/quick_capture/code.html?course=book');
    await page.locator('#term-unified-input').fill('ElectromagneticInduction'.repeat(5));
+   await page.locator('#btn-meaning-major').click();
    await page.locator('#major-input').fill('전자기학');
    await page.locator('#context-sentence-input').fill('Reference sentence. '.repeat(30));
    await page.locator('#submit-action-btn').click();

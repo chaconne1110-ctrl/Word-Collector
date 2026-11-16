@@ -11,7 +11,22 @@ test('input screen offers 일반 의미 / 전공 의미 with a major text field'
   const capture = fs.readFileSync('www/quick_capture/capture.js', 'utf8');
   assert.match(capture, /context, meaningMode, majorField, createdAt/);
   const analysis = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
-  assert.match(analysis, /meaningMode: request\.meaningMode === 'general' \? 'general' : 'major'/);
+  // 일반 의미 unless 전공 의미 was chosen with a typed major.
+  assert.match(analysis, /meaningMode: request\.meaningMode === 'major' && request\.majorField \? 'major' : 'general'/);
+});
+
+test('일반 의미 is the default; 전공 의미 needs a typed major', () => {
+  const html = fs.readFileSync('www/quick_capture/code.html', 'utf8');
+  assert.match(html, /id="btn-meaning-general" aria-pressed="true"/);
+  assert.match(html, /id="btn-meaning-major" aria-pressed="false"/);
+  assert.match(html, /<div class="hidden flex flex-col gap-space-xs" id="section-meaning-major">/);
+  assert.doesNotMatch(html, /비워 두면 단어장과 참고 문장으로 전공을 판단/);
+  const capture = fs.readFileSync('www/quick_capture/capture.js', 'utf8');
+  assert.match(capture, /setMeaningMode\(saved\.meaningMode === 'major' \? 'major' : 'general'\)/);
+  assert.match(capture, /if \(meaningMode === 'major' && !majorField\) \{/);
+  for (const file of ['cloudflare/worker.mjs', 'server/server.cjs']) {
+    assert.match(fs.readFileSync(file, 'utf8'), /단어장 이름, 저장 단어, 참고 문장의 분야 때문에 전공 의미\(예: 물리학의 전류\)로 바꾸지 마세요\./, file);
+  }
 });
 
 test('modern request fallback carries the meaning choice', () => {

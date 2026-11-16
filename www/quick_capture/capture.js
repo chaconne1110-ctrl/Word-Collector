@@ -49,7 +49,7 @@ function restoreInputs() {
   if (!saved || termInput.value || contextInput.value) return;
   termInput.value = saved.term;
   contextInput.value = saved.context || '';
-  setMeaningMode(saved.meaningMode === 'general' ? 'general' : 'major');
+  setMeaningMode(saved.meaningMode === 'major' ? 'major' : 'general');
   majorInput.value = saved.majorField || '';
   if (saved.autoCourse) setCategoryMode('ai');
   else if (saved.selected && hasCourse(saved.selected)) {
@@ -76,6 +76,11 @@ analysisButton.addEventListener('click', () => {
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     status.textContent = '한국어 또는 영어 전공 단어를 입력하세요.';
     termInput.focus();
+    return;
+  }
+  if (meaningMode === 'major' && !majorField) {
+    status.textContent = '전공 의미를 고르면 전공을 입력해 주세요. (예: 전기공학)';
+    majorInput.focus();
     return;
   }
   if (!autoCourse && (!selected || !hasCourse(selected))) {
