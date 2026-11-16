@@ -188,6 +188,32 @@ test('server-local key file takes precedence over inherited key; blank file valu
   assert.equal(readApiKey(file,{GEMINI_API_KEY:'inherited-fixture'}),'');
 });
 
+test('일반 의미: the reference sentence is only translated; a general-meaning example is generated', async t => {
+  const reference = 'The current through the resistor is 2 A.';
+  const schemas = [];
+  const {send} = await serverFor(t, {fetchImpl: async (_, init) => {
+    const request = JSON.parse(init.body);
+    const props = request.generationConfig.responseSchema.properties;
+    schemas.push({example: Object.hasOwn(props, 'exampleSentence'), exampleKo: Object.hasOwn(props, 'exampleKo'),
+      translation: Object.hasOwn(props, 'referenceTranslation')});
+    return upstream(output({notebookName: '일반 단어장', relatedTerms: [], pos: '형용사, 명사',
+      exampleSentence: 'Please check the current schedule.', exampleKo: '현재 일정을 확인해 주세요.',
+      referenceTranslation: '저항을 흐르는 전류는 2A이다.'}));
+  }});
+  const base = {term: 'current', context: reference, autoCourse: false, course: '일반 단어장', translateReference: true,
+    notebooks: [{course: '일반 단어장', words: []}]};
+  const general = await (await send({...base, meaningMode: 'general'})).json();
+  assert.equal(general.exampleEn, 'Please check the current schedule.');
+  assert.equal(general.exampleKo, '현재 일정을 확인해 주세요.');
+  assert.equal(general.exampleSource, undefined);
+  assert.equal(general.referenceTranslation, '저항을 흐르는 전류는 2A이다.');
+  const major = await (await send({...base, meaningMode: 'major', majorField: '전기공학'})).json();
+  assert.equal(major.exampleEn, reference, 'major meaning: the reference becomes the example');
+  assert.equal(major.exampleKo, '저항을 흐르는 전류는 2A이다.');
+  assert.equal(major.exampleSource, 'reference');
+  assert.deepEqual(schemas, [{example: true, exampleKo: true, translation: true}, {example: false, exampleKo: false, translation: true}]);
+});
+
 test('legacy client accepts user-created empty notebooks in both manual and automatic selection', async t => {
   let calls=0;
   const {send}=await serverFor(t,{fetchImpl:async (_,init)=>{
