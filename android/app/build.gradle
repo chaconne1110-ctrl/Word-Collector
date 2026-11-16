@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+// App version for updates. versionCode = minutes since 2026-01-01 (UTC) at build
+// time, so every newer build (any workflow or PC) has a larger number than the one
+// before; Android refuses to install an APK whose number went down.
+// versionName = the branch being built (e.g. v1.1), shown in Android's app info.
+def wcVersionCode = (int) ((System.currentTimeMillis() - 1767225600000L) / 60000L)
+def wcBranch = System.getenv('GITHUB_REF_NAME') ?: ''
+def wcVersionName = wcBranch ==~ /[A-Za-z0-9._-]{1,40}/ ? wcBranch : 'dev'
+
 android {
     namespace = "com.yechan.wordcollector"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +15,8 @@ android {
         applicationId "com.yechan.wordcollector"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode wcVersionCode
+        versionName wcVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -428,7 +428,8 @@ async function saveReview() {
       draft = null;
       // Saved: the next visit to the input page starts empty.
       try { sessionStorage.removeItem(CAPTURE_REQUEST_KEY); sessionStorage.removeItem(CAPTURE_STARTED_KEY); } catch {}
-      location.href = '../' + route('words.html', {course: word.course});
+      // replace(): the back button must not return to the finished analysis.
+      location.replace('../' + route('words.html', {course: word.course}));
     }
   } finally {
     saving = false;
