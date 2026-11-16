@@ -59,6 +59,32 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.deepEqual(state.courses, {'general-meaning': ['일반 단어장', '']});
     assert.deepEqual(state.deletedCourses, []);
     assert.equal(Object.values(state.terms)[0].course, 'general-meaning');
+    // A new 전공 notebook may not reuse an existing name (input page and review).
+    const taken = '이미 있는 단어장 이름입니다. 다른 이름을 입력하거나 기존 단어장을 선택해 주세요.';
+    await page.goto(base + '/quick_capture/code.html');
+    await setupAnalysisClient(page, () => WordCollectorAI.setLocalServer(true));
+    await page.locator('#term-unified-input').fill('current');
+    await page.locator('#btn-meaning-major').click();
+    await page.locator('#major-input').fill('전기공학');
+    for (const name of ['일반 단어장', ' 일반  단어장 ']) {
+      await page.locator('#new-notebook-input').fill(name);
+      await page.locator('#submit-action-btn').click();
+      assert.equal(await page.locator('#analysis-status').textContent(), taken);
+      assert.ok(page.url().endsWith('/quick_capture/code.html'));
+    }
+    await page.locator('#new-notebook-input').fill('회로이론');
+    await page.locator('#submit-action-btn').click();
+    await page.locator('#analysis-review').waitFor({state: 'visible'});
+    await page.locator('#review-new-course').fill('일반 단어장');
+    await page.locator('#save-action-btn').click();
+    assert.equal(await page.locator('#analysis-status').textContent(), taken);
+    state = await read();
+    assert.deepEqual(Object.keys(state.courses), ['general-meaning']);
+    assert.equal(Object.keys(state.terms).length, 1, 'nothing saved into the 일반 단어장');
+    await page.locator('#review-new-course').fill('회로이론');
+    await page.locator('#save-action-btn').click();
+    await page.waitForURL('**/words.html?**');
+    assert.equal(await page.locator('header h1').textContent(), '회로이론');
     if (process.env.SHOT) {
       await page.goto(base + '/quick_capture/code.html');
       await page.locator('#btn-meaning-major').click();
@@ -68,6 +94,6 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
       await page.screenshot({path: process.env.SHOT});
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: 일반 단어장 on install; 일반 의미 always saved there (fixed in review); recreated after deletion only when a general word is saved.');
+    console.log('PASS: 일반 단어장 on install; 일반 의미 always saved there (fixed in review); recreated after deletion only when a general word is saved; taken new-notebook names refused on input and review.');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

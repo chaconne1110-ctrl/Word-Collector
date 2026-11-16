@@ -30,6 +30,14 @@ function commit(next) {
 // in the general meaning again (see the analysis page).
 const GENERAL_COURSE_ID = 'general-meaning';
 const GENERAL_COURSE_NAME = '일반 단어장';
+// A new notebook may not reuse the name of an existing one (or of the 일반 단어장,
+// even if it was deleted): a 전공 word must never end up in another notebook.
+const NOTEBOOK_NAME_TAKEN_MESSAGE = '이미 있는 단어장 이름입니다. 다른 이름을 입력하거나 기존 단어장을 선택해 주세요.';
+function notebookNameTaken(name) {
+  const key = value => String(value).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  return key(name) === key(GENERAL_COURSE_NAME) ||
+    Object.values(allCourses()).some(([existing]) => key(existing) === key(name));
+}
 if (!state.courses?.[GENERAL_COURSE_ID] && !(state.deletedCourses || []).includes(GENERAL_COURSE_ID)) {
   const next = {...state, courses: {[GENERAL_COURSE_ID]: [GENERAL_COURSE_NAME, ''], ...(state.courses || {})}};
   try {

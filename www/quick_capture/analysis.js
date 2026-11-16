@@ -470,9 +470,13 @@ async function saveReview() {
     state = load();
     const courses = {...allCourses()};
     if (draft.newCourseName) {
-      const sameName = Object.keys(courses).find(id => normalize(courses[id][0]) === normalize(draft.newCourseName));
-      if (sameName) draft.selected = sameName;
-      else courses[draft.selected] = [draft.newCourseName, ''];
+      // Never save into another notebook that happens to have this name.
+      if (notebookNameTaken(draft.newCourseName)) {
+        status.textContent = NOTEBOOK_NAME_TAKEN_MESSAGE;
+        newCourseInput.focus();
+        return;
+      }
+      courses[draft.selected] = [draft.newCourseName, ''];
     } else if (draft.selected === GENERAL_COURSE_ID && !hasCourse(GENERAL_COURSE_ID)) {
       courses[GENERAL_COURSE_ID] = [GENERAL_COURSE_NAME, ''];
     } else if (!hasCourse(draft.selected)) {

@@ -22,7 +22,8 @@ App ──► Cloudflare Worker ──► this relay (us-central1) ──► Gem
 2. In Cloud Shell:
 
    ```bash
-   git clone --branch v2 --depth 1 https://github.com/chaconne1110-ctrl/Word-Collector.git
+   BRANCH=v3   # the branch being deployed (its relay allows the Worker's model)
+   git clone --branch "$BRANCH" --depth 1 https://github.com/chaconne1110-ctrl/Word-Collector.git
    cd Word-Collector/relay
    RELAY_SECRET=$(openssl rand -hex 32)
    echo "Keep this for the Worker: $RELAY_SECRET"

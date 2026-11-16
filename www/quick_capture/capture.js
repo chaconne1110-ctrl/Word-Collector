@@ -104,6 +104,11 @@ analysisButton.addEventListener('click', () => {
     newNotebookInput.focus();
     return;
   }
+  if (destination === 'new' && notebookNameTaken(newCourseName)) {
+    status.textContent = NOTEBOOK_NAME_TAKEN_MESSAGE;
+    newNotebookInput.focus();
+    return;
+  }
   if (destination === 'existing' && (!selected || !hasCourse(selected))) {
     status.textContent = '저장할 기존 단어장을 선택해 주세요.';
     return;

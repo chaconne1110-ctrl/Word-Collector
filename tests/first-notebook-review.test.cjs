@@ -25,7 +25,12 @@ test('review shows the AI notebook name in an editable field; save creates it', 
   assert.match(analysis, /draft\.newCourseName = newCourseInput\.value\.trim\(\);/);
   assert.match(analysis, /if \(draft\.createsCourse && !draft\.newCourseName\) \{\n?\r?\n?\s*status\.textContent = '새 단어장 이름을 입력해 주세요\.';/);
   // Created together with the word, in the same commit, under the reviewed name.
-  assert.match(analysis, /else courses\[draft\.selected\] = \[draft\.newCourseName, ''\];/);
+  assert.match(analysis, /\n\s*courses\[draft\.selected\] = \[draft\.newCourseName, ''\];/);
+  // A taken name (any existing notebook, or the 일반 단어장) is refused, never merged.
+  assert.match(analysis, /if \(notebookNameTaken\(draft\.newCourseName\)\) \{\s*status\.textContent = NOTEBOOK_NAME_TAKEN_MESSAGE;/);
+  assert.doesNotMatch(analysis, /if \(sameName\) draft\.selected = sameName;/);
+  assert.match(fs.readFileSync('www/quick_capture/capture.js', 'utf8'),
+    /if \(destination === 'new' && notebookNameTaken\(newCourseName\)\) \{\s*status\.textContent = NOTEBOOK_NAME_TAKEN_MESSAGE;/);
   assert.match(analysis, /commit\(\{\.\.\.state, \.\.\.deleted, courses, terms: \{\.\.\.state\.terms, \[id\]: word\}\}\)/);
 });
 
