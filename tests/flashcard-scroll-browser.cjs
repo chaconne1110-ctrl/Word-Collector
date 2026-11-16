@@ -81,7 +81,7 @@ const {createServer} = require('../server/server.cjs');
       assert.equal(await selected(), 'b', 'upward edge swipe must advance');
       await swipe(240, 430);
       assert.equal(await selected(), 'a', 'downward top swipe must go back');
-      await page.locator('.card-front [data-action=flip]').last().click();
+      await page.locator('.card-front [data-field=en]').click();
       await bottom('.card-back');
       await swipe(430, 240);
       assert.equal(await selected(), 'b', 'back-face edge swipe must advance too');

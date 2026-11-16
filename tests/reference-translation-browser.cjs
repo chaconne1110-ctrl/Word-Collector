@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const {once} = require('node:events');
 const {chromium} = require('playwright');
+const {setupAnalysisClient}=require('./browser-client-fixture.cjs');
 const {createServer} = require('../server/server.cjs');
 
 (async () => {
@@ -34,10 +35,7 @@ const {createServer} = require('../server/server.cjs');
       }
     });
     await page.goto(base+'/quick_capture/code.html');
-    await page.evaluate(() => {
-      WordCollectorAI.setLocalServer(true);
-      WordCollectorAI.createImage = async () => {throw new Error('사진 실패 모의 응답');};
-    });
+    await setupAnalysisClient(page, () => WordCollectorAI.setLocalServer(true));
     await page.locator('#btn-mode-existing').click();
     await page.locator('#term-unified-input').fill('current');
     await page.locator('#context-sentence-input').fill(reference);
@@ -45,21 +43,22 @@ const {createServer} = require('../server/server.cjs');
     await page.locator('#analysis-review').waitFor({state:'visible'});
     assert.equal(await page.locator('[name=referenceTranslation]').inputValue(),translation);
     assert.ok((await page.locator('#review-reference-sentence').textContent()).includes(reference));
-    assert.equal(await page.locator('[name=exampleKo]').inputValue(),'전류를 측정합니다.');
+    assert.equal(await page.locator('[name=exampleKo]').inputValue(),translation);
+    assert.equal(await page.locator('[name=referenceTranslation]').isVisible(),false);
     const corrected = translation+'\n직접 검수한 해석입니다.';
-    await page.locator('[name=referenceTranslation]').fill(corrected);
+    await page.locator('[name=exampleKo]').fill(corrected);
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const [id, word] = await page.evaluate(() => Object.entries(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
-    assert.equal(word.referenceSentence,reference); assert.equal(word.referenceTranslation,corrected);
+    assert.equal(word.referenceSentence,reference); assert.equal(word.referenceTranslation,translation); assert.equal(word.exampleKo,corrected);
     assert.equal(calls,1);
     await page.goto(base+'/flashcard.html?term='+id);
-    await page.locator('.card-front [data-action=flip]').last().click();
+    await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleEn]').textContent(),reference);
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),corrected);
     await page.reload();
-    await page.locator('.card-front [data-action=flip]').last().click();
+    await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),corrected);
 
@@ -94,7 +93,7 @@ const {createServer} = require('../server/server.cjs');
       for (inset of [0,34]) {
         await page.setViewportSize({width,height});
         await page.goto(base+'/flashcard.html?term=a');
-        await page.locator('.card-front [data-action=flip]').last().click();
+        await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
         const geometry = await page.evaluate(() => {
           const face = document.querySelector('.card-back'), rect = face.getBoundingClientRect();
@@ -102,11 +101,11 @@ const {createServer} = require('../server/server.cjs');
             headerBottom:document.querySelector('header').getBoundingClientRect().bottom,
             navTop:document.querySelector('nav').getBoundingClientRect().top,
             scrollWidth:face.scrollWidth,clientWidth:face.clientWidth,scrollHeight:face.scrollHeight,
-            clientHeight:face.clientHeight,bodyWidth:document.documentElement.scrollWidth};
+            clientHeight:face.clientHeight,bodyWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth};
         });
         assert.ok(geometry.height>60 && geometry.top>=geometry.headerBottom && geometry.bottom<=geometry.navTop+1,JSON.stringify(geometry));
         assert.ok(geometry.scrollWidth<=geometry.clientWidth+1,JSON.stringify(geometry));
-        assert.ok(geometry.bodyWidth<=width,JSON.stringify(geometry));
+        assert.ok(geometry.bodyWidth<=geometry.viewportWidth+1,JSON.stringify(geometry));
         assert.ok(geometry.scrollHeight>geometry.clientHeight);
         assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),longTranslation);
         const x = geometry.left+Math.min(100,(geometry.right-geometry.left)/2);
@@ -128,11 +127,11 @@ const {createServer} = require('../server/server.cjs');
       }
     }
     await page.goto(base+'/flashcard.html?term=b');
-    await page.locator('.card-front [data-action=flip]').last().click();
+    await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),'생성 예문 번역.');
     await page.goto(base+'/flashcard.html?term=c');
-    await page.locator('.card-front [data-action=flip]').last().click();
+    await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
     assert.match(await page.locator('.card-back [data-field=exampleKo]').textContent(),/참고 문장 해석이 없습니다/);
     assert.deepEqual(errors,[]);

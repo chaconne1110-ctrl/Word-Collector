@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const {once}=require('node:events');
 const {chromium}=require('playwright');
+const {setupAnalysisClient}=require('./browser-client-fixture.cjs');
 const {createServer}=require('../server/server.cjs');
 (async()=>{
  const server=createServer();server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -11,6 +12,11 @@ const {createServer}=require('../server/server.cjs');
  await page.route(/\.(?:html|css)(?:\?.*)?$/,async route=>{
   const r=await route.fetch();await route.fulfill({response:r,body:(await r.text()).replace(/env\(safe-area-inset-top\s*,\s*0px\)/g,`${safe?24:0}px`).replace(/env\(safe-area-inset-bottom\s*,\s*0px\)/g,`${safe}px`)});
  });
+ await setupAnalysisClient(page,()=>{
+    WordCollectorAI.request=async()=>({en:'current',ko:'전류',discipline:'전기',pos:'noun',enDef:'Charge flow.',koDef:'전하의 흐름',exampleEn:'Current flows.',exampleKo:'전류가 흐릅니다.',referenceTranslation:'전류가 도체를 통해 흐릅니다.',model:'gemini-3.5-flash-lite'});
+    WordCollectorAI.createImage=async()=>{throw new Error('test image failure');};
+   });
+
  try {
   await page.goto(base+'/index.html');
   await page.evaluate(()=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{book:['전기공학과 반도체 기초 이론 단어장','']},terms:{},saved:[]})));
@@ -37,11 +43,7 @@ const {createServer}=require('../server/server.cjs');
    assert.ok(geometry.bodyWidth<=width,JSON.stringify({width,height,safe,...geometry}));
    assert.ok(geometry.barBottom<=geometry.navTop+1,JSON.stringify(geometry));
    assert.equal(geometry.hit,'submit-action-btn');
-   // Run the remaining analysis UI with deterministic model/photo responses.
-   await page.evaluate(()=>{
-    WordCollectorAI.request=async()=>({en:'current',ko:'전류',discipline:'전기',pos:'noun',enDef:'Charge flow.',koDef:'전하의 흐름',exampleEn:'Current flows.',exampleKo:'전류가 흐릅니다.',referenceTranslation:'전류가 도체를 통해 흐릅니다.',model:'gemini-3.5-flash-lite'});
-    WordCollectorAI.createImage=async()=>{throw new Error('test image failure');};
-   });
+   // Run the separate review page with deterministic analysis responses.
    await page.locator('#submit-action-btn').click();
    await page.locator('#analysis-review').waitFor({state:'visible'});
    await page.locator('[name=referenceTranslation]').fill('화면 검증용 해석');

@@ -26,7 +26,7 @@ const {createServer} = require('../server/server.cjs');
       const geometry=await page.locator('#cardsScrollContainer').evaluate(e=>({left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right}));
       assert.equal(geometry.left,16);assert.equal(geometry.right,width-16);
       // Synthetic rapid taps are deliberate: the app lock must work without Playwright waiting for stability.
-      await page.evaluate(()=>{const button=document.querySelector('.card-front [data-action=flip]');button.click();button.click();button.click();});
+      await page.evaluate(()=>{const button=document.querySelector('.card-front [data-field=en]');button.click();button.click();button.click();});
       assert.ok(await page.locator('#cardsScrollContainer').getAttribute('aria-busy'));
       assert.ok(await page.evaluate(()=>document.getAnimations().some(a=>a.effect.getKeyframes().some(f=>f.transform?.includes('rotateY(90deg)')))));
       await idle(); assert.ok(await page.locator('.card-back').isVisible());
@@ -53,7 +53,7 @@ const {createServer} = require('../server/server.cjs');
       if(width===390&&inset===34)await page.screenshot({path:'/tmp/flashcard-3d-ready.png'});
     }
     await page.emulateMedia({reducedMotion:'reduce'});await page.goto(base+'/flashcard.html?term=a');
-    await page.locator('.card-front [data-action=flip]').last().click();
+    await page.locator('.card-front [data-field=en]').click();
     assert.ok(await page.locator('.card-back').isVisible());
     assert.equal(await page.evaluate(()=>document.getAnimations().filter(a => a.effect.target.matches('.card-flipper')).length),0);
     await page.locator('#cardsScrollContainer').focus();await page.keyboard.press('ArrowDown');

@@ -208,3 +208,16 @@ body[data-page="card"] :is(.card-front, .card-back) > :first-child > :first-chil
   margin-left: auto;
   gap: 6px;
 }
+
+/* The analysis overlay fills the viewport; its inner card scrolls inside the
+   safe area even in landscape or with the keyboard open. */
+body[data-page] #analysis-waiting {
+  top: 0; bottom: 0; max-height: 100%; overflow: hidden;
+}
+
+body[data-capture-step="review"] #analysis-status:empty { display: none; }
+body[data-capture-step="review"] main { scroll-padding-block: 8px; }
+@media (max-height: 450px) {
+  body[data-capture-step="review"] > header > div { height: 48px; }
+  body[data-capture-step="review"] #analysis-action-bar { padding: 8px 16px; }
+}

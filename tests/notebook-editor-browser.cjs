@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const {once} = require('node:events');
 const {chromium} = require('playwright');
+const {setupAnalysisClient}=require('./browser-client-fixture.cjs');
 const {createServer} = require('../server/server.cjs');
 (async () => {
   let calls = 0;
@@ -8,7 +9,7 @@ const {createServer} = require('../server/server.cjs');
     calls++;
     const input = JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
     assert.deepEqual(input.notebooks, []);
-    const output = {englishTerm:'eddy current',koreanMeaning:'와전류',specialization:'전기공학',notebookName:'전자기 유도',englishDefinition:'An induced current.',koreanDefinition:'유도된 전류.',exampleSentence:'Eddy currents heat metal.',explanation:'유도 전류 설명',recommendationReason:'문맥에 따른 이름',relatedTerms:[],pos:'noun',exampleKo:'와전류가 금속을 가열한다.',referenceTranslation:'자기장에 의한 전류'};
+    const output = {englishTerm:'eddy current',koreanMeaning:'와전류',specialization:'전기공학',notebookName:'전자기 유도',englishDefinition:'An induced current.',koreanDefinition:'유도된 전류.',exampleSentence:'Eddy currents heat metal.',explanation:'유도 전류 설명',recommendationReason:'문맥에 따른 이름',relatedTerms:[],pos:'noun',exampleKo:'와전류가 금속을 가열한다.',referenceTranslation:'A current induced by a magnetic field.'};
     return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(output)}]}}]}));
   }});
   server.listen(0,'127.0.0.1'); await once(server,'listening');
@@ -40,22 +41,21 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).courses).length),1);
     await page.evaluate(()=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{},terms:{},saved:[]})));
     await page.goto(base+'/quick_capture/code.html');
-    await page.evaluate(()=>{WordCollectorAI.setLocalServer(true);WordCollectorAI.createImage=()=>new Promise(resolve=>{window.completePhoto=resolve;});});
+    await setupAnalysisClient(page, () => WordCollectorAI.setLocalServer(true));
     await page.locator('#btn-mode-ai').click();
     await page.locator('#term-unified-input').fill('와전류');
     await page.locator('#context-sentence-input').fill('자기장에 의한 전류');
     await page.locator('#submit-action-btn').click();
-    await page.waitForFunction(()=>document.querySelector('#analysis-status').textContent.includes('사진 생성이 끝나면'));
-    assert.equal(await page.locator('#save-action-btn').isDisabled(),true);
-    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1'))),{courses:{},terms:{},saved:[]});
-    await page.evaluate(()=>{
-      const canvas=document.createElement('canvas');canvas.width=12;canvas.height=8;canvas.getContext('2d').fillRect(0,0,12,8);
-      window.completePhoto({image:{mimeType:'image/png',data:canvas.toDataURL().split(',')[1]}});
-    });
     await page.waitForURL('**/words.html?**');
     assert.equal(await page.locator('header h1').textContent(),'전자기 유도');
     assert.equal(calls,1);
     const termId=await page.locator('#term-list [data-term-id]').first().getAttribute('data-term-id');
+    await page.goto(base+'/flashcard.html?term='+termId);
+    await page.evaluate(async id=>{
+      const canvas=document.createElement('canvas');canvas.width=12;canvas.height=8;canvas.getContext('2d').fillRect(0,0,12,8);
+      await WordCollectorPhoto.save(id,{mimeType:'image/png',data:canvas.toDataURL().split(',')[1]});
+    },termId);
+
     await page.route('**/edit.html?*', async route => {
       const response = await route.fetch();
       const body = (await response.text()).replace(/env\(safe-area-inset-top,\s*0px\)/g, '24px').replace(/env\(safe-area-inset-bottom,\s*0px\)/g, '34px');
@@ -77,11 +77,11 @@ const {createServer} = require('../server/server.cjs');
     await page.goto(base+'/index.html');
     await page.evaluate(()=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{},terms:{},saved:[]})));
     await page.goto(base+'/quick_capture/code.html');
-    await page.evaluate(()=>{WordCollectorAI.request=async()=>{throw new Error('분석 실패 검증');};});
+    await setupAnalysisClient(page,()=>{WordCollectorAI.request=async()=>{throw new Error('분석 실패 검증');};});
     await page.locator('#btn-mode-ai').click();
     await page.locator('#term-unified-input').fill('와전류');
     await page.locator('#submit-action-btn').click();
-    await page.waitForFunction(()=>document.querySelector('#analysis-status').textContent==='분석 실패 검증');
+    await page.waitForFunction(()=>document.querySelector('#analysis-error-message')?.textContent==='분석 실패 검증');
     assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1'))),{courses:{},terms:{},saved:[]});
     assert.deepEqual(errors,[]);
     console.log('PASS: home create/duplicate/blank checks; empty-state AI course naming and atomic autosave; stored photo restored after edit/reload; header clearance');

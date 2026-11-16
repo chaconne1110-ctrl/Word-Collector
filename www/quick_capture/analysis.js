@@ -6,6 +6,15 @@ const CAPTURE_REQUEST_KEY = 'word-collector-capture-request-v1';
 const CAPTURE_STARTED_KEY = 'word-collector-capture-started-v1';
 const reviewForm = $('#analysis-review');
 const status = $('#analysis-status');
+function revealFocusedField() {
+  const field = document.activeElement;
+  if (reviewForm.contains(field) && field.matches('textarea, select, input')) {
+    requestAnimationFrame(() => field.scrollIntoView({block:'center'}));
+  }
+}
+reviewForm.addEventListener('focusin', revealFocusedField);
+window.visualViewport?.addEventListener('resize', revealFocusedField);
+
 const saveActionButton = $('#save-action-btn');
 const errorCard = $('#analysis-error');
 const errorMessage = $('#analysis-error-message');
@@ -42,11 +51,13 @@ function showWaiting(term) {
     waitingElapsed.textContent = seconds + '초 경과';
   }, 1000);
   waiting.hidden = false;
+  if (!waiting.open) waiting.showModal();
   waitingCancel.focus({preventScroll: true});
 }
 function hideWaiting() {
   clearInterval(waitingTimer);
   waitingTimer = null;
+  if (waiting.open) waiting.close();
   waiting.hidden = true;
 }
 // The bottom bar shows only "단어장에 저장", and only once the review is ready.
@@ -132,6 +143,17 @@ let analyzing = false;
 const analysisRequestGate = WordCollectorRequestGate.create();
 window.addEventListener('pagehide', () => {
   analysisRequestGate.cancel();
+  hideWaiting();
+});
+window.addEventListener('pageshow', event => {
+  if (event.persisted && analyzing) {
+    analyzing = false;
+    showError('페이지를 떠나 분석이 중단됐습니다. 다시 분석하려면 버튼을 눌러 주세요.');
+  }
+});
+waiting.addEventListener('cancel', event => {
+  event.preventDefault();
+  waitingCancel.click();
 });
 waitingCancel.addEventListener('click', () => {
   analysisRequestGate.cancel();
@@ -243,6 +265,7 @@ function showToast(message) {
 }
 
 async function runAnalysis() {
+  if (analyzing) return;
   refreshNotebookChoices();
   const autoCourse = Boolean(request.autoCourse);
   const createFirstCourse = autoCourse && Object.keys(allCourses()).length === 0;

@@ -64,7 +64,7 @@ const {createServer} = require('../server/server.cjs');
             assert.ok(size.scroll<=size.width+1 && size.height>80, JSON.stringify(size));
             await reachable(face+' [data-action=bookmark]');
             assert.equal(await page.locator('#card-navigation').count(), 0);
-            if (face === '.card-front') { await page.locator(face+' [data-action=flip]').last().click();
+            if (face === '.card-front') { await page.locator(face+' [data-field=en]').click();
               await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy')); }
             else {
               await page.locator(face).evaluate(e => {e.scrollTop=e.scrollHeight;});

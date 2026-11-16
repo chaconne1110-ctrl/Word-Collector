@@ -31,13 +31,15 @@
   /* Waiting screen shown while the word is analysed. */
   #analysis-waiting {
     position: fixed; inset: 0; z-index: 70;
+    width: 100%; height: 100%; max-width: none; margin: 0; border: 0;
     display: flex; align-items: center; justify-content: center;
-    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
     background: rgba(250, 248, 255, .96);
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
   #analysis-waiting .wc-wait-card {
     width: 100%; max-width: 360px; box-sizing: border-box;
+    max-height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
     padding: 28px 22px 22px; border-radius: 20px; background: #fff;
     box-shadow: 0 12px 40px rgba(19, 27, 46, .12); text-align: center; color: #131b2e;
   }
@@ -83,6 +85,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Word Collector"><link rel="stylesheet" href="../assets/styles/mobile-layout.css"></head><body data-page="capture" data-capture-step="review" class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="단어 입력으로 돌아가기" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="review-back" onclick="goBackToInput()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight whitespace-nowrap">단어 분석</h1></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface overflow-y-auto"><div class="px-margin pt-space-md flex flex-col gap-space-md" style="padding-bottom: 1rem;">
+<p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p>
 <section id="analysis-error" hidden class="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/30 space-y-3" role="alert">
   <h2 class="font-bold text-lg">분석하지 못했어요</h2>
   <p id="analysis-error-message" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
@@ -113,7 +116,7 @@
   </section>
 </form>
 </div></main>
-<div id="analysis-waiting" hidden role="dialog" aria-modal="true" aria-labelledby="analysis-waiting-title" aria-describedby="analysis-waiting-elapsed">
+<dialog id="analysis-waiting" hidden aria-modal="true" aria-labelledby="analysis-waiting-title" aria-describedby="analysis-waiting-elapsed">
   <div class="wc-wait-card">
     <div class="wc-spinner" aria-hidden="true"></div>
     <h2 id="analysis-waiting-title">AI가 단어를 분석하고 있어요</h2>
@@ -126,9 +129,9 @@
       <button type="button" id="analysis-waiting-cancel">취소</button>
     </div>
   </div>
-</div>
+</dialog>
 <div class="p-margin bg-surface/90 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2 z-40" id="analysis-action-bar">
-<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="save-action-btn" type="submit" form="analysis-review" hidden><span class="material-symbols-outlined text-[20px]">bookmark_add</span><span>단어장에 저장</span></button><p id="analysis-status" role="status" aria-live="polite" class="font-caption text-caption text-on-surface-variant"></p></div>
+<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md hover:opacity-95 active:scale-[0.99] transition-all" id="save-action-btn" type="submit" form="analysis-review" hidden><span class="material-symbols-outlined text-[20px]">bookmark_add</span><span>단어장에 저장</span></button></div>
 </div>
 
 <nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-on-surface-variant hover:text-on-surface" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-primary-container font-semibold transition-colors" data-path="quick-capture" href="code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
