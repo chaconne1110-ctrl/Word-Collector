@@ -6,7 +6,14 @@ const fs = require('node:fs');
 const {parseEnv} = require('node:util');
 
 const MODEL = 'gemini-4-hydrogen';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// Model per app version: apps that accept Gemini 4 results list it in the
+// X-WC-Models header. Older web pages and installed APKs (v2 and earlier) only
+// accept results from LEGACY_MODEL, so they keep getting that model.
+const LEGACY_MODEL = 'gemini-3.5-flash-lite';
+function analysisModelFor(header) {
+  return String(header || '').split(',').map(model => model.trim()).includes(MODEL) ? MODEL : LEGACY_MODEL;
+}
+const endpointFor = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 const BODY_LIMIT = 256 * 1024;
 const CORE_FIELDS = ['englishTerm', 'koreanMeaning', 'specialization', 'notebookName',
   'englishDefinition', 'koreanDefinition', 'exampleSentence'];
@@ -231,7 +238,7 @@ async function readJson(req) {
     req.on('error', () => reject(new ApiError(400, '분석 요청을 끝까지 읽지 못했습니다.')));
   });
 }
-async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
+async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODEL}) {
   const controller = new AbortController();
   let timeout;
   const deadline = new Promise((_, reject) => {
@@ -241,7 +248,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     }, timeoutMs);
   });
   const request = (async () => {
-    const response = await fetchImpl(ENDPOINT, {
+    const response = await fetchImpl(endpointFor(model), {
       method: 'POST', signal: controller.signal, redirect: 'error',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
@@ -273,7 +280,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     try { output = JSON.parse(text); }
     catch { throw new ApiError(502, 'AI가 올바른 JSON을 반환하지 않았습니다. 다시 분석해 주세요.'); }
     const analysis = validateOutput(output, input);
-    if (!input.legacy) return {analysis, model:MODEL};
+    if (!input.legacy) return {analysis, model};
     for (const name of input.translateReference ? ['pos'] : ['pos','exampleKo']) {
       if (typeof output[name] !== 'string' || !output[name].trim() || output[name].length > 1200) {
         throw new ApiError(502, 'AI 분석 결과의 품사 또는 예문 번역을 확인하지 못했습니다. 다시 분석해 주세요.');
@@ -291,7 +298,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       relatedWords:analysis.relatedWords.map(word => ({en:word.englishTerm, ko:word.koreanMeaning})),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
-      course:analysis.notebookName, model:MODEL,
+      course:analysis.notebookName, model,
       ...(input.autoSubject ? {classification:{
         reason:analysis.recommendationReason,
         relatedTerms:analysis.relatedTerms.map(label => {
@@ -338,7 +345,7 @@ function createServer({apiKey = process.env.GEMINI_API_KEY || '', fetchImpl = gl
       if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, {error: 'POST 요청을 사용해 주세요.'}); }
       const input = validateInput(await readJson(req));
       if (!key) throw new ApiError(503, 'PC 서버의 server/.env에 Gemini API 키를 설정해 주세요.');
-      const result = await analyze(input, {apiKey: key, fetchImpl, timeoutMs});
+      const result = await analyze(input, {apiKey: key, fetchImpl, timeoutMs, model: analysisModelFor(req.headers['x-wc-models'])});
       return json(res, 200, result);
     } catch (error) {
       const status = error instanceof ApiError ? error.status : 502;
@@ -375,4 +382,4 @@ if (require.main === module) {
     }
   }
 }
-module.exports = {createServer, MODEL, readApiKey};
+module.exports = {createServer, MODEL, LEGACY_MODEL, readApiKey};

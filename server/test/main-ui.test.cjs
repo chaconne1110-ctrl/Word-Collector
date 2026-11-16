@@ -23,9 +23,9 @@ test('GitHub main legacy analysis contract maps saved evidence and seven export 
     notebooks:[{course:'전자기학',words:[{en:'Skin Effect',ko:'표피 효과',enDef:'A current distribution effect.',koDef:'전류 분포 현상.'}]},
       {course:'전기기기',words:[]}]});
   assert.equal(response.status,200);const body=await response.json();
-  assert.equal(body.model,'gemini-4-hydrogen');assert.equal(body.discipline,'전기공학');assert.equal(body.exampleKo,value.exampleKo);
+  assert.equal(body.model,'gemini-3.5-flash-lite');assert.equal(body.discipline,'전기공학');assert.equal(body.exampleKo,value.exampleKo);
   assert.deepEqual(body.classification.relatedTerms,[{en:'Skin Effect',ko:'표피 효과'}]);assert.equal(body.classification.reviewedWords,1);
-  assert.equal(calls.length,1);assert.match(calls[0].url,/gemini-4-hydrogen:generateContent$/);
+  assert.equal(calls.length,1);assert.match(calls[0].url,/gemini-3.5-flash-lite:generateContent$/);
   assert.ok(calls[0].body.generationConfig.responseSchema.required.includes('exampleKo'));
 });
 test('legacy direct selection remains the save course with highest-priority reference',async t=>{

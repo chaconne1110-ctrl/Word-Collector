@@ -2,7 +2,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {once} = require('node:events');
-const {createServer, MODEL} = require('../server.cjs');
+const {createServer, MODEL, LEGACY_MODEL} = require('../server.cjs');
 
 const fixture = () => ({
   word: '와전류', referenceText: '시간에 따라 변하는 자기장이 도체에 와전류를 유도한다.', autoSubject: true, selectedSubject: '전기기기',
@@ -25,6 +25,32 @@ async function serverFor(t, options) {
   return {server, url, send: body => fetch(`${url}/api/analyze`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)})};
 }
 
+test('model per app: X-WC-Models with Gemini 4 gets Gemini 4; older apps (no header) keep the previous model', async t => {
+  assert.equal(MODEL, 'gemini-4-hydrogen');
+  assert.equal(LEGACY_MODEL, 'gemini-3.5-flash-lite');
+  const urls = [];
+  const {url} = await serverFor(t, {fetchImpl: async target => { urls.push(target); return upstream(output()); }});
+  for (const headers of [{'x-wc-models': 'gemini-4-hydrogen'}, {}, {'x-wc-models': 'gemini-9-unknown'}]) {
+    const response = await fetch(`${url}/api/analyze`, {method: 'POST',
+      headers: {'content-type': 'application/json', ...headers}, body: JSON.stringify(fixture())});
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).model, headers['x-wc-models'] === MODEL ? MODEL : LEGACY_MODEL);
+  }
+  assert.deepEqual(urls.map(target => target.split('/models/')[1]), [
+    'gemini-4-hydrogen:generateContent', 'gemini-3.5-flash-lite:generateContent', 'gemini-3.5-flash-lite:generateContent']);
+});
+
+test('the app asks for Gemini 4 and accepts both models; the Worker allows the header (CORS) and negotiates', () => {
+  const fs = require('node:fs');
+  const api = fs.readFileSync('www/analysis-api.js', 'utf8');
+  assert.match(api, /const ACCEPTED_MODELS = \[MODEL, 'gemini-3\.5-flash-lite'\];/);
+  assert.match(api, /'X-WC-Models': MODEL/);
+  assert.match(api, /!ACCEPTED_MODELS\.includes\(result\.model\)/);
+  const worker = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
+  assert.match(worker, /'Authorization, Content-Type, X-WC-Device, X-WC-Models'/);
+  assert.match(worker, /model: analysisModelFor\(request\.headers\.get\('X-WC-Models'\)\)/);
+});
+
 test('health identifies the fixed model without calling Gemini or exposing key', async t => {
   const {url} = await serverFor(t, {fetchImpl: () => assert.fail('health must not call Gemini')});
   const response = await fetch(`${url}/health`);
@@ -35,14 +61,14 @@ test('health identifies the fixed model without calling Gemini or exposing key',
 test('Korean auto classification sends actual notebook definitions, strict schema and one fixed-model request', async t => {
   let calls = 0, sent;
   const {send} = await serverFor(t, {fetchImpl: async (url, init) => {
-    calls++; assert.ok(url.endsWith('/gemini-4-hydrogen:generateContent'));
+    calls++; assert.ok(url.endsWith('/gemini-3.5-flash-lite:generateContent'));
     assert.equal(init.headers['x-goog-api-key'], 'test-secret-never-print');
     assert.equal(init.redirect, 'error');
     sent = JSON.parse(init.body); return upstream(output());
   }});
   const request = fixture(), before = JSON.stringify(request);
   const response = await send(request), data = await response.json();
-  assert.equal(response.status, 200); assert.equal(calls, 1); assert.equal(data.model, MODEL);
+  assert.equal(response.status, 200); assert.equal(calls, 1); assert.equal(data.model, LEGACY_MODEL); // no X-WC-Models header: older app
   assert.equal(data.analysis.notebookName, '전자기학');
   assert.deepEqual(data.analysis.relatedTerms, ['eddy current']);
   // Requests without a meaning choice default to the major meaning (older apps).

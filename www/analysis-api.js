@@ -1,6 +1,9 @@
 (function (root) {
   'use strict';
   const MODEL = 'gemini-4-hydrogen';
+  // This app asks for Gemini 4 (X-WC-Models). A server that has not been updated
+  // yet answers with the previous model; both results are accepted.
+  const ACCEPTED_MODELS = [MODEL, 'gemini-3.5-flash-lite'];
   const CLOUD_URL = 'https://word-collector-api.yechan-lim-elec.workers.dev';
   // Earlier deployed Workers reject user-created manual notebooks and all-empty auto notebooks
   // on the legacy request shape, even though their modern request shape accepts both.
@@ -67,7 +70,7 @@
     baseUrl = CLOUD_URL, token = '', deviceId = ''} = {}) {
     if (![CLOUD_URL, '', 'http://127.0.0.1:8787'].includes(baseUrl)) throw new Error('허용되지 않은 분석 서버입니다.');
     const cloud = baseUrl === CLOUD_URL;
-    const headers = {'Content-Type':'application/json'};
+    const headers = {'Content-Type':'application/json', 'X-WC-Models': MODEL};
     // AI works without a tester code: each app install has its own daily quota
     // (analysis 200 + image 200), keyed by a random per-install device ID.
     if (cloud && /^wd_[a-f0-9]{64}$/.test(deviceId)) headers['X-WC-Device'] = deviceId;
@@ -118,7 +121,7 @@
       if (!(status >= 200 && status < 300)) {
         throw Object.assign(new Error(result?.error || '분석 요청에 실패했습니다.'), {status});
       }
-      if (!result || result.model !== MODEL) throw new Error('분석 서버의 모델 설정을 확인해 주세요.');
+      if (!result || !ACCEPTED_MODELS.includes(result.model)) throw new Error('분석 서버의 모델 설정을 확인해 주세요.');
       const required = ['en','ko','discipline','enDef','koDef','exampleEn','course'];
       if (!result.needsManualCompletion) required.push('pos','exampleKo');
       for (const key of required) {

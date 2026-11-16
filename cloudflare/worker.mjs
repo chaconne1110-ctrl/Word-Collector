@@ -8,7 +8,14 @@ const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
 const IMAGE_PERSONAL_LIMIT = 200;
 const IMAGE_GLOBAL_LIMIT = 1500;
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
-const ENDPOINT = `${GEMINI_ORIGIN}/v1beta/models/${MODEL}:generateContent`;
+// Model per app version: apps that accept Gemini 4 results list it in the
+// X-WC-Models header. Older web pages and installed APKs (v2 and earlier) only
+// accept results from LEGACY_MODEL, so they keep getting that model.
+const LEGACY_MODEL = 'gemini-3.5-flash-lite';
+function analysisModelFor(header) {
+  return String(header || '').split(',').map(model => model.trim()).includes(MODEL) ? MODEL : LEGACY_MODEL;
+}
+const endpointFor = model => `${GEMINI_ORIGIN}/v1beta/models/${model}:generateContent`;
 
 // Gemini rejects some Cloudflare egress locations ("User location is not
 // supported"). When GEMINI_RELAY_URL is set, every Gemini call is sent to that
@@ -280,7 +287,7 @@ async function fetchWithLocationRetry(fetchImpl, url, options) {
   }
 }
 
-async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
+async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODEL}) {
   const controller = new AbortController();
   let timeout;
   const deadline = new Promise((_, reject) => {
@@ -292,7 +299,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
   const request = (async () => {
     let response;
     try {
-    response = await fetchWithLocationRetry(fetchImpl, ENDPOINT, {
+    response = await fetchWithLocationRetry(fetchImpl, endpointFor(model), {
       method: 'POST', signal: controller.signal, redirect: 'manual',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
@@ -339,7 +346,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
     try { output = JSON.parse(text); }
     catch { throw new ApiError(502, 'AI가 올바른 JSON을 반환하지 않았습니다. 다시 분석해 주세요.'); }
     const analysis = validateOutput(output, input);
-    if (!input.legacy) return {analysis, model:MODEL};
+    if (!input.legacy) return {analysis, model};
     for (const name of input.translateReference ? ['pos'] : ['pos','exampleKo']) {
       if (typeof output[name] !== 'string' || !output[name].trim() || output[name].length > 1200) {
         throw new ApiError(502, 'AI 분석 결과의 품사 또는 예문 번역을 확인하지 못했습니다. 다시 분석해 주세요.');
@@ -357,7 +364,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
       relatedWords:analysis.relatedWords.map(word => ({en:word.englishTerm, ko:word.koreanMeaning})),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
-      course:analysis.notebookName, model:MODEL,
+      course:analysis.notebookName, model,
       ...(input.autoSubject ? {classification:{
         reason:analysis.recommendationReason,
         relatedTerms:analysis.relatedTerms.map(label => {
@@ -943,7 +950,7 @@ const handler = {
       phase = 'GEMINI';
       let output;
       try {
-        output = await analyze(input, {
+        output = await analyze(input, {model: analysisModelFor(request.headers.get('X-WC-Models')),
           apiKey: env.GEMINI_API_KEY, fetchImpl: geminiFetch(env), timeoutMs: 30000
         });
       } catch (error) {
@@ -975,7 +982,7 @@ export default {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Vary', 'Origin');
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device');
+      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device, X-WC-Models');
     }
     return response;
   }
