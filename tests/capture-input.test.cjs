@@ -8,3 +8,9 @@ test('word input has no dead microphone button (use the keyboard voice input)', 
   assert.match(html, /<input class="[^"]*\bpx-4\b[^"]*" id="term-unified-input"/);
   assert.doesNotMatch(fs.readFileSync('android/app/src/main/AndroidManifest.xml', 'utf8'), /RECORD_AUDIO/);
 });
+
+test('word list search hint matches what is searched (no formula symbols any more)', () => {
+  const html = fs.readFileSync('www/words.html', 'utf8');
+  assert.match(html, /placeholder="단어, 뜻, 관련 단어 검색\.\.\."/);
+  assert.doesNotMatch(html, /수식 기호/);
+});
