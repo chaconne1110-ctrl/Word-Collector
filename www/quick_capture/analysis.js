@@ -192,6 +192,12 @@ function updateReviewTarget() {
     ' · 저장: ' + (draft.newCourseName || courseNames(draft.selected)[0]);
 }
 
+// The destination is always among the notebooks sent to the server, even
+// before it exists (a new notebook, or a deleted 일반 단어장).
+function withNotebook(notebooks, name) {
+  return notebooks.some(book => book.course === name) ? notebooks : [...notebooks, {course: name, words: []}];
+}
+
 function currentNotebooks() {
   state = load();
   return Object.keys(allCourses()).map(id => [id, courseNames(id)]).map(([id, [course]]) => ({
@@ -305,12 +311,20 @@ async function runAnalysis() {
   const term = request.term.trim();
   const selected = request.selected || '';
   const context = (request.context || '').trim();
+  // 전공 의미 + 새 단어장: the user typed the name; the notebook is created on save.
+  const requestedNewCourse = !autoCourse && typeof request.newCourseName === 'string' ?
+    request.newCourseName.trim().slice(0, 60) : '';
+  // 일반 의미 always goes to the 일반 단어장 (recreated on save if it was deleted).
+  const toGeneral = !autoCourse && !requestedNewCourse && selected === GENERAL_COURSE_ID;
+  const createsCourse = createFirstCourse || Boolean(requestedNewCourse);
+  const destinationName = requestedNewCourse ||
+    (toGeneral && !hasCourse(GENERAL_COURSE_ID) ? GENERAL_COURSE_NAME : courseNames(selected)[0]);
   errorCard.hidden = true;
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     showError('한국어 또는 영어 전공 단어를 입력하세요.');
     return;
   }
-  if (!autoCourse && (!selected || !hasCourse(selected))) {
+  if (!autoCourse && !requestedNewCourse && !toGeneral && (!selected || !hasCourse(selected))) {
     showError('저장할 단어장이 없거나 삭제됐습니다. 입력 화면에서 단어장을 다시 선택해 주세요.');
     return;
   }
@@ -334,12 +348,12 @@ async function runAnalysis() {
   status.textContent = '';
   try {
     const result = await WordCollectorAI.request({term,
-      course: autoCourse ? undefined : courseNames(selected)[0], context, autoCourse,
+      course: autoCourse ? undefined : destinationName, context, autoCourse,
       translateReference: Boolean(context),
       // 의미 기준: everyday meaning, or the meaning in the major the user typed.
       meaningMode: request.meaningMode === 'major' && request.majorField ? 'major' : 'general',
       ...(request.meaningMode === 'major' && request.majorField ? {majorField: String(request.majorField).trim().slice(0, 60)} : {}),
-      notebooks: currentNotebooks()}, {signal:ticket.signal});
+      notebooks: autoCourse ? currentNotebooks() : withNotebook(currentNotebooks(), destinationName)}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     // Two related English words, one per line (no meanings), editable before saving.
     result.related = Array.isArray(result.relatedWords) ? result.relatedWords
@@ -356,8 +370,9 @@ async function runAnalysis() {
     translationLabel.hidden = !context || fromReference;
     translationLabel.firstChild.textContent = '참고 문장 ' + referenceTranslationLabel(context);
     let target = autoCourse ?
-      Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) : selected;
-    let newCourseName;
+      Object.keys(allCourses()).find(id => courseNames(id)[0] === result.course) :
+      requestedNewCourse ? 'notebook_' + crypto.randomUUID() : selected;
+    let newCourseName = requestedNewCourse || undefined;
     if (createFirstCourse) {
       if (typeof result.course !== 'string' || !result.course.trim() || result.course.trim().length > 60) {
         throw new Error('새 단어장 이름을 확인하지 못했습니다. 다시 분석해 주세요.');
@@ -369,15 +384,20 @@ async function runAnalysis() {
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, newCourseName, createsCourse: createFirstCourse, suggestedCourseName: newCourseName, referenceSentence: context,
+    draft = {term, newCourseName, createsCourse, suggestedCourseName: createFirstCourse ? newCourseName : undefined, referenceSentence: context,
       exampleSource: context && result.exampleSource === 'reference' ? 'reference' : '', model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     // Users always control the destination, including when the notebook contains no words.
     // With no notebooks yet, they review (and may edit) the new notebook's name instead.
-    $('#review-course-row').hidden = createFirstCourse;
-    $('#review-new-course-row').hidden = !createFirstCourse;
-    if (createFirstCourse) newCourseInput.value = newCourseName;
-    else reviewCourse.value = target;
+    $('#review-course-row').hidden = createsCourse;
+    $('#review-new-course-row').hidden = !createsCourse;
+    if (createsCourse) newCourseInput.value = newCourseName;
+    else {
+      if (toGeneral && !hasCourse(GENERAL_COURSE_ID)) reviewCourse.add(new Option(GENERAL_COURSE_NAME, GENERAL_COURSE_ID));
+      reviewCourse.value = target;
+    }
+    // 일반 의미 words always go to the 일반 단어장.
+    reviewCourse.disabled = toGeneral;
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
@@ -389,7 +409,7 @@ async function runAnalysis() {
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
-      createFirstCourse ? '분석 완료. 새 단어장 이름과 결과를 검토한 뒤 저장하세요.' : '분석 완료. 아래 결과를 검토하세요.';
+      createsCourse ? '분석 완료. 새 단어장 이름과 결과를 검토한 뒤 저장하세요.' : '분석 완료. 아래 결과를 검토하세요.';
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     showError(['TimeoutError','AbortError'].includes(error.name) ?
@@ -453,6 +473,8 @@ async function saveReview() {
       const sameName = Object.keys(courses).find(id => normalize(courses[id][0]) === normalize(draft.newCourseName));
       if (sameName) draft.selected = sameName;
       else courses[draft.selected] = [draft.newCourseName, ''];
+    } else if (draft.selected === GENERAL_COURSE_ID && !hasCourse(GENERAL_COURSE_ID)) {
+      courses[GENERAL_COURSE_ID] = [GENERAL_COURSE_NAME, ''];
     } else if (!hasCourse(draft.selected)) {
       status.textContent = '저장할 단어장이 삭제됐습니다. 단어장을 다시 선택해 주세요.';
       return;
@@ -463,7 +485,9 @@ async function saveReview() {
     const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
     if (draft.exampleSource) word.exampleSource = draft.exampleSource;
     else delete word.exampleSource;
-    if (commit({...state, courses, terms: {...state.terms, [id]: word}})) {
+    // A recreated 일반 단어장 is no longer marked as deleted.
+    const deleted = state.deletedCourses ? {deletedCourses: state.deletedCourses.filter(courseId => courseId !== draft.selected)} : {};
+    if (commit({...state, ...deleted, courses, terms: {...state.terms, [id]: word}})) {
       draft = null;
       // Saved: the next visit to the input page starts empty.
       try { sessionStorage.removeItem(CAPTURE_REQUEST_KEY); sessionStorage.removeItem(CAPTURE_STARTED_KEY); } catch {}

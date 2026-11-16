@@ -26,10 +26,15 @@ const {createServer}=require('../server/server.cjs');
    for(const removed of ['AI 어시스턴트 활성','논문 및 전공 원서 맞춤형 AI 추출 파이프라인','분석 결과는 검수 후 단어장에 저장할 수 있어요.','영문 표제어, 국문 역어, 병기 표기 모두 입력 가능하며 AI가 형태소 및 어휘를 자동 파싱합니다.','PDF / 자료 첨부','카메라 스캔 OCR']) assert.ok(!text.includes(removed),removed);
    assert.equal(await page.locator('#btn-mode-direct,#section-mode-direct,#tab-ref-pdf,#tab-ref-sentence,#ref-section-pdf,#custom-subject-input').count(),0);
    await page.locator('#term-unified-input').fill('current');
-   await page.locator('#btn-mode-ai').click();
-   assert.ok(await page.locator('#section-mode-ai').isVisible());
-   await page.locator('#btn-mode-existing').click();
-   assert.ok(await page.locator('#section-mode-existing').isVisible());
+   // 일반 의미 (default) saves to the 일반 단어장; 전공 의미 asks for the major and a notebook.
+   assert.ok(await page.locator('#section-meaning-general').isVisible());
+   assert.equal(await page.locator('#general-notebook-name').textContent(),'일반 단어장');
+   await page.locator('#btn-meaning-major').click();
+   await page.locator('#major-input').fill('전기공학');
+   assert.ok(await page.locator('#section-dest-new').isVisible());
+   await page.locator('#btn-dest-existing').click();
+   assert.ok(await page.locator('#section-dest-existing').isVisible());
+   assert.deepEqual(await page.locator('#subject-select option').evaluateAll(o=>o.map(e=>e.value)),['book']);
    await page.locator('#context-sentence-input').fill('Current flows through a conductor.');
    // The tester-code panel was removed; AI works without a code.
    assert.equal(await page.locator('#ai-auth-settings,#tester-token,#register-tester').count(),0);
@@ -54,11 +59,14 @@ const {createServer}=require('../server/server.cjs');
   }
   await page.evaluate(()=>localStorage.removeItem('lexicon-word-collector-v1'));
   await page.goto(base+'/quick_capture/code.html');
+  // Fresh install: only the 일반 단어장, so 전공 의미 can only make a new notebook.
+  await page.locator('#btn-meaning-major').click();
   assert.ok(await page.locator('#no-notebooks').isVisible());
-  assert.ok(await page.locator('#section-mode-ai').isVisible());
-  assert.ok(await page.locator('#btn-mode-existing').isDisabled());
-  await page.locator('#no-notebooks a').click();await page.waitForURL('**/index.html');
+  assert.ok(await page.locator('#section-dest-new').isVisible());
+  assert.ok(await page.locator('#btn-dest-existing').isDisabled());
+  await page.goto(base+'/index.html');
   assert.ok(await page.locator('#create-notebook').isVisible());
+  assert.equal(await page.locator('[data-subject="general-meaning"]').count(),1);
   assert.deepEqual(errors,[]);
   console.log('PASS: removed controls/text, two modes, authentication, analysis/review/save, no horizontal overflow or action/menu overlap at 320/390/844px and safe insets 0/34, empty-notebook home link.');
  }finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));}

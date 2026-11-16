@@ -48,7 +48,7 @@ const {createServer}=require('../server/server.cjs');
     assert.equal(word.course,'electrical-machines');assert.equal(word.ko,'검수한 와전류');assert.equal(word.analysisModel,'gemini-3.5-flash-lite');
     await page.reload();assert.ok((await page.locator('body').textContent()).includes('eddy current'));
     await page.goto(base+'/quick_capture/code.html');
-    await page.locator('#btn-mode-existing').click();
+    await page.locator('#btn-meaning-major').click();await page.locator('#major-input').fill('전기공학');await page.locator('#btn-dest-existing').click();
     await page.locator('#subject-select').selectOption('electrical-machines');
     await page.locator('#term-unified-input').fill('Transformer');
     await page.locator('#context-sentence-input').fill('Self-attention is used in natural language processing.');

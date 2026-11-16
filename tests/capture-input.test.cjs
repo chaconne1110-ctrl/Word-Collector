@@ -22,6 +22,6 @@ test('screens call the storage place 단어장 (never 과목); 전공 is only th
     assert.doesNotMatch(fs.readFileSync('www/' + file, 'utf8'), /과목/, file);
   }
   const capture = fs.readFileSync('www/quick_capture/code.html', 'utf8');
-  assert.match(capture, /AI 단어장 자동 분류/);
+  assert.match(capture, /<span class="text-\[12px\]">새 단어장<\/span>/);
   assert.match(capture, /기존 단어장 선택/);
 });

@@ -26,11 +26,12 @@ function run(initial) {
     memory
   };
 }
-test('fresh installation has no notebooks, words, or bookmarks', () => {
+test('fresh installation has only the 일반 단어장 (no words or bookmarks)', () => {
   const app = run();
-  assert.deepEqual(app.state(), {courses:{},terms:{},saved:[]});
-  assert.equal(app.get('Object.keys(allCourses()).length'), 0);
-  assert.equal(app.memory.size, 0);
+  const expected = {courses:{'general-meaning':['일반 단어장','']},terms:{},saved:[]};
+  assert.deepEqual(app.state(), expected);
+  assert.equal(app.get('Object.keys(allCourses()).length'), 1);
+  assert.equal(app.memory.get('lexicon-word-collector-v1'), JSON.stringify(expected));
 });
 test('previously saved data remains untouched on upgrade', () => {
   const saved = {
@@ -39,10 +40,19 @@ test('previously saved data remains untouched on upgrade', () => {
     saved:['a']
   };
   const app = run(saved);
-  assert.deepEqual(app.state(), saved);
+  // Existing records are kept as they are; only the 일반 단어장 is added (listed first).
+  const expected = {...saved, courses:{'general-meaning':['일반 단어장',''], ...saved.courses}};
+  assert.deepEqual(app.state(), expected);
+  assert.deepEqual(Object.keys(app.state().courses), ['general-meaning', 'electromagnetics']);
   assert.equal(app.get('courseNames("electromagnetics")[0]'), '내가 수정한 단어장');
-  assert.equal(app.get('Object.keys(allCourses()).length'),1);
-  assert.equal(app.memory.get('lexicon-word-collector-v1'),JSON.stringify(saved));
+  assert.equal(app.get('Object.keys(allCourses()).length'),2);
+  assert.equal(app.memory.get('lexicon-word-collector-v1'),JSON.stringify(expected));
+});
+test('a deleted 일반 단어장 is not brought back on start-up', () => {
+  const saved = {courses:{}, terms:{}, saved:[], deletedCourses:['general-meaning']};
+  const app = run(saved);
+  assert.deepEqual(app.state(), saved);
+  assert.equal(app.memory.get('lexicon-word-collector-v1'), JSON.stringify(saved));
 });
 test('home can create empty notebooks without requiring AI usage', () => {
   const html=fs.readFileSync('www/index.html','utf8');
@@ -60,9 +70,9 @@ test('home can create empty notebooks without requiring AI usage', () => {
   // v7: the word input page (notebook choice) lives in capture.js
   const add=fs.readFileSync('www/quick_capture/capture.js','utf8');
   assert.match(add,/if \(!notebookEntries\.length\)/);
-  assert.match(add,/setCategoryMode\('ai'\)/);
+  assert.match(add,/setDestinationMode\('new'\)/);
   const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.doesNotMatch(capturePage,/등록된 4개 과목/);
   assert.match(capturePage,/id="existing-notebook-count"/);
-  assert.match(capturePage,/홈에서 단어장 만들기/);
+  assert.match(capturePage,/아직 전공 단어장이 없어요/);
 });

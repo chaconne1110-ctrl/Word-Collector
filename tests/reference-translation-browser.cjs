@@ -36,7 +36,7 @@ const {createServer} = require('../server/server.cjs');
     });
     await page.goto(base+'/quick_capture/code.html');
     await setupAnalysisClient(page, () => WordCollectorAI.setLocalServer(true));
-    await page.locator('#btn-mode-existing').click();
+    await page.locator('#btn-meaning-major').click();await page.locator('#major-input').fill('전기공학');await page.locator('#btn-dest-existing').click();
     await page.locator('#term-unified-input').fill('current');
     await page.locator('#context-sentence-input').fill(reference);
     await page.locator('#submit-action-btn').click();

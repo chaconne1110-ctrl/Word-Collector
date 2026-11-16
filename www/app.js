@@ -24,6 +24,20 @@ function commit(next) {
   }
 }
 
+// Every install has one notebook for words in their everyday (일반) meaning,
+// listed first on the home screen. It is added once, on a new install or an
+// upgrade. If the user deletes it, it comes back only when they save a word
+// in the general meaning again (see the analysis page).
+const GENERAL_COURSE_ID = 'general-meaning';
+const GENERAL_COURSE_NAME = '일반 단어장';
+if (!state.courses?.[GENERAL_COURSE_ID] && !(state.deletedCourses || []).includes(GENERAL_COURSE_ID)) {
+  const next = {...state, courses: {[GENERAL_COURSE_ID]: [GENERAL_COURSE_NAME, ''], ...(state.courses || {})}};
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    state = next;
+  } catch { /* Storage blocked: the notebook is added when a word is saved. */ }
+}
+
 // A user's reference sentence is translated into the other language: mostly
 // Korean -> English translation, otherwise -> Korean translation. One Hangul
 // syllable is weighted as two Latin letters (same rule as the Worker).

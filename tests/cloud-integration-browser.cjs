@@ -28,7 +28,7 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
   assert.equal(await page.locator('nav a').count(),4);
   // No tester-code UI: analysis is sent with the per-device ID only.
   assert.equal(await page.locator('#tester-token').count(),0);
-  await page.locator('#btn-mode-existing').click();
+  await page.locator('#btn-meaning-major').click();await page.locator('#major-input').fill('전기공학');await page.locator('#btn-dest-existing').click();
   await page.locator('#subject-select').selectOption('electrical-machines');
   await page.locator('#term-unified-input').fill('변압기 Transformer');
   await page.locator('#context-sentence-input').fill('Self-attention processes language.');
@@ -46,7 +46,7 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
    assert.equal(await page.locator('nav a').count(),4);
   }
   await page.goto(base+'quick_capture/code.html');
-  await page.locator('#btn-mode-existing').click();await page.locator('#term-unified-input').fill('Voltage');
+  await page.locator('#btn-meaning-major').click();await page.locator('#major-input').fill('전기공학');await page.locator('#btn-dest-existing').click();await page.locator('#term-unified-input').fill('Voltage');
   await page.locator('#submit-action-btn').click();
   await page.waitForFunction(()=>document.querySelector('#analysis-status').textContent.includes('인증 코드'));
   assert.equal(calls,1);assert.deepEqual(errors,[]);
