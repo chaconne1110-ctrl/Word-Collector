@@ -6,7 +6,7 @@ const source = fs.readFileSync('www/analysis-api.js', 'utf8');
 const code = 'wc_' + 'a'.repeat(64);
 
 const response = {
-  model: 'gemini-3.5-flash-lite',
+  model: 'gemini-4-hydrogen',
   en: 'Transformer', ko: '변압기', discipline: '전기기기', pos: 'noun',
   enDef: 'An electrical transformer.', koDef: '변압기.',
   exampleEn: 'The transformer steps down voltage.',

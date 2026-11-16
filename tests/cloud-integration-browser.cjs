@@ -13,7 +13,7 @@ const base=(process.env.WC_WEB_BASE_URL || 'http://127.0.0.1:8000/').replace(/\/
    assert.match(route.request().headers()['x-wc-device']||'',/^wd_[a-f0-9]{64}$/);
    const input=route.request().postDataJSON();assert.equal(input.term,'변압기 Transformer');assert.equal(input.autoCourse,false);
    assert.equal(input.context,'Self-attention processes language.');assert.equal(input.course,'전기기기');
-   await route.fulfill({json:{model:'gemini-3.5-flash-lite',en:'Transformer',ko:'트랜스포머',discipline:'인공지능',pos:'noun',
+   await route.fulfill({json:{model:'gemini-4-hydrogen',en:'Transformer',ko:'트랜스포머',discipline:'인공지능',pos:'noun',
     enDef:'A neural network architecture.',koDef:'신경망 구조.',exampleEn:'A transformer processes language.',exampleKo:'트랜스포머는 언어를 처리한다.',course:'전기기기'}});
   });
   await page.goto(base);

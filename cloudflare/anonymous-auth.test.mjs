@@ -165,7 +165,7 @@ test('anonymous usage debits both model-specific and shared IP limits atomically
   const {env,state}=fakeEnv();
   let gemini=0,image=0;
   const restore=withMockFetch((url,init)=>{
-    if(String(url).includes('gemini-3.5-flash-lite')) {
+    if(String(url).includes('gemini-4-hydrogen')) {
       gemini++;
       return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(analysisOutput)}]}}]});
     }

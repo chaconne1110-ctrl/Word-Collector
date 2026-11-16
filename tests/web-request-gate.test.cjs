@@ -40,7 +40,7 @@ test('web analyze fetch forwards cancellation',async()=>{
   const ctl=new AbortController();let signal;
   const client=createClient({token,fetchImpl:async(_url,opts)=>{
     signal=opts.signal;
-    return new Response(JSON.stringify({model:'gemini-3.5-flash-lite',en:'Voltage',
+    return new Response(JSON.stringify({model:'gemini-4-hydrogen',en:'Voltage',
       ko:'전압',discipline:'전기공학',enDef:'Potential difference',koDef:'전위차',
       exampleEn:'Voltage rises.',exampleKo:'전압 상승',pos:'noun',course:'전력공학'}));
   }});

@@ -14,7 +14,7 @@ const analysis={
   explanation:'변압기입니다.',recommendationReason:'단어장 이름과 단어 입력으로 임시 추천',
   relatedTerms:[]
 };
-const modern={model:'gemini-3.5-flash-lite',analysis};
+const modern={model:'gemini-4-hydrogen',analysis};
 function mockFetch(firstMessage, outcomes) {
   const calls=[];
   const fn=async(url,options)=>{
@@ -90,7 +90,7 @@ test('native HTTPS fallback uses CapacitorHttp and never sends token in payload'
   assert.equal(result.needsManualCompletion,true);
 });
 test('successful legacy response is not rewritten or retried',async()=>{
-  const response={model:'gemini-3.5-flash-lite',en:'Voltage',ko:'전압',discipline:'전기공학',
+  const response={model:'gemini-4-hydrogen',en:'Voltage',ko:'전압',discipline:'전기공학',
     pos:'noun',enDef:'Potential difference.',koDef:'전위차.',exampleEn:'Voltage rises.',
     exampleKo:'전압이 상승한다.',course:'전력공학'};
   let calls=0;

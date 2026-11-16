@@ -91,7 +91,7 @@ test('health is available without exposing secrets', async () => {
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.ok, true);
-  assert.equal(body.model, 'gemini-3.5-flash-lite');
+  assert.equal(body.model, 'gemini-4-hydrogen');
   assert.equal(body.status, 'disabled-for-review');
   assert.equal(body.dailyLimitPerTester, 200);
   assert.equal(body.dailyCombinedApiLimitPerTester, 400);
@@ -219,7 +219,7 @@ test('legacy Transformer analyze generates real-format response with mock Gemini
   };
   try {
     globalThis.fetch = async (url, opts) => {
-      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-4-hydrogen:generateContent');
       assert.equal(opts.method, 'POST');
       assert.equal(opts.redirect, 'manual'); // Workers do not implement redirect: error
       assert.equal(opts.headers['x-goog-api-key'], 'dummy-not-real');
@@ -243,7 +243,7 @@ test('legacy Transformer analyze generates real-format response with mock Gemini
     }), env);
     const body = await res.json();
     assert.equal(res.status, 200, JSON.stringify(body));
-    assert.equal(body.model, 'gemini-3.5-flash-lite');
+    assert.equal(body.model, 'gemini-4-hydrogen');
     assert.equal(body.course, '전기기기');
     assert.equal(body.en, 'Transformer');
     assert.equal(state.used, 1);
@@ -276,7 +276,7 @@ test('Gemini failures are sanitized and never retried or switched', async () => 
     for (const mode of ['network','redirect','limited','upstream','json']) {
       let calls=0;
       globalThis.fetch=async url=>{
-        calls++; assert.match(url,/gemini-3\.5-flash-lite:generateContent$/);
+        calls++; assert.match(url,/gemini-4-hydrogen:generateContent$/);
         if(mode==='network') throw new TypeError('private-upstream-detail');
         if(mode==='redirect') return new Response('private-upstream-detail',{status:302,headers:{Location:'https://untrusted.example'}});
         if(mode==='limited') return new Response('private-upstream-detail',{status:429});
@@ -299,13 +299,13 @@ test('admin metadata check is authenticated, read-only, and does not call genera
   try {
     globalThis.fetch = async (url, options) => {
       calls++;
-      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite');
+      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-4-hydrogen');
       assert.equal(options.method, 'GET');
       assert.equal(options.redirect, 'manual');
       assert.equal(options.headers['x-goog-api-key'], env.GEMINI_API_KEY);
       assert.equal(options.body, undefined);
       return new Response(JSON.stringify({
-        name:'models/gemini-3.5-flash-lite',
+        name:'models/gemini-4-hydrogen',
         supportedGenerationMethods:['generateContent']
       }), {status:200,headers:{'Content-Type':'application/json'}});
     };
@@ -621,7 +621,7 @@ test('with GEMINI_RELAY_URL set, analysis goes through the relay with the relay 
     const res = await sendAnalyze(env, 'a');
     assert.equal(res.status, 200, await res.clone().text());
     assert.equal(seen.length, 1);
-    assert.equal(seen[0].url, 'https://relay.example.run.app/v1beta/models/gemini-3.5-flash-lite:generateContent');
+    assert.equal(seen[0].url, 'https://relay.example.run.app/v1beta/models/gemini-4-hydrogen:generateContent');
     assert.equal(seen[0].options.headers['X-Relay-Secret'], RELAY_SECRET);
     assert.equal(seen[0].options.headers['x-goog-api-key'], env.GEMINI_API_KEY);
     assert.equal(state.used, 1);

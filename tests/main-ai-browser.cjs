@@ -11,7 +11,7 @@ const {createServer}=require('../server/server.cjs');
   const calls=[];
   const server=createServer({apiKey:'fake-local-key',fetchImpl:async(url,init)=>{
     const payload=JSON.parse(init.body),input=JSON.parse(payload.contents[0].parts[0].text);
-    calls.push(input);assert.ok(url.includes('gemini-3.5-flash-lite:generateContent'));
+    calls.push(input);assert.ok(url.includes('gemini-4-hydrogen:generateContent'));
     const transformer=input.word==='Transformer';
     const result={englishTerm:transformer?'Transformer':'eddy current',koreanMeaning:transformer?'트랜스포머':'와전류',
       specialization:transformer?'인공지능':'전기공학',notebookName:'전자기학',englishDefinition:transformer?'A self-attention neural network architecture.':'A circulating current induced by changing magnetic flux.',
@@ -45,7 +45,7 @@ const {createServer}=require('../server/server.cjs');
     await page.waitForURL('**/words.html?**');
     let state=await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1')));
     const [savedId,word]=Object.entries(state.terms).find(([,word])=>word.en==='eddy current');
-    assert.equal(word.course,'electrical-machines');assert.equal(word.ko,'검수한 와전류');assert.equal(word.analysisModel,'gemini-3.5-flash-lite');
+    assert.equal(word.course,'electrical-machines');assert.equal(word.ko,'검수한 와전류');assert.equal(word.analysisModel,'gemini-4-hydrogen');
     await page.reload();assert.ok((await page.locator('body').textContent()).includes('eddy current'));
     await page.goto(base+'/quick_capture/code.html');
     await page.locator('#btn-meaning-major').click();await page.locator('#major-input').fill('전기공학');await page.locator('#btn-dest-existing').click();

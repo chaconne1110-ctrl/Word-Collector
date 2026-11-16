@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('www/analysis-api.js', 'utf8');
 const token = 'wc_' + 'a'.repeat(64);
 const valid = {
-  model: 'gemini-3.5-flash-lite', en: 'Transformer', ko: '변압기',
+  model: 'gemini-4-hydrogen', en: 'Transformer', ko: '변압기',
   discipline: '전기공학', pos: 'noun', enDef: 'Transformer',
   koDef: '변압기', exampleEn: 'A transformer', exampleKo: '변압기',
   course: 'electromagnetics'

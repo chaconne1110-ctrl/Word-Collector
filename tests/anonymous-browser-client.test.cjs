@@ -7,7 +7,7 @@ const anonymous = fs.readFileSync('www/anonymous-auth.js','utf8');
 const page = fs.readFileSync('www/quick_capture/code.html','utf8');
 const nativePage = fs.readFileSync('www/auth/native-challenge.html','utf8');
 const good = 'wc_'+'d'.repeat(64);
-const response = {model:'gemini-3.5-flash-lite',en:'Voltage',ko:'전압',discipline:'전기공학',
+const response = {model:'gemini-4-hydrogen',en:'Voltage',ko:'전압',discipline:'전기공학',
   enDef:'Electric potential difference.',koDef:'전위차',exampleEn:'Voltage rises.',
   pos:'noun',exampleKo:'전압이 증가한다.',course:'전기공학'};
 

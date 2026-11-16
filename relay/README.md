@@ -38,8 +38,21 @@ App ──► Cloudflare Worker ──► this relay (us-central1) ──► Gem
    (`https://word-collector-gemini-relay-….run.app`).
 3. Check it: `curl <Service URL>/health` → `{"ok":true}` (not `/healthz`: Cloud Run reserves
    paths ending in "z" and answers them with a Google 404). A request without the secret, e.g.
-   `curl -X POST <Service URL>/v1beta/models/gemini-3.5-flash-lite:generateContent`, must return
+   `curl -X POST <Service URL>/v1beta/models/gemini-4-hydrogen:generateContent`, must return
    `{"error":"relay-unauthorized"}`.
+
+### Changing the allowed models (no redeploy, secret unchanged)
+
+When the Worker switches to another Gemini model, allow it on the running relay **before**
+deploying the Worker (otherwise analysis fails with `RELAY_PATH`):
+
+```bash
+gcloud run services update word-collector-gemini-relay --region us-central1 \
+  --update-env-vars "^@^ALLOWED_MODELS=gemini-4-hydrogen,gemini-3.5-flash-lite,gemini-3.1-flash-lite-image"
+```
+
+(`^@^` makes `@` the separator so the commas stay inside the value; `--update-env-vars`
+keeps `RELAY_SECRET` as it is.)
 
    If the build fails with *PERMISSION_DENIED … default service account is missing required IAM
    permissions*, grant the build role once and deploy again:

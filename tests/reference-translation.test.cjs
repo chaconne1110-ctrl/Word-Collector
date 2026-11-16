@@ -88,7 +88,7 @@ test('modern compatibility fallback preserves reference translation without anot
   const client = createClient({token,fetchImpl:async (_, init) => {
     calls.push(JSON.parse(init.body));
     return calls.length === 1 ? new Response(JSON.stringify({error:'저장할 기존 단어장을 선택해 주세요.'}),{status:400}) :
-      new Response(JSON.stringify({model:'gemini-3.5-flash-lite',analysis:output}));
+      new Response(JSON.stringify({model:'gemini-4-hydrogen',analysis:output}));
   }});
   const result = await client.request(requestBody);
   assert.equal(calls.length,2); // First response is a pre-quota validation error.

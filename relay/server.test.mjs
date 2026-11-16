@@ -12,6 +12,12 @@ async function withRelay(fetchImpl, run) {
   try { await run(base); } finally { await new Promise(resolve => server.close(resolve)); }
 }
 
+test('default models: the analysis model gemini-4-hydrogen, the previous one (rollback) and the image model', () => {
+  assert.deepEqual([...allowedModels({})], ['gemini-4-hydrogen', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite-image']);
+  assert.equal(upstreamPath('POST', '/v1beta/models/gemini-4-hydrogen:generateContent', allowedModels({})),
+    '/v1beta/models/gemini-4-hydrogen:generateContent');
+});
+
 test('only the Worker endpoints are allowed', () => {
   const models = allowedModels({});
   assert.equal(upstreamPath('POST', '/v1beta/models/gemini-3.5-flash-lite:generateContent', models),

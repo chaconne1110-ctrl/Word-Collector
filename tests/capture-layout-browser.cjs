@@ -13,7 +13,7 @@ const {createServer}=require('../server/server.cjs');
   const r=await route.fetch();await route.fulfill({response:r,body:(await r.text()).replace(/env\(safe-area-inset-top\s*,\s*0px\)/g,`${safe?24:0}px`).replace(/env\(safe-area-inset-bottom\s*,\s*0px\)/g,`${safe}px`)});
  });
  await setupAnalysisClient(page,()=>{
-    WordCollectorAI.request=async()=>({en:'current',ko:'전류',discipline:'전기',pos:'noun',enDef:'Charge flow.',koDef:'전하의 흐름',exampleEn:'Current flows.',exampleKo:'전류가 흐릅니다.',referenceTranslation:'전류가 도체를 통해 흐릅니다.',model:'gemini-3.5-flash-lite'});
+    WordCollectorAI.request=async()=>({en:'current',ko:'전류',discipline:'전기',pos:'noun',enDef:'Charge flow.',koDef:'전하의 흐름',exampleEn:'Current flows.',exampleKo:'전류가 흐릅니다.',referenceTranslation:'전류가 도체를 통해 흐릅니다.',model:'gemini-4-hydrogen'});
     WordCollectorAI.createImage=async()=>{throw new Error('test image failure');};
    });
 

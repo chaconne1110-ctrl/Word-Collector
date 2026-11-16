@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  const MODEL = 'gemini-3.5-flash-lite';
+  const MODEL = 'gemini-4-hydrogen';
   const CLOUD_URL = 'https://word-collector-api.yechan-lim-elec.workers.dev';
   // Earlier deployed Workers reject user-created manual notebooks and all-empty auto notebooks
   // on the legacy request shape, even though their modern request shape accepts both.

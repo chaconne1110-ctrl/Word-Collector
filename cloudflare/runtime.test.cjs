@@ -15,7 +15,7 @@ test('workerd + D1: authentication, single fetch, atomic concurrent quotas and K
     bindings:{GEMINI_API_KEY:'runtime-test-placeholder',ENABLE_LIVE_ANALYSIS:'true'}, d1Databases:['DB'],
     outboundService: async request => {
       calls++;
-      assert.equal(request.url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+      assert.equal(request.url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-4-hydrogen:generateContent');
       assert.equal(request.headers.get('x-goog-api-key'),'runtime-test-placeholder');
       return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(output)}]}}]}),{status:upstreamStatus});
     }});

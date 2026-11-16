@@ -29,13 +29,13 @@ test('health identifies the fixed model without calling Gemini or exposing key',
   const {url} = await serverFor(t, {fetchImpl: () => assert.fail('health must not call Gemini')});
   const response = await fetch(`${url}/health`);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {ok: true, model: 'gemini-3.5-flash-lite'});
+  assert.deepEqual(await response.json(), {ok: true, model: 'gemini-4-hydrogen'});
 });
 
 test('Korean auto classification sends actual notebook definitions, strict schema and one fixed-model request', async t => {
   let calls = 0, sent;
   const {send} = await serverFor(t, {fetchImpl: async (url, init) => {
-    calls++; assert.ok(url.endsWith('/gemini-3.5-flash-lite:generateContent'));
+    calls++; assert.ok(url.endsWith('/gemini-4-hydrogen:generateContent'));
     assert.equal(init.headers['x-goog-api-key'], 'test-secret-never-print');
     assert.equal(init.redirect, 'error');
     sent = JSON.parse(init.body); return upstream(output());

@@ -19,7 +19,7 @@ const MAX_BODY = 1024 * 1024; // Worker requests are far smaller (input limit 25
 const UPSTREAM_TIMEOUT_MS = 60000; // image generation can take ~50 s
 
 export function allowedModels(env = process.env) {
-  return new Set(String(env.ALLOWED_MODELS || 'gemini-3.5-flash-lite,gemini-3.1-flash-lite-image')
+  return new Set(String(env.ALLOWED_MODELS || 'gemini-4-hydrogen,gemini-3.5-flash-lite,gemini-3.1-flash-lite-image')
     .split(',').map(model => model.trim()).filter(model => /^[a-z0-9.-]{1,80}$/.test(model)));
 }
 

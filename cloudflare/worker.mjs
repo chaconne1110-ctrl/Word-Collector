@@ -3,7 +3,7 @@
 // Deployment safety: AI requests stay disabled unless ENABLE_LIVE_ANALYSIS=true.
 // GitHub source contains no API key, tester token, or signing credential.
 
-const MODEL = 'gemini-3.5-flash-lite';
+const MODEL = 'gemini-4-hydrogen';
 const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
 const IMAGE_PERSONAL_LIMIT = 200;
 const IMAGE_GLOBAL_LIMIT = 1500;
@@ -300,7 +300,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs}) {
           ? '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. 1,200자 이내로 작성하세요.'
           : '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.') : '')}]},
         contents: [{role: 'user', parts: [{text: JSON.stringify(input)}]}],
-        generationConfig: {maxOutputTokens: 4096,
+        generationConfig: {maxOutputTokens: 8192, // thinking tokens count toward this limit
           responseMimeType: 'application/json', responseSchema: responseSchema(input)}
       })
     });

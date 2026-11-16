@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createClient}=require('../../www/analysis-api.js');
-const result={model:'gemini-3.5-flash-lite',en:'Voltage',ko:'전압',discipline:'전기공학',pos:'noun',enDef:'Potential difference.',koDef:'전위차.',exampleEn:'Voltage rises.',exampleKo:'전압이 상승한다.',course:'회로이론'};
+const result={model:'gemini-4-hydrogen',en:'Voltage',ko:'전압',discipline:'전기공학',pos:'noun',enDef:'Potential difference.',koDef:'전위차.',exampleEn:'Voltage rises.',exampleKo:'전압이 상승한다.',course:'회로이론'};
 test('cloud client uses HTTPS bearer authentication once and never sends tokens to local servers',async()=>{
  const token='wc_'+'c'.repeat(64);let calls=0;
  assert.doesNotThrow(()=>createClient());
