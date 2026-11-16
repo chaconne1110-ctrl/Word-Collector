@@ -171,7 +171,7 @@ waitingCancel.addEventListener('click', () => {
   // The typed word stays saved, so the input page shows it again.
   goBackToInput();
 });
-// Notebook choices for the review's "저장할 과목" select (IDs, not display names).
+// Notebook choices for the review's "저장할 단어장" select (IDs, not display names).
 function refreshNotebookChoices() {
   const oldReview = reviewCourse.value;
   state = load();
@@ -365,7 +365,7 @@ async function runAnalysis() {
       newCourseName = result.course.trim();
       target = 'notebook_' + crypto.randomUUID();
     }
-    if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
+    if (!target) throw new Error('추천 단어장을 확인할 수 없습니다. 다시 분석해 주세요.');
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
