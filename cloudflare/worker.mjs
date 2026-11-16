@@ -179,6 +179,24 @@ function validateInput(value) {
 const referenceIsExample = input => Boolean(input.translateReference) && input.meaningMode !== 'general';
 // noExample: 일반 의미 for apps that show words without an example sentence.
 const withoutGeneratedExample = input => referenceIsExample(input) || Boolean(input.noExample);
+// 일반 의미 with several parts of speech: every listed POS should appear in the
+// meaning ("명사: ..."), the English definition ("(noun) ...") and the Korean
+// definition ("(명사) ..."). A mismatch is not an error (no paid retry); the
+// review shows a warning so the user can check it.
+const POS_EN_TO_KO = {noun:'명사', verb:'동사', adjective:'형용사', adverb:'부사', pronoun:'대명사',
+  preposition:'전치사', conjunction:'접속사', interjection:'감탄사', determiner:'한정사', article:'관사',
+  numeral:'수사', 'proper noun':'고유명사', 'noun phrase':'명사구', 'phrasal verb':'구동사'};
+const posLabel = text => POS_EN_TO_KO[String(text).trim().toLowerCase()] || String(text).trim();
+function generalPosWarning(analysis, pos) {
+  const listed = [...new Set(String(pos || '').split(/\s*,\s*/).map(posLabel).filter(Boolean))];
+  if (listed.length < 2) return '';
+  const found = [
+    [...analysis.koreanMeaning.matchAll(/(?:^|\/)\s*([가-힣]+)\s*:/g)].map(match => match[1]),
+    [...analysis.englishDefinition.matchAll(/\(([a-z ]+)\)/gi)].map(match => posLabel(match[1])),
+    [...analysis.koreanDefinition.matchAll(/\(([가-힣]+)\)/g)].map(match => match[1])];
+  const missing = listed.filter(label => found.some(labels => !labels.includes(label)));
+  return missing.length ? '품사별 뜻이나 정의가 일부 빠졌을 수 있어요(' + missing.join(', ') + '). 확인해 주세요.' : '';
+}
 function responseSchema(input) {
   const properties = Object.fromEntries(CORE_FIELDS.map(field => [field, {type: 'STRING'}]));
   if (!input.autoSubject || input.notebooks.length) properties.notebookName.enum = input.autoSubject ? input.notebooks.map(notebook => notebook.name) : [input.selectedSubject];
@@ -386,6 +404,8 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
       exampleEn:analysis.exampleSentence,
       exampleKo:referenceIsExample(input) ? analysis.exampleTranslation : input.noExample ? '' : output.exampleKo.trim(), pos:output.pos.trim(),
       ...(referenceIsExample(input) ? {exampleSource:'reference'} : input.noExample ? {exampleSource:'none'} : {}),
+      ...(input.meaningMode === 'general' && generalPosWarning(analysis, output.pos) ?
+        {posWarning: generalPosWarning(analysis, output.pos)} : {}),
       relatedWords:analysis.relatedWords.map(word => ({en:word.englishTerm, ko:word.koreanMeaning})),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),

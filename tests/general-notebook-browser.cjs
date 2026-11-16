@@ -35,6 +35,7 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
       // 일반 의미: no example sentence, so the 예문 box is not shown.
       assert.ok(await page.locator('[name=exampleEn]').evaluate(e => e.closest('fieldset').hidden));
       assert.ok(await page.locator('[name=enDef]').isVisible());
+      assert.ok(await page.locator('#review-pos-warning').isHidden(), 'single POS: no warning');
       // The destination is fixed to the 일반 단어장.
       assert.equal(await page.locator('#review-course').inputValue(), 'general-meaning');
       assert.ok(await page.locator('#review-course').isDisabled());

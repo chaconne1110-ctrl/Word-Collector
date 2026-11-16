@@ -364,6 +364,9 @@ async function runAnalysis() {
     referencePreview.hidden = !context;
     const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
     const fromReference = Boolean(context) && result.exampleSource === 'reference';
+    // 일반 의미 with several parts of speech: the server reports missing ones.
+    $('#review-pos-warning').textContent = typeof result.posWarning === 'string' ? result.posWarning.slice(0, 200) : '';
+    $('#review-pos-warning').hidden = !$('#review-pos-warning').textContent;
     // 일반 의미: no example sentence, so the 예문 box is not shown.
     reviewForm.elements.exampleEn.closest('fieldset').hidden = result.exampleSource === 'none';
     // A reference sentence replaces the generated example: the example field

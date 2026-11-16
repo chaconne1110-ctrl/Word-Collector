@@ -265,6 +265,37 @@ test('일반 의미 in v3+ apps (X-WC-Models): no example sentence, only word, m
   assert.deepEqual(seen, [{example: false, noExample: true, rule: true}, {example: false, noExample: true, rule: true}]);
 });
 
+test('일반 의미: a missing part of speech in the meaning or definitions returns a warning (no retry)', async t => {
+  const complete = {koreanMeaning: '형용사: 현재의, 지금의 / 명사: 흐름, 해류',
+    englishDefinition: '(adjective) happening now; (noun) a steady flow of water.',
+    koreanDefinition: '(형용사) 지금 일어나는; (명사) 꾸준한 물의 흐름.'};
+  const cases = [
+    [complete, '형용사, 명사', undefined],
+    [complete, 'adjective, noun', undefined],
+    [{...complete, koreanMeaning: '형용사: 현재의, 지금의'}, '형용사, 명사', '품사별 뜻이나 정의가 일부 빠졌을 수 있어요(명사). 확인해 주세요.'],
+    [{...complete, englishDefinition: 'happening now.', koreanDefinition: '지금 일어나는.'}, '형용사, 명사', '품사별 뜻이나 정의가 일부 빠졌을 수 있어요(형용사, 명사). 확인해 주세요.'],
+    [{koreanMeaning: '흐름', englishDefinition: 'a flow.', koreanDefinition: '흐름.'}, '명사', undefined],
+  ];
+  let next;
+  let calls = 0;
+  const {url} = await serverFor(t, {fetchImpl: async () => {
+    calls++;
+    const {exampleSentence, ...rest} = output({notebookName: '일반 단어장', relatedTerms: [], pos: next[1], specialization: '일반', ...next[0]});
+    return upstream(rest);
+  }});
+  for (const item of cases) {
+    next = item;
+    const json = await (await fetch(`${url}/api/analyze`, {method: 'POST',
+      headers: {'content-type': 'application/json', 'x-wc-models': 'gemini-4-hydrogen'},
+      body: JSON.stringify({term: 'current', context: '', autoCourse: false, course: '일반 단어장', meaningMode: 'general',
+        notebooks: [{course: '일반 단어장', words: []}]})})).json();
+    assert.equal(json.posWarning, item[2], JSON.stringify(item));
+  }
+  assert.equal(calls, cases.length, 'a warning never triggers another paid request');
+  const review = require('node:fs').readFileSync('www/quick_capture/review.html', 'utf8');
+  assert.match(review, /<p id="review-pos-warning" role="alert" hidden/);
+});
+
 test('apps accept a 일반 result without example; the card hides the example box; photos follow the analysed meaning', () => {
   const fs = require('node:fs');
   const api = fs.readFileSync('www/analysis-api.js', 'utf8');
