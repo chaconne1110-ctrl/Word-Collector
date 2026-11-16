@@ -32,6 +32,9 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
       await page.locator('#term-unified-input').fill(word);
       await page.locator('#submit-action-btn').click();
       await page.locator('#analysis-review').waitFor({state: 'visible'});
+      // 일반 의미: no example sentence, so the 예문 box is not shown.
+      assert.ok(await page.locator('[name=exampleEn]').evaluate(e => e.closest('fieldset').hidden));
+      assert.ok(await page.locator('[name=enDef]').isVisible());
       // The destination is fixed to the 일반 단어장.
       assert.equal(await page.locator('#review-course').inputValue(), 'general-meaning');
       assert.ok(await page.locator('#review-course').isDisabled());
@@ -48,7 +51,13 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.equal(sent.at(-1).selectedSubject, '일반 단어장');
     assert.equal(sent.at(-1).autoSubject, false);
     let state = await read();
-    assert.deepEqual(Object.values(state.terms).map(t => [t.en, t.course, t.discipline]), [['current', 'general-meaning', '일반']]);
+    assert.deepEqual(Object.values(state.terms).map(t => [t.en, t.course, t.discipline, t.exampleEn, t.exampleSource]),
+      [['current', 'general-meaning', '일반', '', 'none']]);
+    // The flashcard shows no (empty) example box for a 일반 의미 word.
+    await page.goto(base + '/flashcard.html?term=' + Object.keys(state.terms)[0]);
+    await page.locator('[data-field="enDef"]').first().waitFor({state: 'attached'});
+    assert.ok(await page.locator('[data-field="exampleEn"]').evaluateAll(nodes =>
+      nodes.length > 0 && nodes.every(node => node.parentElement.hidden)));
     // Deleted 일반 단어장: not recreated on start-up, but recreated by a general-meaning save.
     await page.evaluate(() => localStorage.setItem('lexicon-word-collector-v1',
       JSON.stringify({courses: {}, terms: {}, saved: [], deletedCourses: ['general-meaning']})));

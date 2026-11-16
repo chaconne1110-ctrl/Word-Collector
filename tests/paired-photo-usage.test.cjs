@@ -17,8 +17,9 @@ test('photos are generated only from the flashcard back button, then shown and s
   assert.ok(click > 0 && call > click && save > call && show > save, 'button -> generate -> save -> show');
   assert.equal((app.match(/WordCollectorAI\.createImage\(/g)||[]).length,1, 'no other photo request');
   // Fallback meaning and definition are sent with the request.
-  assert.match(app,/koreanMeaning:term\.ko/);
-  assert.match(app,/definition:\(term\.koDef \|\| term\.enDef \|\| term\.ko \|\| term\.en\)\.slice\(0, 700\)/);
+  assert.match(app,/koreanMeaning:\(term\.ko \|\| term\.en\)\.slice\(0, 200\)/);
+  // The photo follows the analysed meaning: field (일반/전공) and both definitions.
+  assert.match(app,/definition:\(\[term\.enDef, term\.koDef\]\.filter\(Boolean\)\.join\(' \/ '\) \|\| term\.ko \|\| term\.en\)\.slice\(0, 700\)/);
 });
 test('new per-tester caps represent 400 actual API attempts and at most 200 pairs',()=>{
   const worker=fs.readFileSync('cloudflare/worker.mjs','utf8');

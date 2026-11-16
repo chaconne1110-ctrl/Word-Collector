@@ -448,11 +448,14 @@ function renderDeck() {
     // (English sentence + Korean sentence), so show them as stored. Older words
     // kept a generated example and showed the reference + its translation instead.
     const exampleFromReference = term.exampleSource === 'reference';
-    const legacyReference = referenceSentence && !exampleFromReference;
+    // 일반 의미 words have no example sentence: the example box is hidden.
+    const noExample = term.exampleSource === 'none';
+    const legacyReference = referenceSentence && !exampleFromReference && !noExample;
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
-      counter, backTitle: term.en + (referenceSentence ? ' · 참고 문장' : ' · 예문'),
+      counter, backTitle: term.en + (noExample ? '' : referenceSentence ? ' · 참고 문장' : ' · 예문'),
       related: relatedEnglishWords(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
+    $$('[data-field="exampleEn"]', card).forEach(node => { node.parentElement.hidden = noExample; });
     // "관련 단어" (two related words from the analysis) replaces the old formula box.
     $$('[data-field="related"]', card).forEach(node => {
       const box = node.parentElement;
@@ -558,9 +561,11 @@ function renderDeck() {
         'AI 사진을 생성 중입니다. 처음 3초간 중복 클릭은 차단됩니다.';
       try {
         const result = await WordCollectorAI.createImage({
-          word:term.en || term.ko, koreanMeaning:term.ko,
-          subject:courseNames(term.course)[0],
-          definition:(term.koDef || term.enDef || term.ko || term.en).slice(0, 700)
+          // The photo shows the analysed meaning: its field (일반 or the major)
+          // and both definitions, not just the notebook name.
+          word:(term.en || term.ko).slice(0, 120), koreanMeaning:(term.ko || term.en).slice(0, 200),
+          subject:(term.discipline || courseNames(term.course)[0]).slice(0, 100),
+          definition:([term.enDef, term.koDef].filter(Boolean).join(' / ') || term.ko || term.en).slice(0, 700)
         }, {signal:ticket.signal});
         if (!photoGate.isCurrent(ticket.id) || !card.isConnected) return;
         await WordCollectorPhoto.save(photoTermId, result.image);

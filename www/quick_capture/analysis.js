@@ -364,6 +364,8 @@ async function runAnalysis() {
     referencePreview.hidden = !context;
     const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
     const fromReference = Boolean(context) && result.exampleSource === 'reference';
+    // 일반 의미: no example sentence, so the 예문 box is not shown.
+    reviewForm.elements.exampleEn.closest('fieldset').hidden = result.exampleSource === 'none';
     // A reference sentence replaces the generated example: the example field
     // holds the English sentence and the translation field the Korean one, so
     // the separate reference-translation field would only repeat them.
@@ -385,7 +387,7 @@ async function runAnalysis() {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
     draft = {term, newCourseName, createsCourse, suggestedCourseName: createFirstCourse ? newCourseName : undefined, referenceSentence: context,
-      exampleSource: context && result.exampleSource === 'reference' ? 'reference' : '', model: result.model, recommended: autoCourse ? target : null, selected: target,
+      exampleSource: context && result.exampleSource === 'reference' ? 'reference' : result.exampleSource === 'none' ? 'none' : '', model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
     // Users always control the destination, including when the notebook contains no words.
     // With no notebooks yet, they review (and may edit) the new notebook's name instead.

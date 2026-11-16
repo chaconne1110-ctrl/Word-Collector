@@ -44,6 +44,7 @@
       // With a reference sentence the server builds the example from it.
       ...(analysis.exampleSource === 'reference' && typeof analysis.exampleTranslation === 'string'
         ? {exampleKo:analysis.exampleTranslation, exampleSource:'reference'} : {}),
+      ...(analysis.exampleSource === 'none' ? {exampleSource:'none'} : {}),
       relatedWords: Array.isArray(analysis.relatedWords) ? analysis.relatedWords
         .map(word => ({en: word?.englishTerm || '', ko: word?.koreanMeaning || ''})) : [],
       needsManualCompletion: true
@@ -122,8 +123,10 @@
         throw Object.assign(new Error(result?.error || '분석 요청에 실패했습니다.'), {status});
       }
       if (!result || !ACCEPTED_MODELS.includes(result.model)) throw new Error('분석 서버의 모델 설정을 확인해 주세요.');
-      const required = ['en','ko','discipline','enDef','koDef','exampleEn','course'];
-      if (!result.needsManualCompletion) required.push('pos','exampleKo');
+      // 일반 의미 words have no example sentence (exampleSource 'none').
+      const noExample = result?.exampleSource === 'none';
+      const required = ['en','ko','discipline','enDef','koDef','course', ...(noExample ? [] : ['exampleEn'])];
+      if (!result.needsManualCompletion) required.push('pos', ...(noExample ? [] : ['exampleKo']));
       for (const key of required) {
         if (typeof result[key] !== 'string' || !result[key].trim()) throw new Error('필수 분석 항목을 받지 못했습니다. 다시 분석해 주세요.');
       }

@@ -24,12 +24,12 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 3. autoSubject=true이면 실제 terms가 있는 단어장에서는 영어 표제어, 한국어 뜻, 영어 정의, 한국어 정의를 우선 비교하세요. 저장 단어의 의미가 주된 분류 기준이며, 이를 토대로 맞는 단어장을 추천하세요. 저장 단어가 전혀 없으면 입력 단어, 참고 문장, 단어장 이름을 활용해 임시 추천하세요. 후보는 제공된 notebooks의 이름뿐입니다.
 4. autoSubject=false이면 notebookName은 selectedSubject와 반드시 같아야 합니다. 단어장은 저장 위치입니다. 참고 문장이 다른 분야를 뜻하면 참고 문장에 맞는 뜻을 분석하고 선택한 저장 위치를 유지하세요(단, meaningMode="general"이거나 majorField가 있으면 규칙 12가 우선).
 5. 저장 단어가 없는 단어장을 추천할 때에는 비교할 저장 단어가 없다고 recommendationReason에 밝히고 단어장 이름과 입력 문맥에 따른 임시 추천임을 설명하세요. 존재하지 않는 저장 단어를 만들어 근거로 사용하지 마세요.
-6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 고등학생이 이해할 수 있는 쉬운 영어로 쓴 정확하고 짧은 정의입니다(1~2문장, 어려운 전문용어는 피하고 쉬운 말로 풀어 쓰세요). koreanDefinition은 englishDefinition을 그대로 옮긴 충실한 한국어 번역이며, 고등학생이 이해할 수 있는 자연스러운 한국어로 씁니다. 두 정의는 반드시 같은 의미여야 합니다: 한국어 정의에만 비유, 예시, 설명, 괄호 풀이를 추가하거나 영어 정의의 내용을 빼지 마세요. 쉬운 설명이 필요하면 영어 정의 자체를 쉽게 쓰고, 그 문장을 그대로 번역하세요. exampleSentence는 같은 의미를 사용하는 자연스럽고 이해하기 쉬운 영어 예문 한 문장입니다. 단, translateReference=true이고 meaningMode가 "general"이 아니면 exampleSentence를 만들지 마세요(스키마에 없음). 이때 예문은 사용자가 입력한 referenceText와 그 번역으로 대신합니다. meaningMode="general"이면 참고 문장이 있어도 일반 뜻에 맞는 exampleSentence를 새로 만들고, referenceText는 referenceTranslation으로 번역만 합니다.
+6. specialization은 문맥에 맞는 전공/분야를 한국어로 작성하세요. englishDefinition은 고등학생이 이해할 수 있는 쉬운 영어로 쓴 정확하고 짧은 정의입니다(1~2문장, 어려운 전문용어는 피하고 쉬운 말로 풀어 쓰세요). koreanDefinition은 englishDefinition을 그대로 옮긴 충실한 한국어 번역이며, 고등학생이 이해할 수 있는 자연스러운 한국어로 씁니다. 두 정의는 반드시 같은 의미여야 합니다: 한국어 정의에만 비유, 예시, 설명, 괄호 풀이를 추가하거나 영어 정의의 내용을 빼지 마세요. 쉬운 설명이 필요하면 영어 정의 자체를 쉽게 쓰고, 그 문장을 그대로 번역하세요. exampleSentence는 같은 의미를 사용하는 자연스럽고 이해하기 쉬운 영어 예문 한 문장입니다. 단, translateReference=true이고 meaningMode가 "general"이 아니면 exampleSentence를 만들지 마세요(스키마에 없음). 이때 예문은 사용자가 입력한 referenceText와 그 번역으로 대신합니다. meaningMode="general"이면 참고 문장을 예문으로 쓰지 말고 referenceTranslation으로 번역만 합니다(이때 noExample이 아니면 일반 뜻에 맞는 exampleSentence를 새로 만듭니다).
 7. explanation은 고등학생이 이해할 수 있는 쉬운 한국어로 쓴 짧은 학습 해설, recommendationReason은 짧은 한국어 분류 근거입니다. relatedTerms는 선택/추천한 단어장에 실제 있는 영어 표제어만 최대 5개 나열하세요. 영어 표제어가 없을 때만 그 단어의 한국어 뜻을 대신 사용하세요. 관련 단어가 없으면 빈 배열입니다.
 8. translateReference=true이면 referenceTranslation에 referenceText 전체를 referenceTranslationLanguage 언어로 충실하게 번역해 1,200자 이내로 작성하세요. referenceTranslationLanguage가 "ko"이면 자연스러운 한국어로, "en"이면 자연스러운 영어로 번역합니다(원문이 한국어 예문이면 영어 번역, 영어 예문이면 한국어 번역). 원문을 그대로 반복하지 말고, 생성 예문(exampleSentence)의 번역과 혼동하지 마세요.
 9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
 11. relatedWords에는 입력 단어와 같은 분야에서 의미가 밀접한 다른 단어를 정확히 2개 넣으세요(meaningMode="general"이면 일상적인 단어, 전공 의미이면 그 전공의 단어). 각 항목은 영어 표제어 englishTerm과 한국어 뜻 koreanMeaning입니다. 입력 단어 자신이나 같은 단어의 변형은 제외하고, 저장된 단어장에 없어도 됩니다(relatedTerms와 다릅니다).
-12. meaningMode는 사용자가 고른 의미 기준입니다. meaningMode="general"이면 특정 전공이 아니라 일상에서 가장 널리 쓰이는 일반적인 의미로 분석하세요(예: current → 흐름, 현재의). 이때 단어장 이름, 저장 단어, 참고 문장의 분야 때문에 전공 의미(예: 물리학의 전류)로 바꾸지 마세요. 일반 의미에서는 그 단어가 일상에서 많이 쓰이는 품사를 모두 보여 주세요(예: current는 명사와 형용사). koreanMeaning에는 품사별 뜻을 "명사: 흐름, 해류 / 형용사: 현재의, 지금의"처럼 품사 이름과 함께 " / "로 나누어 적고(품사마다 대표 뜻 1~3개, 흔히 쓰이는 품사 순서), pos에는 그 품사들을 같은 순서로 쉼표로 모두 적으세요(예: 명사, 형용사). englishDefinition은 품사마다 짧고 쉬운 정의를 "(noun) ...; (adjective) ..." 형식으로 쓰고, koreanDefinition은 그것을 "(명사) ...; (형용사) ..." 형식으로 충실하게 번역하세요. 품사가 하나뿐인 단어는 그 품사만 쓰세요. 예문은 가장 흔한 뜻 하나로 씁니다. specialization은 "일반"이라고 쓰세요. meaningMode="major"이고 majorField가 있으면 반드시 majorField 전공에서 쓰이는 의미로 분석하세요(예: current + 전기공학 → 전류). majorField가 "전기공학과"처럼 학과 이름이면 그 학문 분야로 이해하고, specialization에는 그 전공 이름(예: 전기공학)을 쓰세요. majorField가 비어 있으면 참고 문장과 단어장으로 전공을 판단하세요. 정의, 예문, 관련 단어도 모두 이 기준의 같은 의미를 따릅니다.
+12. meaningMode는 사용자가 고른 의미 기준입니다. meaningMode="general"이면 특정 전공이 아니라 일상에서 가장 널리 쓰이는 일반적인 의미로 분석하세요(예: current → 흐름, 현재의). 이때 단어장 이름, 저장 단어, 참고 문장의 분야 때문에 전공 의미(예: 물리학의 전류)로 바꾸지 마세요. 일반 의미에서는 그 단어가 일상에서 많이 쓰이는 품사를 모두 보여 주세요(예: current는 명사와 형용사). koreanMeaning에는 품사별 뜻을 "명사: 흐름, 해류 / 형용사: 현재의, 지금의"처럼 품사 이름과 함께 " / "로 나누어 적고(품사마다 대표 뜻 1~3개, 흔히 쓰이는 품사 순서), pos에는 그 품사들을 같은 순서로 쉼표로 모두 적으세요(예: 명사, 형용사). englishDefinition은 품사마다 짧고 쉬운 정의를 "(noun) ...; (adjective) ..." 형식으로 쓰고, koreanDefinition은 그것을 "(명사) ...; (형용사) ..." 형식으로 충실하게 번역하세요. 품사가 하나뿐인 단어는 그 품사만 쓰세요. noExample=true이면 예문을 만들지 마세요(exampleSentence와 exampleKo는 스키마에 없음): 단어, 뜻, 품사, 영어 정의와 그 한국어 번역만 작성합니다. noExample이 아니면 예문은 가장 흔한 뜻 하나로 씁니다. specialization은 "일반"이라고 쓰세요. meaningMode="major"이고 majorField가 있으면 반드시 majorField 전공에서 쓰이는 의미로 분석하세요(예: current + 전기공학 → 전류). majorField가 "전기공학과"처럼 학과 이름이면 그 학문 분야로 이해하고, specialization에는 그 전공 이름(예: 전기공학)을 쓰세요. majorField가 비어 있으면 참고 문장과 단어장으로 전공을 판단하세요. 정의, 예문, 관련 단어도 모두 이 기준의 같은 의미를 따릅니다.
 10. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
 class ApiError extends Error {
@@ -124,6 +124,8 @@ function validateInput(value) {
 // general meaning it may use a field-specific sense (current -> 전류), so an
 // example of the general meaning is generated and the reference is only translated.
 const referenceIsExample = input => Boolean(input.translateReference) && input.meaningMode !== 'general';
+// noExample: 일반 의미 for apps that show words without an example sentence.
+const withoutGeneratedExample = input => referenceIsExample(input) || Boolean(input.noExample);
 function responseSchema(input) {
   const properties = Object.fromEntries(CORE_FIELDS.map(field => [field, {type: 'STRING'}]));
   if (!input.autoSubject || input.notebooks.length) properties.notebookName.enum = input.autoSubject ? input.notebooks.map(notebook => notebook.name) : [input.selectedSubject];
@@ -136,7 +138,7 @@ function responseSchema(input) {
   if (input.translateReference) properties.referenceTranslation = {type:'STRING'};
   if (input.legacy) { properties.pos = {type:'STRING'}; properties.exampleKo = {type:'STRING'}; }
   // With a reference sentence the example is built from it, not generated.
-  if (referenceIsExample(input)) { delete properties.exampleSentence; delete properties.exampleKo; }
+  if (withoutGeneratedExample(input)) { delete properties.exampleSentence; delete properties.exampleKo; }
   const required = [...CORE_FIELDS, 'explanation', 'recommendationReason', 'relatedTerms', 'relatedWords',
     ...(input.translateReference ? ['referenceTranslation'] : []), ...(input.legacy ? ['pos','exampleKo'] : [])]
     .filter(field => Object.hasOwn(properties, field));
@@ -167,7 +169,7 @@ function validateOutput(value, input) {
   if (!record(value)) invalid();
   const analysis = {};
   for (const field of [...CORE_FIELDS, 'explanation', 'recommendationReason']) {
-    if (field === 'exampleSentence' && referenceIsExample(input)) continue;
+    if (field === 'exampleSentence' && withoutGeneratedExample(input)) continue;
     if (typeof value[field] !== 'string' || !value[field].trim() || value[field].length > 12000) invalid();
     analysis[field] = value[field].trim();
   }
@@ -189,6 +191,7 @@ function validateOutput(value, input) {
     analysis.exampleTranslation = korean;
     analysis.exampleSource = 'reference';
   }
+  if (input.noExample) { analysis.exampleSentence = ''; analysis.exampleSource = 'none'; }
   // A model cannot move a manually selected save destination, even if it ignores the prompt.
   if (!input.autoSubject) analysis.notebookName = input.selectedSubject;
   // The general meaning is not tied to any field.
@@ -258,7 +261,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
       method: 'POST', signal: controller.signal, redirect: 'error',
       headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
       body: JSON.stringify({
-        systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? (referenceIsExample(input)
+        systemInstruction: {parts: [{text: SYSTEM_INSTRUCTION + (input.legacy ? (withoutGeneratedExample(input)
           ? '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. 1,200자 이내로 작성하세요.'
           : '\n추가 항목 pos는 한국어 품사입니다. 명사, 고유명사, 동사, 형용사, 부사, 명사구 등에서 고르고, 사람·장소·기관·제품 이름이나 사람 이름이 붙은 법칙·정리·단위처럼 특정한 대상을 가리키는 이름이면 명사가 아니라 고유명사라고 쓰세요. exampleKo는 exampleSentence의 충실한 한국어 번역입니다. 각 필드를 1,200자 이내로 작성하세요.') : '')}]},
         contents: [{role: 'user', parts: [{text: JSON.stringify(input)}]}],
@@ -287,7 +290,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
     catch { throw new ApiError(502, 'AI가 올바른 JSON을 반환하지 않았습니다. 다시 분석해 주세요.'); }
     const analysis = validateOutput(output, input);
     if (!input.legacy) return {analysis, model};
-    for (const name of referenceIsExample(input) ? ['pos'] : ['pos','exampleKo']) {
+    for (const name of withoutGeneratedExample(input) ? ['pos'] : ['pos','exampleKo']) {
       if (typeof output[name] !== 'string' || !output[name].trim() || output[name].length > 1200) {
         throw new ApiError(502, 'AI 분석 결과의 품사 또는 예문 번역을 확인하지 못했습니다. 다시 분석해 주세요.');
       }
@@ -299,8 +302,8 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
     return {en:analysis.englishTerm, ko:analysis.koreanMeaning, discipline:analysis.specialization,
       enDef:analysis.englishDefinition, koDef:analysis.koreanDefinition,
       exampleEn:analysis.exampleSentence,
-      exampleKo:referenceIsExample(input) ? analysis.exampleTranslation : output.exampleKo.trim(), pos:output.pos.trim(),
-      ...(referenceIsExample(input) ? {exampleSource:'reference'} : {}),
+      exampleKo:referenceIsExample(input) ? analysis.exampleTranslation : input.noExample ? '' : output.exampleKo.trim(), pos:output.pos.trim(),
+      ...(referenceIsExample(input) ? {exampleSource:'reference'} : input.noExample ? {exampleSource:'none'} : {}),
       relatedWords:analysis.relatedWords.map(word => ({en:word.englishTerm, ko:word.koreanMeaning})),
       ...(input.translateReference ? {referenceTranslation:analysis.referenceTranslation,
         referenceTranslationLanguage:analysis.referenceTranslationLanguage} : {}),
@@ -350,6 +353,7 @@ function createServer({apiKey = process.env.GEMINI_API_KEY || '', fetchImpl = gl
       if (pathname !== '/api/analyze') return await serveAsset(req,res,pathname);
       if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, {error: 'POST 요청을 사용해 주세요.'}); }
       const input = validateInput(await readJson(req));
+      if (input.meaningMode === 'general' && req.headers['x-wc-models']) input.noExample = true;
       if (!key) throw new ApiError(503, 'PC 서버의 server/.env에 Gemini API 키를 설정해 주세요.');
       const result = await analyze(input, {apiKey: key, fetchImpl, timeoutMs, model: analysisModelFor(req.headers['x-wc-models'])});
       return json(res, 200, result);

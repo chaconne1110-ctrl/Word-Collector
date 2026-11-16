@@ -214,6 +214,51 @@ test('일반 의미: the reference sentence is only translated; a general-meanin
   assert.deepEqual(schemas, [{example: true, exampleKo: true, translation: true}, {example: false, exampleKo: false, translation: true}]);
 });
 
+test('일반 의미 in v3+ apps (X-WC-Models): no example sentence, only word, meaning, POS and definitions', async t => {
+  const seen = [];
+  const {url} = await serverFor(t, {fetchImpl: async (_, init) => {
+    const request = JSON.parse(init.body);
+    const props = request.generationConfig.responseSchema.properties;
+    seen.push({example: Object.hasOwn(props, 'exampleSentence') || Object.hasOwn(props, 'exampleKo'),
+      noExample: JSON.parse(request.contents[0].parts[0].text).noExample === true,
+      rule: /noExample=true이면 예문을 만들지 마세요/.test(request.systemInstruction.parts[0].text)});
+    const {exampleSentence, ...rest} = output({notebookName: '일반 단어장', relatedTerms: [], pos: '형용사, 명사',
+      koreanMeaning: '형용사: 현재의, 지금의 / 명사: 흐름, 해류', specialization: '일반',
+      referenceTranslation: '저항을 흐르는 전류는 2A이다.'});
+    return upstream(rest);
+  }});
+  for (const context of ['', 'The current through the resistor is 2 A.']) {
+    const response = await fetch(`${url}/api/analyze`, {method: 'POST',
+      headers: {'content-type': 'application/json', 'x-wc-models': 'gemini-4-hydrogen'},
+      body: JSON.stringify({term: 'current', context, autoCourse: false, course: '일반 단어장', translateReference: Boolean(context),
+        meaningMode: 'general', notebooks: [{course: '일반 단어장', words: []}]})});
+    const json = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(json));
+    assert.equal(json.exampleEn, '');
+    assert.equal(json.exampleKo, '');
+    assert.equal(json.exampleSource, 'none');
+    assert.equal(json.ko, '형용사: 현재의, 지금의 / 명사: 흐름, 해류');
+    assert.equal(json.discipline, '일반');
+    assert.equal(json.referenceTranslation, context ? '저항을 흐르는 전류는 2A이다.' : undefined);
+  }
+  assert.deepEqual(seen, [{example: false, noExample: true, rule: true}, {example: false, noExample: true, rule: true}]);
+});
+
+test('apps accept a 일반 result without example; the card hides the example box; photos follow the analysed meaning', () => {
+  const fs = require('node:fs');
+  const api = fs.readFileSync('www/analysis-api.js', 'utf8');
+  assert.match(api, /const noExample = result\?\.exampleSource === 'none';/);
+  const app = fs.readFileSync('www/app.js', 'utf8');
+  assert.match(app, /node\.parentElement\.hidden = noExample;/);
+  assert.match(app, /subject:\(term\.discipline \|\| courseNames\(term\.course\)\[0\]\)\.slice\(0, 100\)/);
+  assert.match(app, /definition:\(\[term\.enDef, term\.koDef\]\.filter\(Boolean\)\.join\(' \/ '\)/);
+  const worker = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
+  assert.match(worker, /Show exactly the meaning given by the definition and the Korean meaning above, in that field; never another sense of the word\./);
+  assert.match(worker, /If the field is 일반 \(everyday meaning\), show the first meaning listed as an everyday scene or object/);
+  assert.doesNotMatch(worker, /educational visual for an engineering vocabulary flashcard/);
+  assert.match(worker, /if \(input\.meaningMode === 'general' && request\.headers\.get\('X-WC-Models'\)\) input\.noExample = true;/);
+});
+
 test('legacy client accepts user-created empty notebooks in both manual and automatic selection', async t => {
   let calls=0;
   const {send}=await serverFor(t,{fetchImpl:async (_,init)=>{
