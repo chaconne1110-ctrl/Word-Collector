@@ -6,7 +6,8 @@ test('client sends user-created empty notebooks for all classification modes',()
   assert.match(c,/notebooks: currentNotebooks\(\)/);
   assert.match(c,/refreshNotebookChoices\(\)/);
   assert.match(c,/!hasCourse\(selected\)/);
-  assert.match(c,/review-course-row'\)\.hidden = false/);
+  // The destination select is shown whenever notebooks exist (first notebook: name field instead).
+  assert.match(c,/review-course-row'\)\.hidden = createFirstCourse;/);
   assert.match(c,/needsManualCompletion/);
   // v8: the review no longer shows the analysis-basis note; the recommendation
   // summary still reports how many saved words were compared.

@@ -90,6 +90,14 @@ function showError(message) {
 }
 $('#analysis-back-to-input').addEventListener('click', goBackToInput);
 const reviewCourse = $('#review-course');
+// First notebook: the AI's name is only a suggestion. The notebook is created
+// (with the word) when the user presses save, under the name shown here.
+const newCourseInput = $('#review-new-course');
+newCourseInput.addEventListener('input', () => {
+  if (!draft?.createsCourse) return;
+  draft.newCourseName = newCourseInput.value.trim();
+  updateReviewTarget();
+});
 const inputControls = [];
 // Display order of the review (전공 is shown above the 단어장 select).
 const resultFields = {
@@ -180,7 +188,7 @@ function supportsEddyDiagram(en, selected) {
 
 function updateReviewTarget() {
   $('#review-target').textContent = draft.term +
-    (draft.recommended ? ' · AI 추천: ' + (draft.newCourseName || courseNames(draft.recommended)[0]) : '') +
+    (draft.recommended ? ' · AI 추천: ' + (draft.suggestedCourseName || courseNames(draft.recommended)[0]) : '') +
     ' · 저장: ' + (draft.newCourseName || courseNames(draft.selected)[0]);
 }
 
@@ -331,18 +339,20 @@ async function runAnalysis() {
       }
       newCourseName = result.course.trim();
       target = 'notebook_' + crypto.randomUUID();
-      reviewCourse.add(new Option(newCourseName, target));
     }
     if (!target) throw new Error('추천 과목을 확인할 수 없습니다. 다시 분석해 주세요.');
     if (autoCourse && (!result.classification || !Array.isArray(result.classification.relatedTerms))) {
       throw new Error('단어장 추천 근거를 확인할 수 없습니다. 다시 분석해 주세요.');
     }
-    draft = {term, newCourseName, referenceSentence: context,
+    draft = {term, newCourseName, createsCourse: createFirstCourse, suggestedCourseName: newCourseName, referenceSentence: context,
       exampleSource: context && result.exampleSource === 'reference' ? 'reference' : '', model: result.model, recommended: autoCourse ? target : null, selected: target,
       diagram: supportsEddyDiagram(result.en, target) ? 'eddy-loops' : null};
-    reviewCourse.value = target;
     // Users always control the destination, including when the notebook contains no words.
-    $('#review-course-row').hidden = false;
+    // With no notebooks yet, they review (and may edit) the new notebook's name instead.
+    $('#review-course-row').hidden = createFirstCourse;
+    $('#review-new-course-row').hidden = !createFirstCourse;
+    if (createFirstCourse) newCourseInput.value = newCourseName;
+    else reviewCourse.value = target;
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
@@ -354,8 +364,7 @@ async function runAnalysis() {
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
-      '분석 완료. 아래 결과를 검토하세요.';
-    if (createFirstCourse && !result.needsManualCompletion) await saveReview();
+      createFirstCourse ? '분석 완료. 새 단어장 이름과 결과를 검토한 뒤 저장하세요.' : '분석 완료. 아래 결과를 검토하세요.';
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     showError(['TimeoutError','AbortError'].includes(error.name) ?
@@ -399,6 +408,11 @@ async function saveReview() {
   if (!validation.ok) {
     status.textContent = validation.message;
     status.scrollIntoView({block: 'center'});
+    return;
+  }
+  if (draft.createsCourse && !draft.newCourseName) {
+    status.textContent = '새 단어장 이름을 입력해 주세요.';
+    newCourseInput.focus();
     return;
   }
   const savingDraft = draft;

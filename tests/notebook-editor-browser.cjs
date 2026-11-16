@@ -46,6 +46,17 @@ const {createServer} = require('../server/server.cjs');
     await page.locator('#term-unified-input').fill('와전류');
     await page.locator('#context-sentence-input').fill('자기장에 의한 전류');
     await page.locator('#submit-action-btn').click();
+    // First notebook: nothing is saved until the user reviews the name and presses save.
+    await page.locator('#review-new-course').waitFor();
+    assert.equal(await page.locator('#review-new-course').inputValue(),'전자기 유도');
+    assert.equal(await page.locator('#review-course-row').isHidden(),true);
+    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).courses),{});
+    await page.locator('#review-new-course').fill('   ');
+    await page.locator('#save-action-btn').click();
+    assert.equal(await page.locator('#analysis-status').textContent(),'새 단어장 이름을 입력해 주세요.');
+    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).courses),{});
+    await page.locator('#review-new-course').fill('전자기 유도');
+    await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     assert.equal(await page.locator('header h1').textContent(),'전자기 유도');
     assert.equal(calls,1);
@@ -84,6 +95,6 @@ const {createServer} = require('../server/server.cjs');
     await page.waitForFunction(()=>document.querySelector('#analysis-error-message')?.textContent==='분석 실패 검증');
     assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1'))),{courses:{},terms:{},saved:[]});
     assert.deepEqual(errors,[]);
-    console.log('PASS: home create/duplicate/blank checks; empty-state AI course naming and atomic autosave; stored photo restored after edit/reload; header clearance');
+    console.log('PASS: home create/duplicate/blank checks; empty-state AI course name reviewed and editable, created only on save; stored photo restored after edit/reload; header clearance');
   } finally { await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve)); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
