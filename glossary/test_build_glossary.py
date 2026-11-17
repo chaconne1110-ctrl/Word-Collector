@@ -101,6 +101,84 @@ class Extract(unittest.TestCase):
         self.assertEqual(g.source_file_name({'file': 'paper-01.pdf', 'url': 'https://doi.org/10.1/x'}), 'paper-01.pdf')
 
 
+GLOSSARY_MD = '''<!-- source: zh-TW/appendix/glossary.md -->
+# Appendix A: Glossary
+
+| Term | Abbreviation | Traditional Chinese | Description | Chapter |
+| --- | --- | --- | --- | --- |
+| Atomic Layer Deposition | ALD | 原子層沉積 | A deposition method that grows one atomic layer at a time | 5 |
+| Bond Pad | Pad | 焊墊 | A metal contact on the chip for test probes | 11 |
+| Anneal | — | 退火 | Heating that repairs the crystal lattice | 7 |
+'''
+JARGON_MD = '''| Expression | In Taiwanese fabs | Meaning | Example |
+|---|---|---|---|
+| Hot lot | Hot Lot | A lot with production priority | "This is a hot lot. Run it as soon as it arrives." |
+'''
+CHAPTER_MD = '''# Chapter 5: Thin Films
+
+> [!NOTE]
+> **📖 Term | Deposition**
+>
+> - **Definition**: Atomic layer deposition builds the film one layer at a time on the wafer surface.
+
+![figure](x.png) See [the glossary](../appendix/glossary.md) for more terms here today.
+
+```python
+print("code is ignored completely here")
+```
+'''
+
+
+class Markdown(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        (root / 'appendix').mkdir()
+        (root / 'appendix' / 'glossary.md').write_text(GLOSSARY_MD, encoding='utf-8')
+        (root / 'appendix' / 'fab-jargon.md').write_text(JARGON_MD, encoding='utf-8')
+        (root / 'appendix' / 'further-reading.md').write_text('# Further reading\n\n- Some Book, 2020.\n', encoding='utf-8')
+        (root / '05-thin-films.md').write_text(CHAPTER_MD, encoding='utf-8')
+        self.root = root
+        self.source = {'id': 'semi', 'field': '반도체', 'glossaryFiles': ['appendix/glossary.md', 'appendix/fab-jargon.md'],
+                       'skipFiles': ['appendix/further-reading.md']}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_clean_markdown_keeps_sentences_only(self):
+        text = g.clean_markdown(CHAPTER_MD)
+        self.assertIn('Atomic layer deposition builds the film one layer at a time on the wafer surface.', text)
+        self.assertIn('See the glossary for more terms here today.', text)
+        for gone in ['<!--', '```', 'print(', 'x.png', '[!NOTE]', '**', '#']:
+            self.assertNotIn(gone, text)
+
+    def test_glossary_tables_give_terms_acronyms_and_sentences(self):
+        entries = {term: (aliases, sentences) for term, aliases, sentences in g.glossary_entries(GLOSSARY_MD + '\n' + JARGON_MD)}
+        self.assertEqual(entries['Atomic Layer Deposition'][0], ['ALD'])
+        self.assertEqual(entries['Bond Pad'][0], [], '"Pad" is not an acronym, so it is not a lookup key')
+        self.assertEqual(entries['Anneal'][1], ['Anneal: Heating that repairs the crystal lattice.'])
+        self.assertEqual(entries['Hot lot'][1][1], 'This is a hot lot. Run it as soon as it arrives.')
+
+    def test_source_reading_hash_and_forced_candidates(self):
+        pages, forced = g.read_markdown_source(self.source, self.root)
+        self.assertEqual([p['printedPage'] for p in pages], ['05-thin-films.md'], 'glossary and reading list are not body pages')
+        self.assertEqual(set(forced), {'atomic layer deposition', 'bond pad', 'anneal', 'hot lot'})
+        found = {c['term']: c for c in g.collect_candidates([('semi', 'paper', pages)], forced=forced)}
+        self.assertEqual(found['atomic layer deposition']['aliases'], ['ALD'])
+        self.assertTrue(found['atomic layer deposition']['contexts'][0]['text'].startswith('Atomic Layer Deposition (ALD):'))
+        self.assertIn('hot lot', found, 'every glossary term is a candidate, however rare in the body')
+        before = g.markdown_sha256(self.root)
+        (self.root / '05-thin-films.md').write_text(CHAPTER_MD + 'x', encoding='utf-8')
+        self.assertNotEqual(g.markdown_sha256(self.root), before)
+
+    def test_acronyms_become_lookup_keys_without_overriding_terms(self):
+        cand = {'field': '반도체', 'term': 'atomic layer deposition', 'count': 5, 'contexts': CONTEXTS, 'aliases': ['ALD']}
+        ald = g.entry_from_answer(cand, {**ANSWER, 'englishTerm': 'atomic layer deposition', 'koreanMeaning': '원자층 증착'}, 'm')
+        lookup = g.build_lookup([ald])
+        self.assertEqual(lookup['반도체|ald']['en'], 'atomic layer deposition')
+
+
 class Define(unittest.TestCase):
     def test_entry_is_written_anew_and_keeps_references_for_the_server(self):
         entry = g.entry_from_answer(CANDIDATE, ANSWER, 'gemini-4-hydrogen')

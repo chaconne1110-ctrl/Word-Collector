@@ -142,7 +142,8 @@ def source_file_name(source) -> str:
 
 
 def restricted_pages(source) -> set[int]:
-    pages = set()
+    """읽지 않는 쪽: 다른 사람의 저작물(restrictedElements)과, 용어와 관계없는 쪽(skipPages: 라이선스 원문·색인 등)."""
+    pages = set(source.get('skipPages', []))
     for element in source.get('restrictedElements', []):
         pages.update(element.get('pdfPages', []))
     return pages
@@ -184,6 +185,104 @@ def read_pdf(pdf_path: Path):
         yield number, page.extract_text() or ''
 
 
+# ---- Markdown 자료 (예: GitHub에 Markdown으로 공개된 교재). 파일 하나를 한 "쪽"으로 다룬다
+#      (pdfPage = 파일 순번, printedPage = 파일 경로).
+
+MD_COMMENT = re.compile(r'<!--.*?-->', re.S)
+TABLE_SEPARATOR = re.compile(r'^\|?\s*:?-{3,}')
+ACRONYM = re.compile(r'[A-Z0-9][A-Za-z0-9\-/&]*[A-Z0-9]')
+
+
+def markdown_files(root: Path):
+    return sorted(root.rglob('*.md'), key=lambda path: path.relative_to(root).as_posix())
+
+
+def markdown_sha256(root: Path) -> str:
+    """폴더 안 Markdown 파일 전체(경로 + 내용)의 SHA-256. 판본이 바뀌었는지 확인하는 데 쓴다."""
+    digest = hashlib.sha256()
+    for path in markdown_files(root):
+        digest.update(path.relative_to(root).as_posix().encode('utf-8') + b'\0')
+        digest.update(path.read_bytes() + b'\0')
+    return digest.hexdigest()
+
+
+def strip_inline_markdown(text: str) -> str:
+    text = re.sub(r'!\[[^\]]*\]\([^)]*\)', ' ', text)            # 그림
+    text = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text)         # 링크 -> 글자만
+    return text.replace('**', '').replace('__', '').replace('`', '').strip()
+
+
+def clean_markdown(text: str) -> str:
+    """Markdown -> 문장 글. 주석·코드·그림·표 구분선은 버리고, 제목·목록·표의 칸은 각각 한 문장으로 만든다."""
+    text = MD_COMMENT.sub(' ', text)
+    text = re.sub(r'```.*?```', ' ', text, flags=re.S)
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or TABLE_SEPARATOR.match(line) or line == '---':
+            continue
+        if line.startswith('|'):
+            cells = [strip_inline_markdown(cell) for cell in line.strip('|').split('|')]
+            line = '. '.join(cell for cell in cells if cell and cell != '—')
+        line = re.sub(r'^(#{1,6}|>+|\[![A-Z]+\]|[-*+]|\d+\.)\s*', '', line)
+        line = re.sub(r'^(>+|\[![A-Z]+\]|[-*+])\s*', '', line)
+        line = strip_inline_markdown(line)
+        if line:
+            lines.append(line if line[-1] in '.!?:' else line + '.')
+    return clean_page_text('\n'.join(lines))
+
+
+def markdown_tables(text: str):
+    """Markdown 표 -> 행마다 {열 이름: 값}."""
+    header = None
+    for line in MD_COMMENT.sub(' ', text).splitlines():
+        line = line.strip()
+        if not line.startswith('|'):
+            header = None
+            continue
+        if TABLE_SEPARATOR.match(line):
+            continue
+        cells = [strip_inline_markdown(cell) for cell in line.strip('|').split('|')]
+        if header is None:
+            header = [cell.lower() for cell in cells]
+            continue
+        yield dict(zip(header, cells))
+
+
+def glossary_entries(text: str):
+    """용어집 표에서 (용어, 약어, 설명 문장). 열 이름: Term/Expression, Abbreviation, Description/Meaning, Example."""
+    for row in markdown_tables(text):
+        term = row.get('term') or row.get('expression') or ''
+        meaning = row.get('description') or row.get('meaning') or ''
+        if not term or not meaning or not WORD.search(term):
+            continue
+        abbreviation = row.get('abbreviation', '')
+        aliases = [abbreviation] if ACRONYM.fullmatch(abbreviation or '') and abbreviation.lower() != term.lower() else []
+        sentence = f'{term}{f" ({abbreviation})" if aliases else ""}: {meaning}'
+        example = row.get('example', '').strip('"“” ')
+        yield term, aliases, [sentence.rstrip('.') + '.'] + ([example.rstrip('.') + '.'] if len(example) > 15 else [])
+
+
+def read_markdown_source(source, root: Path):
+    """Markdown 자료 -> (쪽 목록, 반드시 넣을 용어집 용어 {term: {...}})."""
+    skip = set(source.get('skipFiles', [])) | set(source.get('glossaryFiles', []))
+    pages, forced = [], {}
+    for number, path in enumerate(markdown_files(root), start=1):
+        rel = path.relative_to(root).as_posix()
+        text = path.read_text(encoding='utf-8')
+        if rel in source.get('glossaryFiles', []):
+            for term, aliases, sentences in glossary_entries(text):
+                key = ' '.join(WORD.findall(term.lower())) if term.isascii() else term.lower()
+                item = forced.setdefault(key, {'display': term, 'aliases': set(), 'contexts': []})
+                item['aliases'].update(aliases)
+                for sentence in sentences:
+                    if len(item['contexts']) < MAX_CONTEXTS:
+                        item['contexts'].append({'text': sentence, 'sourceId': source['id'], 'pdfPage': number, 'printedPage': rel})
+        if rel not in skip:
+            pages.append({'pdfPage': number, 'printedPage': rel, 'text': clean_markdown(text)})
+    return pages, forced
+
+
 def candidate_terms(sentence: str):
     """문장 안의 1~3단어 용어 후보 (앞뒤가 불용어·숫자가 아닌 것)."""
     words = [word.lower().strip("'") for word in WORD.findall(sentence)]
@@ -221,8 +320,9 @@ def singular(term: str, counts) -> str:
     return term
 
 
-def collect_candidates(pages_by_source, max_terms=10000, min_counts=MIN_COUNTS):
-    """pages_by_source: [(source_id, kind('textbook'|'paper'), pages)] (같은 분야끼리)."""
+def collect_candidates(pages_by_source, max_terms=10000, min_counts=MIN_COUNTS, forced=None):
+    """pages_by_source: [(source_id, kind('textbook'|'paper'), pages)] (같은 분야끼리).
+    forced: 용어집 용어 {term: {'aliases', 'contexts'}} - 항상 후보에 넣는다."""
     counts = {kind: Counter() for kind in min_counts}
     contexts: dict[str, list] = {}
     for source_id, kind, pages in pages_by_source:
@@ -261,7 +361,25 @@ def collect_candidates(pages_by_source, max_terms=10000, min_counts=MIN_COUNTS):
         # 여러 단어 용어에 약간의 가중치 (짧은 일반 단어보다 전문 용어가 앞에 오도록)
         picked.append((total * (1 + 0.5 * (size - 1)), term, total))
     picked.sort(key=lambda item: (-item[0], item[1]))
-    return [{'term': term, 'count': total, 'contexts': contexts[term]} for _, term, total in picked[:max_terms]]
+    chosen = [{'term': term, 'count': total, 'contexts': contexts[term]} for _, term, total in picked[:max_terms]]
+    # 용어집에 실린 용어는 등장 횟수와 상관없이 모두 넣는다. 용어집 설명을 첫 문장으로, 약어는 검색어(aliases)로.
+    by_term = {candidate['term']: candidate for candidate in chosen}
+    for term, item in (forced or {}).items():
+        body = [c for c in contexts.get(term, []) if c['text'] not in {f['text'] for f in item['contexts']}]
+        if term not in by_term and ' ' in term and len(term.split()) > 3:      # 4단어 이상 용어: 본문에서 직접 찾기
+            pattern = re.compile(r'\b' + r'\s+'.join(map(re.escape, term.split())) + r'\b', re.I)
+            body = [{'text': s, 'sourceId': sid, 'pdfPage': p['pdfPage'], 'printedPage': p['printedPage']}
+                    for sid, _, pages in pages_by_source for p in pages for s in split_sentences(p['text']) if pattern.search(s)]
+        merged_contexts = (item['contexts'] + body)[:MAX_CONTEXTS]
+        if term in by_term:
+            by_term[term]['contexts'] = merged_contexts
+            by_term[term]['aliases'] = sorted(item['aliases'])
+        else:
+            candidate = {'term': term, 'count': max(1, sum(merged[kind][term] for kind in min_counts)),
+                         'contexts': merged_contexts, 'aliases': sorted(item['aliases'])}
+            chosen.append(candidate)
+            by_term[term] = candidate
+    return chosen
 
 
 def sha256_file(path: Path) -> str:
@@ -275,14 +393,29 @@ def sha256_file(path: Path) -> str:
 def command_extract(args):
     pdf_dir = Path(args.pdf_dir)
     by_field: dict[str, list] = {field: [] for field in FIELDS}
+    forced_by_field: dict[str, dict] = {field: {} for field in FIELDS}
     for source in load_sources():
+        kind = source.get('countAs') or ('paper' if source.get('type') == 'paper' else 'textbook')
+        if source.get('format') == 'markdown':
+            root = pdf_dir / source['dir']
+            if not root.is_dir():
+                sys.exit(f'자료 폴더가 없습니다: {root}  ({source["title"]})')
+            if markdown_sha256(root) != source['contentSha256']:
+                sys.exit(f'{root.name} 폴더 내용이 등록 정보와 다릅니다(SHA-256 불일치). rag/sources.json의 판본을 확인해 주세요.')
+            pages, forced = read_markdown_source(source, root)
+            for term, item in forced.items():
+                target = forced_by_field[source['field']].setdefault(term, {'aliases': set(), 'contexts': []})
+                target['aliases'] |= item['aliases']
+                target['contexts'] = (target['contexts'] + item['contexts'])[:MAX_CONTEXTS]
+            print(f'{source["id"]} ({source["field"]}): Markdown {len(pages)}개 파일 읽음, 용어집 용어 {len(forced)}개')
+            by_field[source['field']].append((source['id'], kind, pages))
+            continue
         pdf_path = pdf_dir / source_file_name(source)
         if not pdf_path.exists():
             sys.exit(f'자료 파일이 없습니다: {pdf_path}  ({source["title"]})')
         if sha256_file(pdf_path) != source['sha256']:
             sys.exit(f'{pdf_path.name} 파일이 등록 정보와 다릅니다(SHA-256 불일치). rag/sources.json의 판본을 확인해 주세요.')
         blocked = restricted_pages(source)
-        kind = 'paper' if source.get('type') == 'paper' else 'textbook'
         # 논문, 그리고 책 끝에 참고문헌만 모아 둔 학위논문·책(readUntilReferences)은 참고문헌 앞까지만 읽는다.
         until_references = kind == 'paper' or bool(source.get('readUntilReferences'))
         pages = [page for page in page_texts(read_pdf(pdf_path), paper=until_references) if page['pdfPage'] not in blocked]
@@ -291,7 +424,7 @@ def command_extract(args):
     candidates = []
     for field, sources in by_field.items():
         if sources:
-            found = collect_candidates(sources, max_terms=args.max_terms)
+            found = collect_candidates(sources, max_terms=args.max_terms, forced=forced_by_field[field])
             candidates += [{'field': field, **candidate} for candidate in found]
             print(f'{field}: 용어 후보 {len(found)}개')
     write_json(OUT / 'candidates.json', {'version': GLOSSARY_VERSION, 'createdAt': now_iso(), 'candidates': candidates})
@@ -406,7 +539,8 @@ def entry_from_answer(candidate, answer, model):
         return None
     references = [{'sourceId': c['sourceId'], 'pdfPage': c['pdfPage'], 'printedPage': c['printedPage']} for c in contexts]
     return {**fields, 'relatedWords': related[:2], 'field': candidate['field'], 'term': candidate['term'],
-            'count': candidate['count'], 'references': references, 'model': model, 'builtAt': now_iso()}
+            'count': candidate['count'], 'aliases': candidate.get('aliases', []), 'references': references,
+            'model': model, 'builtAt': now_iso()}
 
 
 def done_key(candidate) -> str:
@@ -450,6 +584,8 @@ def command_define(args):
     if not api_key:
         sys.exit('환경 변수 GEMINI_API_KEY를 설정해 주세요. (키는 화면에 출력하지 않습니다)')
     candidates = json.loads((OUT / 'candidates.json').read_text(encoding='utf-8'))['candidates']
+    if args.field:
+        candidates = [c for c in candidates if c['field'] == args.field]
     path = OUT / 'glossary.json'
     saved = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
     done = saved.get('terms', {}) if saved.get('version') == GLOSSARY_VERSION else {}
@@ -471,6 +607,11 @@ def build_lookup(entries):
         for key in {lookup_key(entry['en']), lookup_key(entry['term'])}:
             full = entry['field'] + '|' + key
             if key and full not in lookup:
+                lookup[full] = entry
+    for entry in ordered:                      # 약어(ALD 등): 영어 표제어를 다 채운 뒤, 겹치지 않을 때만
+        for alias in entry.get('aliases', []):
+            full = entry['field'] + '|' + lookup_key(alias)
+            if lookup_key(alias) and full not in lookup:
                 lookup[full] = entry
     korean = Counter()
     meanings = lambda entry: {lookup_key(part) for part in entry['ko'].split(',')} - {''}
@@ -525,6 +666,7 @@ def main(argv=None):
     define = sub.add_parser('define', help='Gemini로 용어 정리 (이어서 실행 가능)')
     define.add_argument('--model', default=DEFAULT_MODEL)
     define.add_argument('--limit', type=int, default=None, help='이번에 처리할 후보 수 (시험용)')
+    define.add_argument('--field', choices=FIELDS, default=None, help='이 분야의 후보만 처리')
     sub.add_parser('export', help='서버 등록용 SQL과 검토용 CSV 만들기')
     args = parser.parse_args(argv)
     {'extract': command_extract, 'define': command_define, 'export': command_export}[args.command](args)

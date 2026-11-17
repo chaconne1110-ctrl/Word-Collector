@@ -39,6 +39,15 @@ PDF는 `rag/sources.json`의 SHA-256과 같아야 합니다(다른 판본이면 
 기존 단어집을 지우고 새로 넣습니다. 이 과정이 끝나면 PDF 폴더와 `out/` 폴더는 지워도 앱 동작에 영향이 없습니다
 (자료를 추가하거나 단어집을 다시 만들 때만 다시 필요).
 
+## 자료 형식
+
+- **PDF**: `file`(또는 원문 주소의 파일 이름)로 `--pdf-dir` 폴더에서 읽습니다. `restrictedElements`(다른 사람의 저작물 쪽)와
+  `skipPages`(라이선스 원문·색인처럼 용어와 관계없는 쪽)는 읽지 않습니다. `readUntilReferences`이면 참고문헌 앞까지만 읽습니다.
+- **Markdown**(예: GitHub 공개 교재): `"format": "markdown"`, `"dir"`(`--pdf-dir` 안의 폴더). 파일 하나를 한 쪽으로 다루고,
+  폴더 전체의 SHA-256(`contentSha256`)으로 판본을 확인합니다. `glossaryFiles`의 표(Term/Expression, Abbreviation,
+  Description/Meaning, Example 열)에 실린 용어는 등장 횟수와 상관없이 모두 후보가 되고, 대문자 약어(ALD 등)는 검색어가 됩니다.
+- `define --field 반도체`처럼 한 분야만 정리할 수 있습니다.
+
 ## 단어집을 쓰는 경우와 Gemini를 쓰는 경우
 
 - 단어집: 전공 의미 + 전공명이 등록 분야(전기공학·반도체)에 해당 + 참고 문장 없음 + 단어집에 있는 단어.

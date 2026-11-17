@@ -320,6 +320,53 @@
       ]
     },
     {
+      "id": "kuphaldt-model-plc",
+      "register": true,
+      "type": "textbook",
+      "field": "전기공학",
+      "file": "mod_plc.pdf",
+      "title": "Introduction to PLCs (Modular Electronics Learning project)",
+      "author": "Tony R. Kuphaldt",
+      "publisher": "Modular Electronics Learning (ModEL) project, ibiblio",
+      "edition": "Last update 28 January 2026",
+      "copyright": "© 2019-2026 by Tony R. Kuphaldt",
+      "url": "https://ibiblio.org/kuphaldt/socratic/model/mod_plc.pdf",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF p.1: 'licensed under the Creative Commons Attribution 4.0 International Public License'; full licence text in Appendix D (PDF pp.213-220). File Last-Modified 2026-07-28.",
+      "attribution": "\"Introduction to PLCs\" (ModEL project) by Tony R. Kuphaldt, CC BY 4.0.",
+      "thirdPartyMaterial": "None found (scan 2026-11-18); 'courtesy of' lines are reader error-report acknowledgements in the version history.",
+      "usageNote": "Reference only: the app never shows this text, title or license; AI writes new text.",
+      "topics": [
+        "PLC",
+        "래더 로직",
+        "입출력 모듈",
+        "타이머·비교 명령",
+        "Arduino와 PLC 비교"
+      ],
+      "fileLastModified": "2026-07-28",
+      "checkedAt": "2026-11-18",
+      "sha256": "cca468faf61985d09ae3e8fcb3a484b91f4bc08d2001ab161bda7bc96b9af1a7",
+      "sizeBytes": 2074454,
+      "pdfPages": 225,
+      "skipPages": [
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225
+      ],
+      "restrictedElements": []
+    },
+    {
       "id": "openstax-university-physics-2",
       "register": false,
       "title": "University Physics Volume 2",
@@ -365,7 +412,7 @@
     },
     {
       "id": "chenwei810-semiconductor-manufacturing-intro",
-      "register": false,
+      "register": true,
       "type": "textbook",
       "field": "반도체",
       "title": "Introduction to Semiconductor Manufacturing (半導體製造概論), English edition",
@@ -377,9 +424,8 @@
       "license": "CC BY-NC-SA 4.0",
       "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "licenseEvidence": "Repository LICENSE file and README 'License' section: 'The text and images are licensed under CC BY-NC-SA 4.0 ... for non-commercial purposes'.",
-      "format": "Markdown chapters (25 chapters in en/, also ko/ ja/ zh-TW/ zh-CN); no PDF.",
+      "format": "markdown",
       "notes": "README disclaimer: based on public information and general industry knowledge; most numbers are approximate. Very new repository; authorship and review process not stated.",
-      "excludedReason": "NonCommercial (NC) terms, like OpenStax; pending the owner's decision. Markdown source would also need a reader in the build pipeline.",
       "topics": [
         "반도체 기초",
         "공정 모듈",
@@ -387,7 +433,22 @@
         "수율·품질",
         "후공정(테스트·패키징)"
       ],
-      "checkedAt": "2026-11-18"
+      "checkedAt": "2026-11-18",
+      "dir": "semiconductor-intro-en",
+      "countAs": "paper",
+      "glossaryFiles": [
+        "appendix/glossary.md",
+        "appendix/fab-jargon.md"
+      ],
+      "skipFiles": [
+        "appendix/further-reading.md"
+      ],
+      "contentSha256": "196c3abad5fb67482e5744788db047d3f48b9cf0a06246ac8c21f6b01b6807f9",
+      "markdownFiles": 37,
+      "usagePurpose": "Non-commercial: used by an academic society (학회), confirmed by the project owner on 2026-11-18. CC BY-NC-SA 4.0 permits this.",
+      "usageNote": "Reference only: the app never shows this text, title or license; AI writes new text (8+ consecutive copied words rejected), so no adapted material is shared and ShareAlike does not apply to app output. Do not use if the app becomes commercial.",
+      "format_note": "English Markdown chapters (en/) at the pinned commit; glossary (Appendix A) and fab jargon (Appendix B) terms are always candidates, their abbreviations become lookup keys.",
+      "restrictedElements": []
     }
   ]
 }

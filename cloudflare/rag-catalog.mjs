@@ -91,6 +91,28 @@ export const RAG_CATALOG = {
       licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
       checkedAt: '2026-11-18',
       restrictedPdfPages: [205]
+    },
+    {
+      id: 'kuphaldt-model-plc',
+      title: 'Introduction to PLCs (Modular Electronics Learning project)',
+      author: 'Tony R. Kuphaldt',
+      edition: 'Last update 28 January 2026',
+      url: 'https://ibiblio.org/kuphaldt/socratic/model/mod_plc.pdf',
+      license: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      checkedAt: '2026-11-18',
+      restrictedPdfPages: []
+    },
+    {
+      id: 'chenwei810-semiconductor-manufacturing-intro',
+      title: 'Introduction to Semiconductor Manufacturing (半導體製造概論), English edition',
+      author: 'chenwei810 and contributors (GitHub)',
+      edition: 'master @ 38e95fe7df84 (repository created 2026-10-11, last push 2026-10-30)',
+      url: 'https://github.com/chenwei810/Semiconductor_Manufacturing_Introduction/tree/master/en',
+      license: 'CC BY-NC-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
+      checkedAt: '2026-11-18',
+      restrictedPdfPages: []
     }
   ]
 };
