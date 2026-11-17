@@ -830,3 +830,46 @@ test('전공 모름: a slow later search never pushes the response past the app 
     } finally { globalThis.fetch = originalFetch; Date.now = realNow; }
   }
 });
+
+test('D1 refusing writes (daily write limit): a word missing from the glossary is still analysed by Gemini; quota limits still apply', async () => {
+  const geminiOutput = {englishTerm: 'Ferranti effect', koreanMeaning: '페란티 현상', specialization: '전기공학', notebookName: '회로이론',
+    englishDefinition: 'A rise in voltage at the receiving end of a long, lightly loaded line.', koreanDefinition: '부하가 가벼운 긴 선로의 수전단 전압이 오르는 현상.',
+    exampleSentence: 'The Ferranti effect raised the voltage.', explanation: '-', recommendationReason: '-', relatedTerms: [],
+    relatedWords: [{englishTerm: 'transmission line', koreanMeaning: '송전선'}, {englishTerm: 'capacitance', koreanMeaning: '정전용량'}],
+    pos: '명사', exampleKo: '페란티 현상으로 전압이 올랐다.'};
+  const originalFetch = globalThis.fetch;
+  let geminiCalls = 0;
+  globalThis.fetch = async () => { geminiCalls++;
+    return new Response(JSON.stringify({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify(geminiOutput)}]}}]}), {status: 200}); };
+  const writeLimit = () => { throw new Error('D1_ERROR: Exceeded maximum DB rows written for this period'); };
+  const body = JSON.stringify({term: '페란티', context: '', course: '회로이론', autoCourse: false, meaningMode: 'major', majorField: '전기공학'});
+  try {
+    // A user with a token.
+    const {env, state} = mockEnv({live: true});
+    state.hash = await tokenHash(token);
+    env.DB.batch = async () => writeLimit();
+    let res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+      headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-WC-Glossary': '1'}, body}), env);
+    let out = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(out));
+    assert.equal(out.en, 'Ferranti effect');
+    assert.equal(geminiCalls, 1);
+    // A new install (device ID) whose tester row cannot be written either.
+    const fresh = mockEnv({live: true});
+    const prepare = fresh.env.DB.prepare.bind(fresh.env.DB);
+    fresh.env.DB.prepare = sql => { const stmt = prepare(sql); if (sql.includes('INSERT OR IGNORE INTO testers')) stmt.run = async () => writeLimit(); return stmt; };
+    fresh.env.DB.batch = async () => writeLimit();
+    res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+      headers: {'X-WC-Device': 'wd_' + 'a'.repeat(64), 'Content-Type': 'application/json'}, body}), fresh.env);
+    out = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(out));
+    assert.equal(geminiCalls, 2);
+    // A quota limit is still a limit (no Gemini call).
+    const limited = mockEnv({live: true, rejectBatch: true});
+    limited.state.hash = await tokenHash(token);
+    res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+      headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json'}, body}), limited.env);
+    assert.equal(res.status, 429);
+    assert.equal(geminiCalls, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});

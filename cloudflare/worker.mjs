@@ -580,12 +580,18 @@ async function anonymousIdentity(request, env) {
     .map(byte => byte.toString(16).padStart(2, '0')).join('');
   // Usage tables reference testers(tester_id). The placeholder token_hash can
   // never equal a SHA-256 hex digest, so it cannot be used as a bearer token.
-  await env.DB.prepare(
-    'INSERT OR IGNORE INTO testers (tester_id, token_hash, is_active) VALUES (?, ?, 1)'
-  ).bind(id, 'anon:' + id).run();
+  // When D1 refuses writes (e.g. the plan's daily write limit), a new install is
+  // still identified; its analysis then runs unrecorded (reserveAnalysisOrUnrecorded).
+  let insertFailed = false;
+  try {
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO testers (tester_id, token_hash, is_active) VALUES (?, ?, 1)'
+    ).bind(id, 'anon:' + id).run();
+  } catch { insertFailed = true; }
   const row = await env.DB.prepare(
     'SELECT tester_id, is_active FROM testers WHERE tester_id = ?'
   ).bind(id).first();
+  if (!row && insertFailed) return {tester_id: id, anonymous: true};
   if (!row || Number(row.is_active) !== 1) return null;
   return {tester_id: id, anonymous: true};
 }
@@ -669,6 +675,31 @@ async function reserveAnalysis(env, testerId) {
     throw new ApiError(503, '사용량 기록을 확인하지 못했습니다.');
   }
   return {table, testerId, date};
+}
+
+// D1 can refuse writes for a while (for example after the plan's daily write
+// limit is used up). A word missing from the glossary must still be analysed by
+// Gemini then, so the analysis runs without a usage record. Those unrecorded
+// analyses are capped per Worker instance and day, so Gemini spend stays bounded.
+// Quota limits (daily/global/IP triggers) are never bypassed.
+const UNRECORDED_ANALYSIS_LIMIT = 300;
+const unrecordedAnalyses = {date: '', count: 0};
+function isQuotaLimit(error) {
+  return error instanceof ApiError || /_limit_\d+|CHECK constraint failed/.test(String(error?.message || ''));
+}
+async function reserveAnalysisOrUnrecorded(env, testerId) {
+  try {
+    return await reserveAnalysis(env, testerId);
+  } catch (error) {
+    if (isQuotaLimit(error)) throw error;
+    const date = todayKST();
+    if (unrecordedAnalyses.date !== date) { unrecordedAnalyses.date = date; unrecordedAnalyses.count = 0; }
+    if (unrecordedAnalyses.count >= UNRECORDED_ANALYSIS_LIMIT) {
+      throw new ApiError(503, '사용량을 기록할 수 없어 지금은 분석할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+    }
+    unrecordedAnalyses.count++;
+    return {table: 'unrecorded', testerId, date};
+  }
 }
 
 // A failed attempt (Gemini error, timeout, unusable output) is given back to
@@ -1012,7 +1043,7 @@ const handler = {
       // counters keep it, so failures stay bounded per day). Gemini is called
       // once, except that a "location not supported" rejection is re-sent up to twice.
       phase = 'QUOTA';
-      const reservation = await reserveAnalysis(env, tester.tester_id);
+      const reservation = await reserveAnalysisOrUnrecorded(env, tester.tester_id);
       phase = 'GEMINI';
       // Evidence from the registered textbooks (rag.mjs), only for apps that
       // show it (X-WC-Evidence: 1). It runs in parallel with the analysis; its
