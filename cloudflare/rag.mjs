@@ -16,7 +16,9 @@
 //    never into the system instruction.
 import {RAG_CATALOG} from './rag-catalog.mjs';
 
-export const EVIDENCE_VERSION = 1;
+// 2: explanations that copy the material are dropped (v6). Part of the cache
+// key, so results cached by version 1 (unchecked) are never returned.
+export const EVIDENCE_VERSION = 2;
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_ATTEMPTS = 2;            // one retry, only for network errors and 5xx
@@ -208,7 +210,9 @@ export async function startEvidence(input, {env, fetchImpl, model, apiKey, timeo
   try {
     const row = await env.DB?.prepare(`SELECT evidence_json FROM rag_cache WHERE cache_key = ?1 AND created_at > datetime('now', '-${CACHE_DAYS} days')`)
       .bind(cacheKey).first();
-    if (row?.evidence_json) return {final: {...JSON.parse(row.evidence_json), cached: true}, started, cacheKey};
+    const cached = row?.evidence_json ? JSON.parse(row.evidence_json) : null;
+    // A row from an older version was not copy-checked: search again instead.
+    if (cached?.version === EVIDENCE_VERSION) return {final: {...cached, cached: true}, started, cacheKey};
   } catch { /* no cache table yet: search normally */ }
   try {
     const payload = await callFileSearch(input, {store: plan.store, model, fetchImpl, timeoutMs, apiKey});

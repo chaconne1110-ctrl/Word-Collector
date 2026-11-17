@@ -216,3 +216,24 @@ test('cache: same word with another field or reference sentence is a different e
   assert.equal(second.evidence.cached, true);
   assert.equal(db.usage.at(-1)[1], 1, 'cached usage is counted');
 });
+
+test('results cached before the copy check (version 1) are never returned: they are searched and checked again', async () => {
+  const input = majorInput('current');
+  const copied = 'Electric current is the flow of electrons through a conductor, as the book says.';
+  const oldEvidence = {version: 1, status: 'found', message: EVIDENCE_MESSAGES.found, explanation: {ko: '복제된 설명', en: copied}, sources: [], notes: []};
+  // Version 1 used another cache key, so an old row is not even looked up ...
+  const material = JSON.stringify([1, RAG_CATALOG.catalogVersion, STORE, MODEL, 'current', 'major', '전기공학', '']);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
+  const oldKey = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  assert.notEqual(await evidenceCacheKey(input, STORE, MODEL), oldKey);
+  // ... and an old row found under the current key is not trusted either.
+  const db = fakeDb(pagesWithCurrent);
+  db.cache.set(await evidenceCacheKey(input, STORE, MODEL), JSON.stringify(oldEvidence));
+  const copying = {...found, groundedExplanationEn: copied};
+  const {evidence, calls} = await run(input, geminiReply({judgement: copying, chunks: [[DC, CURRENT_TEXT]]}), {db});
+  assert.equal(calls.length, 1, 'searched again instead of using the old row');
+  assert.equal(evidence.cached, false);
+  assert.equal(evidence.explanation, null, 'the copy check applies');
+  assert.equal(evidence.version, 2);
+  assert.equal(recorded(db).version, 2, 'the old row is replaced');
+});
