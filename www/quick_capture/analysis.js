@@ -22,14 +22,11 @@ const retryButton = $('#analysis-retry');
 const waiting = $('#analysis-waiting');
 const waitingTitle = $('#analysis-waiting-title');
 const waitingTerm = $('#analysis-waiting-term');
-const waitingElapsed = $('#analysis-waiting-elapsed');
 const waitingCancel = $('#analysis-waiting-cancel');
 const STEP_STATES = {
   waiting: ['schedule', '대기'], active: ['pending', '진행 중'], done: ['check_circle', '완료'],
   failed: ['error', '실패 · 검수 화면에서 다시 시도'], skipped: ['skip_next', '백그라운드에서 계속']
 };
-let waitingTimer = null;
-let waitingStartedAt = 0;
 function setWaitingStep(step, state) {
   const item = waiting.querySelector('[data-step="' + step + '"]');
   if (!item) return;
@@ -44,20 +41,11 @@ function showWaiting(term) {
   waitingTerm.textContent = '“' + term + '”';
   setWaitingStep('analysis', 'active');
   setWaitingStep('evidence', 'active');
-  waitingStartedAt = Date.now();
-  waitingElapsed.textContent = '0초 경과';
-  clearInterval(waitingTimer);
-  waitingTimer = setInterval(() => {
-    const seconds = Math.floor((Date.now() - waitingStartedAt) / 1000);
-    waitingElapsed.textContent = seconds + '초 경과';
-  }, 1000);
   waiting.hidden = false;
   if (!waiting.open) waiting.showModal();
   waitingCancel.focus({preventScroll: true});
 }
 function hideWaiting() {
-  clearInterval(waitingTimer);
-  waitingTimer = null;
   if (waiting.open) waiting.close();
   waiting.hidden = true;
 }

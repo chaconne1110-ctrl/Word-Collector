@@ -223,8 +223,7 @@ function renderHome() {
       names.some(name => name.toLowerCase().includes(q)) ||
       idsFor(false, id, 'all', '').some(termId => matches(state.terms[termId], q)));
     container.replaceChildren(...visible.map(([id, names]) => createCard(id, names)));
-    $('#rendered-count').textContent = q ? '검색 결과 ' + visible.length + '개 단어장' :
-      '총 ' + courses.length + '개 단어장 등록됨';
+    $('#rendered-count').textContent = q ? '검색 결과 ' + visible.length + '개 단어장' : '';
     empty.classList.toggle('hidden', visible.length > 0);
     if (!visible.length) {
       $('#empty-state-title').textContent = courses.length && q ? '검색 결과가 없습니다' : '아직 단어장이 없습니다';
@@ -494,11 +493,6 @@ function renderDeck() {
       imageSection.append(savedImage);
       $('.card-back', card).firstElementChild.append(imageSection);
     } else if (current === 'term_resonance_frequency') $('.card-back', card).append($('#resonance-diagram').content.cloneNode(true));
-    else if (template.dataset.cardTemplate === 'generic') {
-      const notice = document.createElement('p');
-      notice.textContent = '첨부된 도해가 없습니다.';
-      $('.card-back', card).append(notice);
-    }
     // Generated photos are explicitly requested, billed once per tap and retained offline.
     // Existing hand-built SVG diagrams remain available independently of this feature.
     const photoTermId = current;

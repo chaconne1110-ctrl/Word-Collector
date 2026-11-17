@@ -63,7 +63,6 @@
   #analysis-waiting li[data-state="active"] { background: #dde1ff; font-weight: 700; }
   #analysis-waiting li[data-state="done"] .wc-step-icon { color: #1b6d24; }
   #analysis-waiting li[data-state="failed"] .wc-step-icon { color: #ba1a1a; }
-  #analysis-waiting .wc-wait-elapsed { margin: 0 0 14px; font-size: 12px; color: #44464f; }
   #analysis-waiting .wc-wait-actions { display: flex; flex-direction: column; gap: 8px; }
   #analysis-waiting button {
     min-height: 44px; border-radius: 12px; font-size: 14px; font-weight: 600; padding: 10px 14px;
@@ -123,7 +122,7 @@
   </section>
 </form>
 </div></main>
-<dialog id="analysis-waiting" hidden aria-modal="true" aria-labelledby="analysis-waiting-title" aria-describedby="analysis-waiting-elapsed">
+<dialog id="analysis-waiting" hidden aria-modal="true" aria-labelledby="analysis-waiting-title">
   <div class="wc-wait-card">
     <div class="wc-spinner" aria-hidden="true"></div>
     <h2 id="analysis-waiting-title">AI가 단어를 분석하고 있어요</h2>
@@ -132,7 +131,6 @@
       <li data-step="analysis" data-state="active"><span class="wc-step-icon material-symbols-outlined" aria-hidden="true">pending</span><span class="wc-step-label">단어 분석</span><span class="wc-step-state">진행 중</span></li>
       <li data-step="evidence" data-state="active"><span class="wc-step-icon material-symbols-outlined" aria-hidden="true">pending</span><span class="wc-step-label">자료 근거 검색</span><span class="wc-step-state">진행 중</span></li>
     </ol>
-    <p class="wc-wait-elapsed" id="analysis-waiting-elapsed" aria-live="polite">0초 경과</p>
     <div class="wc-wait-actions">
       <button type="button" id="analysis-waiting-cancel">취소</button>
     </div>
