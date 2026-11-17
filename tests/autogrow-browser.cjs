@@ -35,6 +35,7 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       assert.ok(await context.evaluate((box, first) => box.getBoundingClientRect().height > first, first), 'reference box grew');
       // Review screen: long analysis text is shown in full; typing more grows the box.
       await page.locator('#term-unified-input').fill('current');
+      await page.locator('#btn-meaning-major').click();
       await page.locator('#major-input').fill('전기공학');
       await page.locator('#submit-action-btn').click();
       await page.locator('#analysis-review').waitFor({state: 'visible'});

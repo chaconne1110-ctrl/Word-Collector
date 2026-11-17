@@ -315,17 +315,14 @@ async function runAnalysis() {
   // 전공 의미 + 새 단어장: the user typed the name; the notebook is created on save.
   const requestedNewCourse = !autoCourse && typeof request.newCourseName === 'string' ?
     request.newCourseName.trim().slice(0, 60) : '';
-  // 일반 의미 always goes to the 일반 단어장 (recreated on save if it was deleted).
-  const toGeneral = !autoCourse && !requestedNewCourse && selected === GENERAL_COURSE_ID;
   const createsCourse = createFirstCourse || Boolean(requestedNewCourse);
-  const destinationName = requestedNewCourse ||
-    (toGeneral && !hasCourse(GENERAL_COURSE_ID) ? GENERAL_COURSE_NAME : courseNames(selected)[0]);
+  const destinationName = requestedNewCourse || courseNames(selected)[0];
   errorCard.hidden = true;
   if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
     showError('한국어 또는 영어 전공 단어를 입력하세요.');
     return;
   }
-  if (!autoCourse && !requestedNewCourse && !toGeneral && (!selected || !hasCourse(selected))) {
+  if (!autoCourse && !requestedNewCourse && (!selected || !hasCourse(selected))) {
     showError('저장할 단어장이 없거나 삭제됐습니다. 입력 화면에서 단어장을 다시 선택해 주세요.');
     return;
   }
@@ -398,12 +395,9 @@ async function runAnalysis() {
     $('#review-course-row').hidden = createsCourse;
     $('#review-new-course-row').hidden = !createsCourse;
     if (createsCourse) newCourseInput.value = newCourseName;
-    else {
-      if (toGeneral && !hasCourse(GENERAL_COURSE_ID)) reviewCourse.add(new Option(GENERAL_COURSE_NAME, GENERAL_COURSE_ID));
-      reviewCourse.value = target;
-    }
-    // 일반 의미 words always go to the 일반 단어장.
-    reviewCourse.disabled = toGeneral;
+    else reviewCourse.value = target;
+    // The notebook chosen on the input page can still be changed here.
+    reviewCourse.disabled = false;
     drawDiagram();
     updateReviewTarget();
     showRecommendation(result, autoCourse, context);
@@ -490,8 +484,6 @@ async function saveReview() {
         return;
       }
       courses[draft.selected] = [draft.newCourseName, ''];
-    } else if (draft.selected === GENERAL_COURSE_ID && !hasCourse(GENERAL_COURSE_ID)) {
-      courses[GENERAL_COURSE_ID] = [GENERAL_COURSE_NAME, ''];
     } else if (!hasCourse(draft.selected)) {
       status.textContent = '저장할 단어장이 삭제됐습니다. 단어장을 다시 선택해 주세요.';
       return;

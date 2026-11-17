@@ -34,12 +34,21 @@ test('review shows the AI notebook name in an editable field; save creates it', 
   assert.match(analysis, /commit\(\{\.\.\.state, \.\.\.deleted, courses, terms: \{\.\.\.state\.terms, \[id\]: word\}\}\)/);
 });
 
-test('일반 의미 always saves to the 일반 단어장 (recreated if deleted); 전공 + 새 단어장 uses the typed name', () => {
+test('notebook and meaning are chosen independently: an existing notebook or a new one (name required), then 일반/전공', () => {
   const capture = fs.readFileSync('www/quick_capture/capture.js', 'utf8');
-  assert.match(capture, /const selected = destination === 'general' \? GENERAL_COURSE_ID :/);
-  assert.match(capture, /if \(destination === 'new' && !newCourseName\) \{/);
-  assert.match(capture, /id !== GENERAL_COURSE_ID/);
-  assert.match(analysis, /reviewCourse\.disabled = toGeneral;/);
-  assert.match(analysis, /courses\[GENERAL_COURSE_ID\] = \[GENERAL_COURSE_NAME, ''\];/);
-  assert.match(analysis, /deletedCourses: state\.deletedCourses\.filter\(courseId => courseId !== draft\.selected\)/);
+  assert.ok(capture.includes("const destination = currentDestinationMode();"));
+  assert.ok(capture.includes("const selected = destination === 'existing' ? courseInput.value : '';"));
+  assert.ok(capture.includes("const notebookEntries = Object.entries(allCourses());"));
+  assert.doesNotMatch(capture, /destination === 'general'|id !== GENERAL_COURSE_ID/);
+  assert.ok(capture.includes("if (destination === 'new' && !newCourseName) {"));
+  assert.ok(analysis.includes('reviewCourse.disabled = false;'));
+  assert.doesNotMatch(analysis, /GENERAL_COURSE/);
+  // Screen order: 1. 단어장 선택, 2. 의미 기준, 3. 단어 입력, 4. 참고자료.
+  const html = fs.readFileSync('www/quick_capture/code.html', 'utf8');
+  const order = ['>1. 단어장 선택<', 'id="subject-select"', 'id="new-notebook-input"', '>2. 의미 기준<', 'id="btn-meaning-general"',
+    'id="major-input"', '>3. 단어 입력<', 'id="term-unified-input"', '>4. 참고자료<', 'id="context-sentence-input"'].map(text => html.indexOf(text));
+  assert.ok(order.every(index => index > 0), JSON.stringify(order));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b));
+  assert.ok(html.includes('placeholder="전공명 또는 학과명 (예: 전기공학, 전기공학과)"'));
+  assert.ok(html.includes('for="new-notebook-input">새 단어장 이름 <span class="text-error">*</span></label><input required aria-required="true"'));
 });

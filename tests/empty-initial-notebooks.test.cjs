@@ -26,12 +26,11 @@ function run(initial) {
     memory
   };
 }
-test('fresh installation has only the 일반 단어장 (no words or bookmarks)', () => {
+test('fresh installation has no notebooks, words, or bookmarks (no default 일반 단어장)', () => {
   const app = run();
-  const expected = {courses:{'general-meaning':['일반 단어장','']},terms:{},saved:[]};
-  assert.deepEqual(app.state(), expected);
-  assert.equal(app.get('Object.keys(allCourses()).length'), 1);
-  assert.equal(app.memory.get('lexicon-word-collector-v1'), JSON.stringify(expected));
+  assert.deepEqual(app.state(), {courses:{},terms:{},saved:[]});
+  assert.equal(app.get('Object.keys(allCourses()).length'), 0);
+  assert.equal(app.memory.size, 0);
 });
 test('previously saved data remains untouched on upgrade', () => {
   const saved = {
@@ -40,19 +39,20 @@ test('previously saved data remains untouched on upgrade', () => {
     saved:['a']
   };
   const app = run(saved);
-  // Existing records are kept as they are; only the 일반 단어장 is added (listed first).
-  const expected = {...saved, courses:{'general-meaning':['일반 단어장',''], ...saved.courses}};
-  assert.deepEqual(app.state(), expected);
-  assert.deepEqual(Object.keys(app.state().courses), ['general-meaning', 'electromagnetics']);
-  assert.equal(app.get('courseNames("electromagnetics")[0]'), '내가 수정한 단어장');
-  assert.equal(app.get('Object.keys(allCourses()).length'),2);
-  assert.equal(app.memory.get('lexicon-word-collector-v1'),JSON.stringify(expected));
-});
-test('a deleted 일반 단어장 is not brought back on start-up', () => {
-  const saved = {courses:{}, terms:{}, saved:[], deletedCourses:['general-meaning']};
-  const app = run(saved);
   assert.deepEqual(app.state(), saved);
-  assert.equal(app.memory.get('lexicon-word-collector-v1'), JSON.stringify(saved));
+  assert.equal(app.get('courseNames("electromagnetics")[0]'), '내가 수정한 단어장');
+  assert.equal(app.get('Object.keys(allCourses()).length'),1);
+  assert.equal(app.memory.get('lexicon-word-collector-v1'),JSON.stringify(saved));
+});
+test('an empty 일반 단어장 auto-created by v2-v4 is removed; one with words is kept', () => {
+  const empty = {courses:{'general-meaning':['일반 단어장',''], book:['회로이론','']}, terms:{a:{course:'book',en:'current'}}, saved:[]};
+  const cleaned = run(empty);
+  assert.deepEqual(cleaned.state(), {...empty, courses:{book:['회로이론','']}});
+  assert.equal(cleaned.memory.get('lexicon-word-collector-v1'), JSON.stringify({...empty, courses:{book:['회로이론','']}}));
+  const used = {courses:{'general-meaning':['일반 단어장','']}, terms:{a:{course:'general-meaning',en:'run'}}, saved:[]};
+  const kept = run(used);
+  assert.deepEqual(kept.state(), used);
+  assert.equal(kept.memory.get('lexicon-word-collector-v1'), JSON.stringify(used));
 });
 test('home can create empty notebooks without requiring AI usage', () => {
   const html=fs.readFileSync('www/index.html','utf8');
@@ -74,5 +74,5 @@ test('home can create empty notebooks without requiring AI usage', () => {
   const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.doesNotMatch(capturePage,/등록된 4개 과목/);
   assert.match(capturePage,/id="existing-notebook-count"/);
-  assert.match(capturePage,/아직 전공 단어장이 없어요/);
+  assert.match(capturePage,/아직 단어장이 없어요/);
 });

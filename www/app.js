@@ -24,26 +24,25 @@ function commit(next) {
   }
 }
 
-// Every install has one notebook for words in their everyday (일반) meaning,
-// listed first on the home screen. It is added once, on a new install or an
-// upgrade. If the user deletes it, it comes back only when they save a word
-// in the general meaning again (see the analysis page).
-const GENERAL_COURSE_ID = 'general-meaning';
-const GENERAL_COURSE_NAME = '일반 단어장';
-// A new notebook may not reuse the name of an existing one (or of the 일반 단어장,
-// even if it was deleted): a 전공 word must never end up in another notebook.
+// A new notebook may not reuse the name of an existing one: a word must never
+// end up in another notebook by accident.
 const NOTEBOOK_NAME_TAKEN_MESSAGE = '이미 있는 단어장 이름입니다. 다른 이름을 입력하거나 기존 단어장을 선택해 주세요.';
 function notebookNameTaken(name) {
   const key = value => String(value).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
-  return key(name) === key(GENERAL_COURSE_NAME) ||
-    Object.values(allCourses()).some(([existing]) => key(existing) === key(name));
+  return Object.values(allCourses()).some(([existing]) => key(existing) === key(name));
 }
-if (!state.courses?.[GENERAL_COURSE_ID] && !(state.deletedCourses || []).includes(GENERAL_COURSE_ID)) {
-  const next = {...state, courses: {[GENERAL_COURSE_ID]: [GENERAL_COURSE_NAME, ''], ...(state.courses || {})}};
+// Installs no longer start with a default "일반 단어장". One that an earlier
+// version created automatically ('general-meaning') is removed while it is
+// still empty; once it holds words it is the user's notebook and stays.
+const RETIRED_DEFAULT_COURSE = 'general-meaning';
+if (state.courses?.[RETIRED_DEFAULT_COURSE] &&
+    !Object.values(state.terms || {}).some(term => term?.course === RETIRED_DEFAULT_COURSE)) {
+  const {[RETIRED_DEFAULT_COURSE]: retired, ...courses} = state.courses;
+  const next = {...state, courses};
   try {
     localStorage.setItem(storageKey, JSON.stringify(next));
     state = next;
-  } catch { /* Storage blocked: the notebook is added when a word is saved. */ }
+  } catch { /* storage blocked: harmless, it is just an empty notebook */ }
 }
 
 // A user's reference sentence is translated into the other language: mostly
