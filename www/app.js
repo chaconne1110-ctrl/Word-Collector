@@ -760,7 +760,43 @@ function playAudioPronunciation() {
   speechSynthesis.speak(speech);
 }
 
+// Text boxes grow with their content, so long sentences are fully visible
+// without scrolling inside the box. Works without CSS field-sizing (older
+// Android WebView, Safari). The minimum is the empty box (placeholder
+// included): typing never makes it smaller, deleting text shrinks it back.
+function emptyBoxHeight(textarea) {
+  const {value} = textarea;
+  const selection = document.activeElement === textarea ? [textarea.selectionStart, textarea.selectionEnd] : null;
+  textarea.value = '';
+  textarea.style.height = '';
+  const height = Math.max(textarea.getBoundingClientRect().height, textarea.scrollHeight + 2);
+  textarea.value = value;
+  if (selection) textarea.setSelectionRange(...selection);
+  return Math.ceil(height);
+}
+function autoGrow(textarea) {
+  if (!textarea.isConnected || !textarea.getClientRects().length) return;   // hidden: sized when shown
+  if (!textarea.dataset.minHeight) textarea.dataset.minHeight = String(emptyBoxHeight(textarea));
+  textarea.style.overflowY = 'hidden';
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.max(Number(textarea.dataset.minHeight), textarea.scrollHeight + 2) + 'px';
+}
+function autoGrowAll(root = document) {
+  root.querySelectorAll('textarea').forEach(autoGrow);
+}
+document.addEventListener('input', event => {
+  const box = event.target;
+  if (!(box instanceof HTMLTextAreaElement)) return;
+  const before = box.style.height;
+  autoGrow(box);
+  // The box being typed in stays on screen when its height changes.
+  if (box.style.height !== before && document.activeElement === box) box.scrollIntoView({block: 'nearest'});
+});
+window.addEventListener('resize', () => autoGrowAll());
+// Text reflows when the web font finishes loading: fit the boxes again.
+document.fonts?.ready.then(() => autoGrowAll());
+
 if (page === 'home') renderHome();
 if (page === 'words' || page === 'bookmarks') renderList();
 if (page === 'card') renderDeck();
-if (page === 'edit') renderEditor();
+if (page === 'edit') { renderEditor(); autoGrowAll(); }

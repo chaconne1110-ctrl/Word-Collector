@@ -74,6 +74,7 @@ function restoreInputs() {
 
 refreshNotebookChoices();
 restoreInputs();
+autoGrowAll();
 window.addEventListener('pageshow', () => {
   refreshNotebookChoices();
   analysisButton.disabled = false;

@@ -417,6 +417,7 @@ async function runAnalysis() {
     draft.evidence = evidence;
     hideWaiting();
     reviewForm.hidden = false;
+    autoGrowAll(reviewForm);   // long analysis text: boxes fit their content
     setReviewMode(true);
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
