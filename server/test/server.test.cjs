@@ -68,7 +68,7 @@ test('the app asks for Gemini 4 and accepts both models; the Worker allows the h
   assert.match(api, /'X-WC-Models': MODEL/);
   assert.match(api, /!ACCEPTED_MODELS\.includes\(result\.model\)/);
   const worker = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
-  assert.match(worker, /'Authorization, Content-Type, X-WC-Device, X-WC-Models'/);
+  assert.match(worker, /'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence'/);
   assert.match(worker, /model: analysisModelFor\(request\.headers\.get\('X-WC-Models'\)\)/);
 });
 

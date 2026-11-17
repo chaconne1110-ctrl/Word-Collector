@@ -522,6 +522,8 @@ function renderDeck() {
     photoButton.textContent = 'AI 사진 생성 (유료 · 1회)';
     photoPanel.append(photoHeading, photoImage, photoStatus, photoButton);
     $('.card-back', card).firstElementChild.append(photoPanel);
+    // 근거 보기: the evidence saved with the word (older words: 자료 근거 미확인).
+    if (window.WordCollectorEvidence) WordCollectorEvidence.attach($('.card-back', card).firstElementChild, term.evidence);
     let hasPhoto = false;
     let busyPhoto = false;
     const photoGate = WordCollectorRequestGate.create();

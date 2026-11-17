@@ -43,6 +43,7 @@ function showWaiting(term) {
   waitingTitle.textContent = 'AI가 단어를 분석하고 있어요';
   waitingTerm.textContent = '“' + term + '”';
   setWaitingStep('analysis', 'active');
+  setWaitingStep('evidence', 'active');
   waitingStartedAt = Date.now();
   waitingElapsed.textContent = '0초 경과';
   clearInterval(waitingTimer);
@@ -408,6 +409,12 @@ async function runAnalysis() {
     showRecommendation(result, autoCourse, context);
     // Analysis only: no photo is requested from this page.
     setWaitingStep('analysis', 'done');
+    // Evidence from the registered textbooks. A missing or failed search is
+    // shown as "자료 근거 미확인", never as verified.
+    const evidence = WordCollectorEvidence.sanitize(result.evidence);
+    setWaitingStep('evidence', evidence.status === 'search_failed' ? 'failed' : 'done');
+    WordCollectorEvidence.attach($('#review-evidence'), evidence);
+    draft.evidence = evidence;
     hideWaiting();
     reviewForm.hidden = false;
     setReviewMode(true);
@@ -492,6 +499,8 @@ async function saveReview() {
     if (existing && !confirm('이 단어장에 같은 단어가 있어요. 검수한 결과로 기존 단어를 업데이트할까요?')) return;
     const [id, previous] = existing || ['term_' + crypto.randomUUID(), {}];
     const word = {...previous, ...result, course: draft.selected, referenceSentence: draft.referenceSentence, pron: result.pos, analysisModel: draft.model};
+    // The sources shown when this explanation was made stay with the word.
+    if (draft.evidence) word.evidence = draft.evidence;
     if (draft.exampleSource) word.exampleSource = draft.exampleSource;
     else delete word.exampleSource;
     // A recreated 일반 단어장 is no longer marked as deleted.

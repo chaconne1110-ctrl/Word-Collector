@@ -1,0 +1,15 @@
+{
+  "name": "word-collector-rag-admin",
+  "private": true,
+  "type": "module",
+  "description": "Admin-only: registers rag/sources.json textbooks in Gemini File Search and prepares page text for quote checks.",
+  "scripts": {
+    "register": "node register.mjs",
+    "check": "node register.mjs --check-only"
+  },
+  "engines": {"node": ">=22"},
+  "dependencies": {
+    "@google/genai": "2.32.0",
+    "pdfjs-dist": "6.5.438"
+  }
+}

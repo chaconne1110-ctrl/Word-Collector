@@ -15,6 +15,9 @@
     "ENABLE_LIVE_ANALYSIS": "true",
     "ENABLE_IMAGE_GENERATION": "true"
     // , "GEMINI_RELAY_URL": "https://word-collector-gemini-relay-XXXX.us-central1.run.app"
+    // Evidence search (rag/README.md): the store name printed by rag/register.mjs.
+    // Without it, analyses are marked "자료 근거 미확인" (status disabled).
+    // , "RAG_FILE_SEARCH_STORE": "fileSearchStores/word-collector-electrical-v1-XXXX"
   },
   "d1_databases": [{
     "binding": "DB",

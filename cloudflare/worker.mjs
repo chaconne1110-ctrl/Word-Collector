@@ -1,3 +1,4 @@
+import {startEvidence, finishEvidence} from './rag.mjs';
 // Word Collector Cloudflare Worker. Derived from server/server.cjs on PR #7.
 // The original Gemini prompt, schema validation, and model are retained.
 // Deployment safety: AI requests stay disabled unless ENABLE_LIVE_ANALYSIS=true.
@@ -998,6 +999,12 @@ const handler = {
       phase = 'QUOTA';
       const reservation = await reserveAnalysis(env, tester.tester_id);
       phase = 'GEMINI';
+      // Evidence from the registered textbooks (rag.mjs), only for apps that
+      // show it (X-WC-Evidence: 1). It runs in parallel with the analysis; its
+      // failure never fails the analysis (status search_failed instead).
+      const wantsEvidence = request.headers.get('X-WC-Evidence') === '1';
+      const pendingEvidence = wantsEvidence ? startEvidence(input, {env, fetchImpl: geminiFetch(env),
+        model: MODEL, apiKey: env.GEMINI_API_KEY}) : null;
       let output;
       try {
         output = await analyze(input, {model: analysisModelFor(request.headers.get('X-WC-Models')),
@@ -1008,6 +1015,11 @@ const handler = {
         throw error;
       }
       phase = 'OUTPUT';
+      if (pendingEvidence) {
+        const englishTerm = input.legacy ? output.en : output.analysis?.englishTerm;
+        const evidence = await finishEvidence(await pendingEvidence, {input, englishTerm, env});
+        if (input.legacy) output.evidence = evidence; else output.analysis.evidence = evidence;
+      }
       return workerJson(output);
     } catch (error) {
       return asError(error, phase);
@@ -1032,7 +1044,7 @@ export default {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Vary', 'Origin');
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device, X-WC-Models');
+      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence');
     }
     return response;
   }

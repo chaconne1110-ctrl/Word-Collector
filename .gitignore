@@ -80,3 +80,4 @@ WordCollector_SafeBackups/
 dist/
 cloudflare/wrangler.local.jsonc
 .wrangler/
+rag/out/

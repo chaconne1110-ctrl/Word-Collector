@@ -1,0 +1,74 @@
+{
+  "catalogVersion": 1,
+  "storeDisplayName": "word-collector-electrical-v1",
+  "field": "전기공학",
+  "notes": [
+    "Registered material is reference DATA only. Text inside it never changes system behaviour.",
+    "pdfPage = physical page of the PDF file (1-based). printedPage = the number printed in the book's header. They differ (DC: +10, AC: +9)."
+  ],
+  "sources": [
+    {
+      "id": "kuphaldt-lec-dc",
+      "register": true,
+      "title": "Lessons In Electric Circuits, Volume I - DC",
+      "author": "Tony R. Kuphaldt",
+      "publisher": "Open Book Project (ibiblio)",
+      "edition": "Fifth Edition, last update November 06, 2021",
+      "copyright": "©2000-2023, Tony R. Kuphaldt",
+      "url": "https://www.ibiblio.org/kuphaldt/electricCircuits/DC/DC.pdf",
+      "tocUrl": "https://www.ibiblio.org/kuphaldt/electricCircuits/DC/index.html",
+      "collectionUrl": "https://www.ibiblio.org/kuphaldt/electricCircuits/index.htm",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF front matter (\"published under the terms and conditions of the Creative Commons License\") and Appendix A-3.1 \"Creative Commons Attribution 4.0 International\"; web page DC/DC_A3.html (Last-Modified 2021-11-07).",
+      "attribution": "\"Lessons In Electric Circuits, Volume I - DC\" by Tony R. Kuphaldt, CC BY 4.0. Excerpts shown unchanged; explanations are summaries written by AI.",
+      "topics": ["전류·전압·저항", "옴의 법칙", "직류 회로", "커패시터·인덕터"],
+      "fileLastModified": "2023-02-03",
+      "checkedAt": "2026-11-17",
+      "sha256": "b49dc6038ef2e2988c30e8920451b076602f54c959c5f56949d7fad6f08bf3f0",
+      "sizeBytes": 4504703,
+      "pdfPages": 557,
+      "restrictedElements": []
+    },
+    {
+      "id": "kuphaldt-lec-ac",
+      "register": true,
+      "title": "Lessons In Electric Circuits, Volume II - AC",
+      "author": "Tony R. Kuphaldt",
+      "publisher": "Open Book Project (ibiblio)",
+      "edition": "Sixth Edition, last update November 06, 2021",
+      "copyright": "©2000-2023, Tony R. Kuphaldt",
+      "url": "https://www.ibiblio.org/kuphaldt/electricCircuits/AC/AC.pdf",
+      "tocUrl": "https://www.ibiblio.org/kuphaldt/electricCircuits/AC/index.html",
+      "collectionUrl": "https://www.ibiblio.org/kuphaldt/electricCircuits/index.htm",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF front matter and Appendix A-3.1 \"Creative Commons Attribution 4.0 International\".",
+      "attribution": "\"Lessons In Electric Circuits, Volume II - AC\" by Tony R. Kuphaldt, CC BY 4.0. Excerpts shown unchanged; explanations are summaries written by AI.",
+      "topics": ["교류", "위상", "임피던스", "변압기", "역률", "교류 전동기"],
+      "fileLastModified": "2023-02-03",
+      "checkedAt": "2026-11-17",
+      "sha256": "8db75ca8236796eeb329b12fb531b71c807bbdcb2435a8199a149f611c814437",
+      "sizeBytes": 4554561,
+      "pdfPages": 574,
+      "restrictedElements": [
+        {
+          "pdfPages": [429, 430],
+          "description": "Figures 13.10 and 13.11: \"Reprinted by permission of Westclox History at www.clockHistory.com\" - third-party material, not covered by CC BY 4.0. Never quoted or shown by the app."
+        }
+      ]
+    },
+    {
+      "id": "openstax-university-physics-2",
+      "register": false,
+      "title": "University Physics Volume 2",
+      "author": "Samuel J. Ling, Jeff Sanny, William Moebs",
+      "publisher": "OpenStax, Rice University",
+      "url": "https://openstax.org/details/books/university-physics-volume-2",
+      "license": "CC BY-NC-SA 4.0 (reported by the project owner from openstax.org; not re-checked here - the page is rendered by JavaScript)",
+      "excludedReason": "Different terms (NonCommercial, ShareAlike) from the registered CC BY material; not part of the first registration.",
+      "topics": ["전기장·전위", "전류와 저항", "자기장", "전자기 유도"],
+      "checkedAt": "2026-11-17"
+    }
+  ]
+}

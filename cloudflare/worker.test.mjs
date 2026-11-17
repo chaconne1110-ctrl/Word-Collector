@@ -704,3 +704,53 @@ test('Gemini errors passed through the relay keep their Gemini meaning and locat
     assert.equal(calls, 2, 'location rejection re-sent once, other 400 not retried');
   } finally { globalThis.fetch = previous; }
 });
+
+test('analysis with X-WC-Evidence: textbook evidence is searched in parallel and attached; a failed search never fails the analysis', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  env.RAG_FILE_SEARCH_STORE = 'fileSearchStores/word-collector-electrical-v1-abc';
+  const analysisOutput = {englishTerm: 'current', koreanMeaning: '전류', specialization: '전기공학', notebookName: '회로이론',
+    englishDefinition: 'The flow of electric charge.', koreanDefinition: '전하의 흐름.', exampleSentence: 'The current is 2 A.',
+    explanation: '설명', recommendationReason: '-', relatedTerms: [], relatedWords: [{englishTerm: 'voltage', koreanMeaning: '전압'}, {englishTerm: 'resistance', koreanMeaning: '저항'}],
+    pos: '명사', exampleKo: '전류는 2A이다.'};
+  const originalFetch = globalThis.fetch;
+  const send = headers => worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+    headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-WC-Models': 'gemini-4-hydrogen', ...headers},
+    body: JSON.stringify({term: 'current', context: '', autoCourse: false, course: '회로이론', meaningMode: 'major', majorField: '전기공학'})}), env);
+  for (const searchStatus of [200, 503]) {
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+      const body = JSON.parse(options.body);
+      calls.push(body.tools ? 'search' : 'analysis');
+      if (body.tools) {
+        if (searchStatus !== 200) return new Response('{}', {status: searchStatus});
+        return new Response(JSON.stringify({candidates: [{content: {parts: [{text: JSON.stringify({senseFound: true,
+          groundedExplanationKo: '전류는 전자의 흐름이다.', groundedExplanationEn: 'Current is the flow of electrons.', limitation: ''})}]},
+          groundingMetadata: {groundingChunks: [{retrievedContext: {text: 'Electric current is the flow of electrons through a conductor.',
+            customMetadata: [{key: 'source_id', stringValue: 'kuphaldt-lec-dc'}]}}]}}]}), {status: 200});
+      }
+      return new Response(JSON.stringify({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify(analysisOutput)}]}}]}), {status: 200});
+    };
+    try {
+      const res = await send({'X-WC-Evidence': '1'});
+      const body = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+      assert.equal(body.en, 'current');
+      assert.deepEqual(calls.sort(), searchStatus === 200 ? ['analysis', 'search'] : ['analysis', 'search', 'search']);
+      assert.equal(body.evidence.status, searchStatus === 200 ? 'found' : 'search_failed');
+      if (searchStatus === 200) {
+        assert.equal(body.evidence.sources[0].title, 'Lessons In Electric Circuits, Volume I - DC');
+        assert.deepEqual(body.evidence.sources[0].quotes, [], 'no page text in D1 -> link only, no quote');
+      }
+    } finally { globalThis.fetch = originalFetch; }
+  }
+  // Older apps (no X-WC-Evidence): no search call and no evidence field.
+  const calls = [];
+  globalThis.fetch = async (url, options) => { calls.push(JSON.parse(options.body).tools ? 'search' : 'analysis');
+    return new Response(JSON.stringify({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify(analysisOutput)}]}}]}), {status: 200}); };
+  try {
+    const body = await (await send({})).json();
+    assert.deepEqual(calls, ['analysis']);
+    assert.equal(body.evidence, undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});

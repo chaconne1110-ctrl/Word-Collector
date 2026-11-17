@@ -45,6 +45,7 @@
       ...(analysis.exampleSource === 'reference' && typeof analysis.exampleTranslation === 'string'
         ? {exampleKo:analysis.exampleTranslation, exampleSource:'reference'} : {}),
       ...(analysis.exampleSource === 'none' ? {exampleSource:'none'} : {}),
+      ...(analysis.evidence && typeof analysis.evidence === 'object' ? {evidence:analysis.evidence} : {}),
       relatedWords: Array.isArray(analysis.relatedWords) ? analysis.relatedWords
         .map(word => ({en: word?.englishTerm || '', ko: word?.koreanMeaning || ''})) : [],
       needsManualCompletion: true
@@ -71,7 +72,8 @@
     baseUrl = CLOUD_URL, token = '', deviceId = ''} = {}) {
     if (![CLOUD_URL, '', 'http://127.0.0.1:8787'].includes(baseUrl)) throw new Error('허용되지 않은 분석 서버입니다.');
     const cloud = baseUrl === CLOUD_URL;
-    const headers = {'Content-Type':'application/json', 'X-WC-Models': MODEL};
+    // X-WC-Evidence: this app shows evidence from the registered textbooks (근거 보기).
+    const headers = {'Content-Type':'application/json', 'X-WC-Models': MODEL, 'X-WC-Evidence': '1'};
     // AI works without a tester code: each app install has its own daily quota
     // (analysis 200 + image 200), keyed by a random per-install device ID.
     if (cloud && /^wd_[a-f0-9]{64}$/.test(deviceId)) headers['X-WC-Device'] = deviceId;
