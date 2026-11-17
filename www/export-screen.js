@@ -87,6 +87,10 @@
     selected = initialized ? new Set(ids.filter(id => selected.has(id))) : new Set(ids);
     initialized = true; render();
   }
+  // The file name uses the device's own date (toISOString would give the UTC date: the day before in Korea until 9 a.m.).
+  function localDate(now = new Date()) {
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  }
   function fail(error) { status.textContent = error.message || '내보내기에 실패했습니다.'; button.disabled = true; }
   master.addEventListener('change', () => {
     selected = master.checked ? new Set(Object.keys(state.terms)) : new Set(); render();
@@ -102,7 +106,7 @@
       const format = query('#exportFormat').value;
       if (!['csv', 'xlsx'].includes(format)) throw new Error('파일 형식을 확인해 주세요.');
       const bytes = format === 'xlsx' ? api.toXlsx(state, '', options).bytes : new TextEncoder().encode(api.toCsv(state, '', options).text);
-      status.textContent = await window.WordCollectorSave(bytes, 'wordcollector-' + new Date().toISOString().slice(0, 10) + '.' + format, api.mime[format]);
+      status.textContent = await window.WordCollectorSave(bytes, 'wordcollector-' + localDate() + '.' + format, api.mime[format]);
     } catch (error) {
       status.textContent = error.name === 'AbortError' ? '저장을 취소했습니다.' : error.message;
     } finally {

@@ -16,8 +16,15 @@
     }
     const file = new File([bytes], name, {type: mimeType});
     if (navigator.canShare?.({files: [file]})) {
-      await navigator.share({files: [file], title: '단어장 내보내기'});
-      return '공유를 완료했습니다. 선택한 앱에서 파일을 확인하세요.';
+      try {
+        await navigator.share({files: [file], title: '단어장 내보내기'});
+        return '공유를 완료했습니다. 선택한 앱에서 파일을 확인하세요.';
+      } catch (error) {
+        // The person closed the share sheet: nothing is saved.
+        if (error?.name === 'AbortError') throw error;
+        // Some browsers (e.g. Edge/Chrome on Windows) say files can be shared but then
+        // refuse with NotAllowedError "Permission denied": download the file instead.
+      }
     }
     const url = URL.createObjectURL(file), link = document.createElement('a');
     link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
