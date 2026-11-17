@@ -95,8 +95,8 @@ function idsFor(bookmark, subject, filter, q) {
     const term = state.terms[id];
     if (bookmark) return !hasCourse(filter) || term.course === filter;
     if (!matches(term, q)) return false;
-    if (filter === 'saved') return state.saved.includes(id);
-    return !['high', 'medium'].includes(filter) || term.importance === filter;
+    // Filters: 전체 and 북마크 (the old 중요도 filters were removed; old links show 전체).
+    return filter !== 'saved' || state.saved.includes(id);
   });
 }
 
@@ -253,7 +253,8 @@ function renderList() {
   const container = $('#term-list');
   const template = $('#term-row');
   const input = $('#searchContainer input');
-  let filter = listFilter;
+  // Word lists have only 전체 and 북마크 (old 중요도 links fall back to 전체).
+  let filter = bookmark || listFilter === 'saved' ? listFilter : 'all';
   if (bookmark) {
     const filters = $('#bookmark-filters');
     const allChip = filters.querySelector('[data-filter="all"]');
@@ -353,7 +354,7 @@ function renderList() {
         if (hasCourse(chip.dataset.filter)) chip.firstElementChild.textContent = courseNames(chip.dataset.filter)[0];
         chip.lastElementChild.textContent = count;
       }
-      else chip.textContent = ({all: '전체', high: '★ 중요도: 상', medium: '★ 중요도: 중', saved: '북마크'})[chip.dataset.filter] + ' (' + count + ')';
+      else chip.textContent = ({all: '전체', saved: '북마크'})[chip.dataset.filter] + ' (' + count + ')';
     }
   }
   window.addEventListener('pageshow', () => { state = load(); draw(); });

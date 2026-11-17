@@ -25,3 +25,13 @@ test('screens call the storage place 단어장 (never 과목); 전공 is only th
   assert.match(capture, /<span class="text-\[12px\]">새 단어장<\/span>/);
   assert.match(capture, /기존 단어장 선택/);
 });
+
+test('word list has no 중요도 (importance) filters any more: only 전체 and 북마크', () => {
+  const html = fs.readFileSync('www/words.html', 'utf8');
+  assert.doesNotMatch(html, /중요도|data-filter="high"|data-filter="medium"/);
+  assert.match(html, /data-filter="all"/);
+  assert.match(html, /data-filter="saved"/);
+  const app = fs.readFileSync('www/app.js', 'utf8');
+  assert.doesNotMatch(app, /★ 중요도|term.importance|high: '/);
+  assert.match(app, /let filter = bookmark \|\| listFilter === 'saved' \? listFilter : 'all';/);
+});
