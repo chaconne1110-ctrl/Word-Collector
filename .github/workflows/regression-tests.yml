@@ -1,0 +1,52 @@
+name: Regression and browser tests
+
+# Runs on every version branch push (and by hand). No paid Gemini calls: the
+# tests use mocked AI responses and a local server. Nothing is deployed.
+on:
+  push:
+    branches:
+      - 'v[0-9]*'
+      - 'V[0-9]*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Unit and browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies and Playwright (same version as development)
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.1
+          npx playwright install --with-deps chromium
+
+      - name: Unit tests
+        run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs relay/*.test.mjs rag/*.test.mjs
+
+      - name: Browser tests
+        shell: bash
+        run: |
+          set -uo pipefail
+          export CHROMIUM_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          failed=0
+          for test in $(cd tests && ls *-browser.cjs); do
+            echo "::group::$test"
+            if timeout 300 node "tests/$test"; then echo "ok $test"; else echo "::error::$test failed"; failed=1; fi
+            echo "::endgroup::"
+          done
+          exit $failed

@@ -1,13 +1,12 @@
 name: Deploy latest version-branch (v<N>) Word Collector web
 
-# Work is saved on version branches v1, v2, ... Every push to a version branch
-# deploys that branch's www to the existing GitHub Pages URL, so the newest
-# push wins. The github-pages environment must allow branches matching "v*"
-# (Settings > Environments > github-pages > Deployment branches).
+# Deploys a version branch's www to the existing GitHub Pages URL.
+# Manual only: the web is deployed only when the owner asks (2026-11-17), so
+# pushing a version branch no longer tries to deploy. (The automatic runs were
+# also refused by the github-pages environment's branch rule on every push.)
+# Run it from the Actions tab on the version branch to deploy; the
+# github-pages environment must allow that branch.
 on:
-  push:
-    branches:
-      - 'v[0-9]*'
   workflow_dispatch:
 
 permissions:
