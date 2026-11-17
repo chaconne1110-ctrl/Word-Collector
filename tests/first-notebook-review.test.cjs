@@ -43,10 +43,10 @@ test('notebook and meaning are chosen independently: an existing notebook or a n
   assert.ok(capture.includes("if (destination === 'new' && !newCourseName) {"));
   assert.ok(analysis.includes('reviewCourse.disabled = false;'));
   assert.doesNotMatch(analysis, /GENERAL_COURSE/);
-  // Screen order: 1. 단어장 선택, 2. 의미 기준, 3. 단어 입력, 4. 참고자료.
+  // Screen order: 1. 단어 입력, 2. 의미 기준, 3. 단어장 선택, 4. 참고자료.
   const html = fs.readFileSync('www/quick_capture/code.html', 'utf8');
-  const order = ['>1. 단어장 선택<', 'id="subject-select"', 'id="new-notebook-input"', '>2. 의미 기준<', 'id="btn-meaning-general"',
-    'id="major-input"', '>3. 단어 입력<', 'id="term-unified-input"', '>4. 참고자료<', 'id="context-sentence-input"'].map(text => html.indexOf(text));
+  const order = ['>1. 단어 입력<', 'id="term-unified-input"', '>2. 의미 기준<', 'id="btn-meaning-general"', 'id="major-input"',
+    '>3. 단어장 선택<', 'id="subject-select"', 'id="new-notebook-input"', '>4. 참고자료<', 'id="context-sentence-input"'].map(text => html.indexOf(text));
   assert.ok(order.every(index => index > 0), JSON.stringify(order));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   assert.ok(html.includes('placeholder="전공명 또는 학과명 (예: 전기공학, 전기공학과)"'));

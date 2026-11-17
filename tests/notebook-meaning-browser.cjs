@@ -41,7 +41,13 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.ok(await page.locator('#no-notebooks').isVisible());
     assert.equal(await page.locator('label[for="new-notebook-input"]').textContent(), '새 단어장 이름 *');
     assert.equal(await page.locator('#btn-meaning-general').getAttribute('aria-pressed'), 'true');
-    // New notebook name is required; it is checked first (screen order).
+    // Screen order: 1. 단어 2. 의미 기준 3. 단어장 선택 4. 참고자료.
+    const top = selector => page.locator(selector).evaluate(element => element.getBoundingClientRect().top);
+    const order = [await top('#term-unified-input'), await top('#btn-meaning-general'), await top('#btn-dest-existing'), await top('#context-sentence-input')];
+    assert.deepEqual([...order].sort((a, b) => a - b), order, 'cards appear as 단어, 의미 기준, 단어장, 참고자료');
+    // Missing input is reported in the same order: the word first, then the notebook name.
+    await page.locator('#submit-action-btn').click();
+    assert.equal(await status(), '한국어 또는 영어 단어를 입력하세요.');
     await page.locator('#term-unified-input').fill('current');
     await page.locator('#submit-action-btn').click();
     assert.equal(await status(), '새 단어장 이름을 입력해 주세요.');

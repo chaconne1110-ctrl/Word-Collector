@@ -81,6 +81,17 @@ analysisButton.addEventListener('click', () => {
   const destination = currentDestinationMode();
   const newCourseName = destination === 'new' ? newNotebookInput.value.trim() : '';
   const selected = destination === 'existing' ? courseInput.value : '';
+  // Checked in the order shown on the screen: 1. 단어 2. 의미 기준 3. 단어장 (4. 참고자료 is optional).
+  if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
+    status.textContent = '한국어 또는 영어 단어를 입력하세요.';
+    termInput.focus();
+    return;
+  }
+  if (meaningMode === 'major' && !majorField) {
+    status.textContent = '전공 의미를 고르면 전공명이나 학과명을 입력해 주세요. (예: 전기공학)';
+    majorInput.focus();
+    return;
+  }
   if (destination === 'new' && !newCourseName) {
     status.textContent = '새 단어장 이름을 입력해 주세요.';
     newNotebookInput.focus();
@@ -93,16 +104,6 @@ analysisButton.addEventListener('click', () => {
   }
   if (destination === 'existing' && (!selected || !hasCourse(selected))) {
     status.textContent = '저장할 기존 단어장을 선택해 주세요.';
-    return;
-  }
-  if (meaningMode === 'major' && !majorField) {
-    status.textContent = '전공 의미를 고르면 전공명이나 학과명을 입력해 주세요. (예: 전기공학)';
-    majorInput.focus();
-    return;
-  }
-  if (!/[a-z\p{Script=Hangul}]/iu.test(term)) {
-    status.textContent = '한국어 또는 영어 단어를 입력하세요.';
-    termInput.focus();
     return;
   }
   const request = {id: crypto.randomUUID(), term, autoCourse: false, selected,
