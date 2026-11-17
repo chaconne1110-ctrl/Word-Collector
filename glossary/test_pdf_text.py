@@ -99,3 +99,18 @@ class Slides(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Requirements(unittest.TestCase):
+    def test_every_pdf_library_used_is_listed(self):
+        """A fresh install from requirements.txt must be able to run extract (pymupdf) and the audit (pypdf)."""
+        import re
+        from pathlib import Path
+        here = Path(__file__).resolve().parent
+        listed = {line.split('==')[0].strip().lower() for line in (here / 'requirements.txt').read_text(encoding='utf-8').splitlines() if line.strip()}
+        used = set()
+        for name in ('build_glossary.py', 'pdf_text.py', 'extract_audit.py', 'retest_extraction.py', 'regression_check.py'):
+            source = (here / name).read_text(encoding='utf-8')
+            used |= {m.lower() for m in re.findall(r'^\s*(?:import|from)\s+(pymupdf|pypdf)\b', source, re.M)}
+        self.assertTrue(used, 'expected PDF libraries to be imported')
+        self.assertLessEqual(used, listed, f'missing in requirements.txt: {used - listed}')

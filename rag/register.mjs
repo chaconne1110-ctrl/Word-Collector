@@ -56,15 +56,60 @@ async function waitForOperation(ai, operation, label, {wait = sleep, timeoutMs =
   return operation;
 }
 
+// ---- Markdown sources ("format": "markdown", "dir": folder under --pdf-dir).
+// Same rules as glossary/build_glossary.py: files sorted by relative path; the
+// folder hash is sha256 over (relative path, NUL, bytes, NUL) of every .md file
+// (contentSha256 in sources.json). One file = one "page" (pdf_page = position).
+export async function markdownFiles(root) {
+  const {readdir} = await import('node:fs/promises');
+  const out = [];
+  async function walk(dir) {
+    for (const entry of await readdir(dir, {withFileTypes: true})) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.name.endsWith('.md')) out.push(path.relative(root, full).split(path.sep).join('/'));
+    }
+  }
+  await walk(root);
+  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+export async function readMarkdownSource(source, pdfDir) {
+  if (!pdfDir) throw new RegisterError('PDF_DIR_REQUIRED', `${source.id}: --pdf-dir 폴더 안에 ${source.dir} 폴더가 필요합니다.`);
+  const root = path.join(pdfDir, source.dir);
+  const files = await markdownFiles(root);
+  if (!files.length) throw new RegisterError('SOURCE_MISSING', `${source.id}: ${root}에 Markdown 파일이 없습니다.`);
+  const digest = createHash('sha256');
+  const skip = new Set(source.skipFiles || []);
+  const parts = [], pages = [];
+  for (const [index, rel] of files.entries()) {
+    const bytes = await readFile(path.join(root, rel));
+    digest.update(Buffer.from(rel + '\0', 'utf8'));
+    digest.update(Buffer.concat([bytes, Buffer.from('\0')]));
+    if (skip.has(rel)) continue;
+    const text = bytes.toString('utf8');
+    parts.push(`<!-- file: ${rel} -->\n${text}`);
+    pages.push({pdfPage: index + 1, printedPage: rel, text});
+  }
+  // One document per source: all files joined (the upload hash identifies this folder version).
+  return {bytes: Buffer.from(parts.join('\n\n'), 'utf8'), hash: digest.digest('hex'), mimeType: 'text/plain', pages};
+}
+
+// readPdf may return the file bytes (PDF) or {bytes, hash, mimeType} (Markdown folder).
+function asDocument(value) {
+  return Buffer.isBuffer(value) || value instanceof Uint8Array
+    ? {bytes: value, hash: sha256(value), mimeType: 'application/pdf'} : value;
+}
+const expectedHash = source => (source.format === 'markdown' ? source.contentSha256 : source.sha256);
+
 // Uploads each source once. A document whose sha256 matches and is ACTIVE is
 // skipped (no duplicates); FAILED copies are removed and uploaded again.
 export async function registerSources({ai, store, sources, readPdf, log, wait, timeoutMs, now}) {
   const results = [];
   for (const source of sources) {
-    const bytes = await readPdf(source);
-    const hash = sha256(bytes);
-    if (hash !== source.sha256) {
-      throw new RegisterError('SOURCE_CHANGED', `${source.id}: 파일 해시가 sources.json과 다릅니다 (${hash}). 원문이 바뀌었으면 라이선스를 다시 확인한 뒤 sources.json을 갱신하세요.`);
+    const {bytes, hash, mimeType} = asDocument(await readPdf(source));
+    if (hash !== expectedHash(source)) {
+      throw new RegisterError('SOURCE_CHANGED', `${source.id}: ${source.format === 'markdown' ? '폴더 내용' : '파일'} 해시가 sources.json과 다릅니다 (${hash}). 원문이 바뀌었으면 라이선스를 다시 확인한 뒤 sources.json을 갱신하세요.`);
     }
     let docs = await collect(ai.fileSearchStores.documents.list({parent: store.name}));
     const same = docs.filter(doc => metaValue(doc, 'sha256') === hash);
@@ -85,8 +130,8 @@ export async function registerSources({ai, store, sources, readPdf, log, wait, t
     let operation;
     try {
       operation = await ai.fileSearchStores.uploadToFileSearchStore({
-        file: new Blob([bytes], {type: 'application/pdf'}), fileSearchStoreName: store.name,
-        config: {displayName: source.title, mimeType: 'application/pdf', customMetadata: [
+        file: new Blob([bytes], {type: mimeType}), fileSearchStoreName: store.name,
+        config: {displayName: source.title, mimeType, customMetadata: [
           {key: 'source_id', stringValue: source.id}, {key: 'sha256', stringValue: hash},
           {key: 'license', stringValue: source.license}, {key: 'edition', stringValue: source.edition}]}});
     } catch (error) {
@@ -181,6 +226,11 @@ async function main(argv) {
   const cache = new Map();
   const readPdf = async source => {
     if (cache.has(source.id)) return cache.get(source.id);
+    if (source.format === 'markdown') {
+      const document = await readMarkdownSource(source, pdfDir);
+      cache.set(source.id, document);
+      return document;
+    }
     let bytes;
     if (pdfDir || source.file) {
       // Papers are not downloaded: they are read from the folder (source.file).
@@ -206,8 +256,9 @@ async function main(argv) {
     const sqlFile = path.join(HERE, 'out', 'rag-pages.sql');
     let sql = '';
     for (const source of sources) {
-      const pages = await extractPages(await readPdf(source));
-      if (pages.length !== source.pdfPages) log(`${source.id}: 경고 - 쪽 수 ${pages.length} (sources.json ${source.pdfPages})`);
+      const read = await readPdf(source);
+      const pages = source.format === 'markdown' ? read.pages : await extractPages(read);
+      if (source.format !== 'markdown' && pages.length !== source.pdfPages) log(`${source.id}: 경고 - 쪽 수 ${pages.length} (sources.json ${source.pdfPages})`);
       sql += pagesSql(source.id, pages);
       log(`${source.id}: 쪽별 원문 텍스트 ${pages.length}쪽 준비`);
     }

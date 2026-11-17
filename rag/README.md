@@ -52,6 +52,12 @@
 
 논문을 넣으면 Claude에게 "논문 확인해줘"라고 요청하세요. 각 논문의 라이선스와 출판사 조건을 다시 확인하고 위 항목을 채웁니다.
 
+## Markdown 자료
+
+`"format": "markdown"` 자료(예: GitHub 반도체 교재)는 `--pdf-dir` 폴더 안의 `"dir"` 폴더에서 읽는다. 폴더 전체 해시
+(`contentSha256`, 단어집 프로그램과 같은 계산)로 판본을 확인하고, `skipFiles`를 뺀 .md 파일을 한 문서(text/plain)로 묶어
+등록한다. 원문 대조용 쪽 데이터는 파일 하나를 한 쪽으로 만든다(PDF 쪽 = 파일 순번, 인쇄 쪽 = 파일 경로).
+
 ## 처음 등록하기
 
 준비물: Node.js 22 이상, Worker와 **같은 Google 프로젝트**의 Gemini API 키, `wrangler` 로그인(D1 등록용).

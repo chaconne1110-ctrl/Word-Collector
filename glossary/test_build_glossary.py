@@ -172,6 +172,15 @@ class Markdown(unittest.TestCase):
         (self.root / '05-thin-films.md').write_text(CHAPTER_MD + 'x', encoding='utf-8')
         self.assertNotEqual(g.markdown_sha256(self.root), before)
 
+    def test_folder_hash_matches_the_registration_script(self):
+        root = Path(__file__).resolve().parent.parent
+        script = ("import {readMarkdownSource} from './rag/register.mjs';"
+                  f"const r = await readMarkdownSource({{id:'x', dir:{json.dumps(self.root.name)}}}, {json.dumps(str(self.root.parent))});"
+                  "console.log(r.hash);")
+        out = subprocess.run(['node', '--input-type=module', '-e', script], cwd=root, capture_output=True, text=True, encoding='utf-8')
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(out.stdout.strip(), g.markdown_sha256(self.root))
+
     def test_acronyms_become_lookup_keys_without_overriding_terms(self):
         cand = {'field': '반도체', 'term': 'atomic layer deposition', 'count': 5, 'contexts': CONTEXTS, 'aliases': ['ALD']}
         ald = g.entry_from_answer(cand, {**ANSWER, 'englishTerm': 'atomic layer deposition', 'koreanMeaning': '원자층 증착'}, 'm')

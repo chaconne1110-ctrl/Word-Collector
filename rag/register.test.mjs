@@ -101,3 +101,41 @@ test('page text for quote checks: printed page numbers and SQL with normalised t
   assert.match(sql, /VALUES \('kuphaldt-lec-dc', 31, '21', 'electronsflowisthecurrent'\);/);
   assert.match(sql, /VALUES \('kuphaldt-lec-dc', 2, NULL, 'ii'\);/);
 });
+
+test('Markdown sources: folder hash (contentSha256), skipped files, one text document per source', async () => {
+  const {mkdtemp, mkdir, writeFile} = await import('node:fs/promises');
+  const {tmpdir} = await import('node:os');
+  const pathMod = await import('node:path');
+  const {readMarkdownSource} = await import('./register.mjs');
+  const dir = await mkdtemp(pathMod.join(tmpdir(), 'md-'));
+  await mkdir(pathMod.join(dir, 'book', 'appendix'), {recursive: true});
+  await writeFile(pathMod.join(dir, 'book', '05-thin-films.md'), '# Thin films\nAtomic layer deposition grows one layer at a time.\n');
+  await writeFile(pathMod.join(dir, 'book', 'appendix', 'further-reading.md'), '- A book, 2020.\n');
+  const md = {id: 'semi', title: 'Semiconductor intro', license: 'CC BY-NC-SA 4.0', edition: 'master', format: 'markdown', dir: 'book',
+    skipFiles: ['appendix/further-reading.md']};
+  const read = await readMarkdownSource(md, dir);
+  md.contentSha256 = read.hash;
+  assert.equal(read.mimeType, 'text/plain');
+  assert.deepEqual(read.pages.map(page => [page.pdfPage, page.printedPage]), [[1, '05-thin-films.md']], 'reading list is not uploaded or used for quotes');
+  assert.ok(read.bytes.toString('utf8').includes('Atomic layer deposition'));
+  const ai = fakeAi();
+  const [result] = await registerSources({ai, store, sources: [md], readPdf: async () => read, log: () => {}, wait: async () => {}});
+  assert.equal(result.uploaded, true);
+  assert.equal(ai.calls.uploads[0].config.mimeType, 'text/plain');
+  assert.equal(ai.calls.uploads[0].config.customMetadata.find(item => item.key === 'sha256').stringValue, read.hash);
+  // A changed folder is refused, like a changed PDF.
+  await writeFile(pathMod.join(dir, 'book', '05-thin-films.md'), 'changed');
+  const changed = await readMarkdownSource(md, dir);
+  await assert.rejects(registerSources({ai: fakeAi(), store, sources: [md], readPdf: async () => changed, log: () => {}, wait: async () => {}}),
+    error => error.code === 'SOURCE_CHANGED');
+  await assert.rejects(readMarkdownSource(md, ''), error => error.code === 'PDF_DIR_REQUIRED');
+});
+
+test('sources.json: every registered source has a hash for its format', async () => {
+  const {readFile} = await import('node:fs/promises');
+  const catalog = JSON.parse(await readFile(new URL('./sources.json', import.meta.url), 'utf8'));
+  for (const s of catalog.sources.filter(x => x.register)) {
+    if (s.format === 'markdown') assert.match(s.contentSha256 || '', /^[0-9a-f]{64}$/, s.id + ' contentSha256');
+    else assert.match(s.sha256 || '', /^[0-9a-f]{64}$/, s.id + ' sha256');
+  }
+});
