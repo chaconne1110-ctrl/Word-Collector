@@ -26,6 +26,7 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       await page.evaluate(() => localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses: {book: ['회로이론', '']}, terms: {}, saved: []})));
       // Input screen: the reference sentence box grows while typing, never below its first size.
       await page.goto(base + '/quick_capture/code.html?course=book');
+      await page.evaluate(() => document.fonts.ready);
       const context = page.locator('#context-sentence-input');
       const first = await context.evaluate(box => box.getBoundingClientRect().height);
       await context.fill('Short.');
@@ -39,6 +40,7 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       await page.locator('#major-input').fill('전기공학');
       await page.locator('#submit-action-btn').click();
       await page.locator('#analysis-review').waitFor({state: 'visible'});
+      await page.evaluate(() => document.fonts.ready);   // sizes are final once the web font is in
       for (const name of ['enDef', 'koDef', 'exampleEn']) assert.ok(await fits(page.locator(`[name=${name}]`)), name + ' fits');
       const short = page.locator('[name=exampleKo]');
       const before = await short.evaluate(box => box.getBoundingClientRect().height);
@@ -53,6 +55,7 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       // Edit screen: saved long text fits when the page opens.
       const id = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
       await page.goto(base + '/edit.html?term=' + id);
+      await page.evaluate(() => document.fonts.ready);
       const boxes = page.locator('textarea');
       const count = await boxes.count();
       assert.ok(count >= 3);

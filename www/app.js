@@ -589,6 +589,8 @@ function renderDeck() {
     let suppressTapUntil = 0;
     card.addEventListener('click', event => {
       if (moving || Date.now() < suppressTapUntil) return;
+      // Opening 근거 보기, following its links or using a form control is not a tap on the card.
+      if (event.target.closest('.wc-evidence, a, input, textarea, select, label')) return;
       const button = event.target.closest('button');
       if (!button || button.dataset.action === 'flip') flip(flipper);
       else if (button.dataset.action === 'edit') location.href = cardUrl(current).replace('flashcard.html', 'edit.html');

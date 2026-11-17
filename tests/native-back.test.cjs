@@ -56,7 +56,7 @@ test('an open dialog is cancelled first, like Escape', () => {
   assert.equal(waiting.closed, 0);
 });
 
-test('home closes the app; other pages use their on-screen back arrow', () => {
+test('home closes the app; other pages go back in history first (never the on-screen arrow)', () => {
   for (const path of ['/index.html', '/']) {
     const home = page({path});
     home.press();
@@ -64,9 +64,30 @@ test('home closes the app; other pages use their on-screen back arrow', () => {
   }
   const back = arrow('flashcard back');
   const card = page({path: '/flashcard.html', headerButtons: [back]});
-  card.press();
+  card.press(true);
+  assert.equal(back.clicked, 0, 'the arrow opens its parent as a new page, so it is not used when history exists');
+  assert.deepEqual(card.calls, ['history.back']);
+  // Opened directly on the card (no history): the on-screen arrow is the way back.
+  const fresh = page({path: '/flashcard.html', headerButtons: [back]});
+  fresh.press(false);
   assert.equal(back.clicked, 1);
-  assert.deepEqual(card.calls, []);
+});
+
+test('home -> bookmarks -> card, then back repeatedly: card, bookmarks, home, exit (no bouncing)', () => {
+  const stack = ['/index.html', '/bookmarks.html', '/flashcard.html'];
+  const visited = [];
+  for (let press = 0; press < 6 && stack.length; press++) {
+    const path = stack[stack.length - 1];
+    visited.push(path);
+    const arrowHere = arrow('arrow on ' + path);
+    const p = page({path, headerButtons: path === '/flashcard.html' ? [arrowHere] : []});
+    p.press(stack.length > 1);
+    if (p.calls.includes('exit')) { stack.length = 0; visited.push('exit'); break; }
+    if (p.calls.includes('history.back')) stack.pop();
+    else if (arrowHere.clicked) stack.push('/bookmarks.html');
+    else stack.push('/index.html');
+  }
+  assert.deepEqual(visited, ['/flashcard.html', '/bookmarks.html', '/index.html', 'exit']);
 });
 
 test('pages without an arrow (or with a history.back arrow) go back, or home without history', () => {

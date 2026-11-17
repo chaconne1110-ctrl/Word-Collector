@@ -3,10 +3,11 @@
 //   1. an open dialog (confirmations, the analysis waiting screen) is cancelled,
 //      exactly like pressing Escape;
 //   2. on the home screen the app closes;
-//   3. otherwise the page's own on-screen back arrow is used, so both buttons
-//      lead to the same place;
-//   4. pages whose arrow is only history.back(), or that have no arrow, go back
-//      in history, or to the home screen when there is no history.
+//   3. otherwise go back in history (the screen the user came from);
+//   4. without history (e.g. the app was opened on this screen), use the page's
+//      on-screen back arrow, or go to the home screen.
+// History comes first: on-screen arrows open their parent as a new page, so
+// using them here made back bounce between two screens (list <-> card).
 (() => {
   const capacitor = window.Capacitor;
   const App = capacitor?.Plugins?.App;
@@ -31,9 +32,12 @@
       App.exitApp();
       return;
     }
+    if (canGoBack) {
+      history.back();
+      return;
+    }
     const arrow = onScreenBackArrow();
     if (arrow) arrow.click();
-    else if (canGoBack) history.back();
     else location.href = homeUrl.href;
   });
 })();

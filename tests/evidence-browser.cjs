@@ -54,6 +54,18 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     await cardPanel.waitFor({state: 'attached'});
     assert.equal(await cardPanel.getAttribute('data-status'), 'found');
     assert.ok((await cardPanel.textContent()).includes('원문 대조 완료 · PDF 31쪽 · 교재 인쇄 쪽수 21쪽'));
+    // Opening 근거 보기 on the card back must not flip the card.
+    const flipped = () => page.evaluate(() => document.querySelector('.is-flipped') !== null);
+    await page.locator('.card-front').first().click();
+    await page.waitForFunction(() => document.querySelector('.is-flipped') !== null);
+    await page.waitForTimeout(900);
+    await cardPanel.locator('summary').click();
+    await page.waitForTimeout(900);
+    assert.equal(await flipped(), true, 'still showing the back after opening 근거 보기');
+    assert.equal(await cardPanel.evaluate(details => details.open), true);
+    await cardPanel.locator('summary').click();
+    await page.waitForTimeout(900);
+    assert.equal(await flipped(), true, 'still showing the back after closing 근거 보기');
     // An older word without evidence is shown as 자료 근거 미확인.
     await page.evaluate(id => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1')); delete s.terms[id].evidence; localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(s)); }, id);
     await page.reload();
