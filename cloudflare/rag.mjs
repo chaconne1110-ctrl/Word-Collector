@@ -35,7 +35,7 @@ export const EVIDENCE_MESSAGES = {
 const AI_CONTENT_NOTE = '뜻·정의·예문은 AI가 만든 내용이며 자료로 검증되지 않았어요. 자료 근거는 아래 "자료 근거 설명"과 원문 구절에만 해당해요.';
 
 // Fields the registered (electrical) textbooks can cover.
-const ELECTRICAL_FIELD = /전기|전자|회로|전력|전파|electr|circuit|power\s*(engineering|system)/i;
+export const ELECTRICAL_FIELD = /전기|전자|회로|전력|전파|electr|circuit|power\s*(engineering|system)/i;
 // Requests about current regulations or safety standards: an old textbook is
 // not a current source for them.
 const REGULATORY = /(규정|법규|규격|안전\s*기준|기술\s*기준|전기설비|KEC|\bNEC\b|NFPA|\bIEC\s*\d|\bKS\s*C\b|\bOSHA\b|regulation|safety\s+(code|standard|rule)|electrical\s+code|building\s+code|최신\s*(규정|기준|규격))/i;

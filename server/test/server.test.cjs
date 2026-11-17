@@ -64,11 +64,11 @@ test('Gemini 4 thinks at MEDIUM; Gemini 3.5 gets no thinking setting; a rejected
 test('the app asks for Gemini 4 and accepts both models; the Worker allows the header (CORS) and negotiates', () => {
   const fs = require('node:fs');
   const api = fs.readFileSync('www/analysis-api.js', 'utf8');
-  assert.match(api, /const ACCEPTED_MODELS = \[MODEL, 'gemini-3\.5-flash-lite'\];/);
+  assert.match(api, /const ACCEPTED_MODELS = \[MODEL, 'gemini-3\.5-flash-lite', 'textbook-glossary'\];/);
   assert.match(api, /'X-WC-Models': MODEL/);
   assert.match(api, /!ACCEPTED_MODELS\.includes\(result\.model\)/);
   const worker = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
-  assert.match(worker, /'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence'/);
+  assert.match(worker, /'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence, X-WC-Glossary'/);
   assert.match(worker, /model: analysisModelFor\(request\.headers\.get\('X-WC-Models'\)\)/);
 });
 

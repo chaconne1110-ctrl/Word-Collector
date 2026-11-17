@@ -3,7 +3,8 @@
   const MODEL = 'gemini-4-hydrogen';
   // This app asks for Gemini 4 (X-WC-Models). A server that has not been updated
   // yet answers with the previous model; both results are accepted.
-  const ACCEPTED_MODELS = [MODEL, 'gemini-3.5-flash-lite'];
+  // 'textbook-glossary': the word was found in the textbook glossary (no Gemini call).
+  const ACCEPTED_MODELS = [MODEL, 'gemini-3.5-flash-lite', 'textbook-glossary'];
   const CLOUD_URL = 'https://word-collector-api.yechan-lim-elec.workers.dev';
   // Earlier deployed Workers reject user-created manual notebooks and all-empty auto notebooks
   // on the legacy request shape, even though their modern request shape accepts both.
@@ -73,7 +74,8 @@
     if (![CLOUD_URL, '', 'http://127.0.0.1:8787'].includes(baseUrl)) throw new Error('허용되지 않은 분석 서버입니다.');
     const cloud = baseUrl === CLOUD_URL;
     // X-WC-Evidence: this app shows evidence from the registered textbooks (근거 보기).
-    const headers = {'Content-Type':'application/json', 'X-WC-Models': MODEL, 'X-WC-Evidence': '1'};
+    // X-WC-Glossary: look the word up in the textbook glossary before asking Gemini.
+    const headers = {'Content-Type':'application/json', 'X-WC-Models': MODEL, 'X-WC-Evidence': '1', 'X-WC-Glossary': '1'};
     // AI works without a tester code: each app install has its own daily quota
     // (analysis 200 + image 200), keyed by a random per-install device ID.
     if (cloud && /^wd_[a-f0-9]{64}$/.test(deviceId)) headers['X-WC-Device'] = deviceId;

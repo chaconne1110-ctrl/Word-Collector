@@ -81,3 +81,5 @@ dist/
 cloudflare/wrangler.local.jsonc
 .wrangler/
 rag/out/
+glossary/out/
+__pycache__/

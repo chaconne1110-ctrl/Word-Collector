@@ -1,4 +1,5 @@
 import {startEvidence, finishEvidence} from './rag.mjs';
+import {glossaryApplies, lookupGlossary, glossaryResponse} from './glossary.mjs';
 // Word Collector Cloudflare Worker. Derived from server/server.cjs on PR #7.
 // The original Gemini prompt, schema validation, and model are retained.
 // Deployment safety: AI requests stay disabled unless ENABLE_LIVE_ANALYSIS=true.
@@ -991,6 +992,15 @@ const handler = {
       // Apps that send X-WC-Models (v3 and later) show 일반 의미 words without an
       // example sentence; older apps require one, so they still get it.
       if (input.meaningMode === 'general' && request.headers.get('X-WC-Models')) input.noExample = true;
+      const wantsEvidence = request.headers.get('X-WC-Evidence') === '1';
+
+      // The textbook glossary (glossary.mjs) is checked first. A hit answers
+      // at once without Gemini and without using the daily analysis quota.
+      phase = 'GLOSSARY';
+      if (request.headers.get('X-WC-Glossary') === '1' && glossaryApplies(input)) {
+        const entry = await lookupGlossary(input, env.DB);
+        if (entry) return workerJson(glossaryResponse(entry, input, {withEvidence: wantsEvidence}));
+      }
 
       // Reserve before calling Gemini. Per this project's decision, a failed
       // attempt is refunded to the personal quota (global and registration-IP
@@ -1002,7 +1012,6 @@ const handler = {
       // Evidence from the registered textbooks (rag.mjs), only for apps that
       // show it (X-WC-Evidence: 1). It runs in parallel with the analysis; its
       // failure never fails the analysis (status search_failed instead).
-      const wantsEvidence = request.headers.get('X-WC-Evidence') === '1';
       const pendingEvidence = wantsEvidence ? startEvidence(input, {env, fetchImpl: geminiFetch(env),
         model: MODEL, apiKey: env.GEMINI_API_KEY}) : null;
       let output;
@@ -1044,7 +1053,7 @@ export default {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Vary', 'Origin');
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence');
+      response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-WC-Device, X-WC-Models, X-WC-Evidence, X-WC-Glossary');
     }
     return response;
   }
