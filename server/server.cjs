@@ -360,7 +360,7 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
 }
 const WEB_ROOT = path.resolve(__dirname, '../www');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
-  '.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png',
+  '.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp',
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.woff2':'font/woff2','.woff':'font/woff',
   '.ttf':'font/ttf','.otf':'font/otf','.json':'application/json; charset=utf-8'};
 async function serveAsset(req,res,pathname) {
