@@ -791,3 +791,42 @@ test('전공 모름 (context): evidence is searched with the analysed field afte
     } finally { globalThis.fetch = originalFetch; }
   }
 });
+
+test('전공 모름: a slow later search never pushes the response past the app limit; the analysis is returned without evidence', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  env.RAG_FILE_SEARCH_STORE = 'fileSearchStores/word-collector-electrical-v1-abc';
+  const originalFetch = globalThis.fetch, realNow = Date.now;
+  // A slow analysis is simulated by moving the clock forward; the search hangs until aborted.
+  for (const [analysisMs, searched] of [[26500, true], [28000, false]]) {
+    let offset = 0, searchCalls = 0;
+    Date.now = () => realNow() + offset;
+    globalThis.fetch = async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.tools) {
+        searchCalls++;
+        return new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), {name: 'AbortError'}))));
+      }
+      offset += analysisMs;
+      return new Response(JSON.stringify({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify({
+        englishTerm: 'current', koreanMeaning: '전류', specialization: '전기공학', notebookName: '회로이론',
+        englishDefinition: 'The flow of electric charge.', koreanDefinition: '전하의 흐름.', exampleSentence: 'The current is 2 A.',
+        explanation: '설명', recommendationReason: '-', relatedTerms: [], relatedWords: [{englishTerm: 'voltage', koreanMeaning: '전압'}, {englishTerm: 'resistance', koreanMeaning: '저항'}],
+        pos: '명사', exampleKo: '전류는 2A이다.'})}]}}]}), {status: 200});
+    };
+    try {
+      const started = Date.now();
+      const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+        headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-WC-Models': 'gemini-4-hydrogen', 'X-WC-Evidence': '1'},
+        body: JSON.stringify({term: 'current', context: 'The current through the resistor is 1 mA.', autoCourse: false, course: '회로이론', meaningMode: 'context'})}), env);
+      const elapsed = Date.now() - started;
+      const body = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+      assert.equal(body.ko, '전류', 'the analysis itself is returned');
+      assert.equal(body.evidence.status, 'search_failed');
+      assert.equal(body.evidence.failure, 'TIMEOUT');
+      assert.equal(searchCalls, searched ? 1 : 0, 'no search started with under 3 s left; one attempt, no retry past the deadline');
+      assert.ok(elapsed <= 30500, `answered ${elapsed} ms after the request, inside the app's 35 s limit`);
+    } finally { globalThis.fetch = originalFetch; Date.now = realNow; }
+  }
+});

@@ -22,6 +22,7 @@ export const EVIDENCE_VERSION = 2;
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_ATTEMPTS = 2;            // one retry, only for network errors and 5xx
+const MIN_SEARCH_MS = 3000;        // with a deadline, a search needs at least this much time left
 const CACHE_DAYS = 30;
 const MAX_QUOTES = 2;
 const MAX_QUOTE_CHARS = 300;
@@ -128,7 +129,7 @@ required: ['senseFound', 'groundedExplanationKo', 'groundedExplanationEn', 'limi
 
 class SearchError extends Error {}
 
-async function callFileSearch(input, {store, model, fetchImpl, timeoutMs, apiKey}) {
+async function callFileSearch(input, {store, model, fetchImpl, timeoutMs, apiKey, deadline}) {
   const body = JSON.stringify({
     systemInstruction: {parts: [{text: SEARCH_INSTRUCTION}]},
     contents: [{role: 'user', parts: [{text: JSON.stringify({word: input.word, field: input.majorField,
@@ -138,8 +139,12 @@ async function callFileSearch(input, {store, model, fetchImpl, timeoutMs, apiKey
   });
   let lastError;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // A deadline (전공 모름: the search runs after the analysis) caps every attempt,
+    // so the whole request still ends inside the app's waiting limit.
+    const left = deadline ? deadline - Date.now() : Infinity;
+    if (left < MIN_SEARCH_MS) throw lastError || new SearchError('TIMEOUT');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, left));
     try {
       const response = await fetchImpl(`${GEMINI_ORIGIN}/v1beta/models/${model}:generateContent`, {
         method: 'POST', signal: controller.signal, redirect: 'manual',
@@ -208,7 +213,7 @@ async function recordUsage(db, status, ms, cached) {
 // Starts the search (in parallel with the word analysis). Returns a pending
 // result that finishEvidence() turns into the final evidence object once the
 // analysed English term is known.
-export async function startEvidence(input, {env, fetchImpl, model, apiKey, timeoutMs = REQUEST_TIMEOUT_MS}) {
+export async function startEvidence(input, {env, fetchImpl, model, apiKey, timeoutMs = REQUEST_TIMEOUT_MS, deadline}) {
   const started = Date.now();
   const plan = evidencePlan(input, env);
   if (plan.status !== 'search') return {final: base(plan.status), started};
@@ -221,7 +226,7 @@ export async function startEvidence(input, {env, fetchImpl, model, apiKey, timeo
     if (cached?.version === EVIDENCE_VERSION) return {final: {...cached, cached: true}, started, cacheKey};
   } catch { /* no cache table yet: search normally */ }
   try {
-    const payload = await callFileSearch(input, {store: plan.store, model, fetchImpl, timeoutMs, apiKey});
+    const payload = await callFileSearch(input, {store: plan.store, model, fetchImpl, timeoutMs, apiKey, deadline});
     return {search: parseSearch(payload), started, cacheKey, store: plan.store, model};
   } catch (error) {
     return {final: base('search_failed', {failure: error instanceof SearchError ? error.message : 'UNKNOWN'}), started};

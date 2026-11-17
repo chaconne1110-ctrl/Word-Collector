@@ -6,6 +6,8 @@ import {glossaryApplies, lookupGlossary, glossaryResponse} from './glossary.mjs'
 // GitHub source contains no API key, tester token, or signing credential.
 
 const MODEL = 'gemini-4-hydrogen';
+// The app gives up on an analysis after 35 s; work after the analysis must end before this.
+const ANALYZE_DEADLINE_MS = 30000;
 const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
 const IMAGE_PERSONAL_LIMIT = 200;
 const IMAGE_GLOBAL_LIMIT = 1500;
@@ -896,6 +898,7 @@ const handler = {
     const isUsage = pathname === '/api/usage';
     const isImage = pathname === '/api/image';
     const isAnalyze = pathname === '/api/analyze';
+    const requestStarted = Date.now();
     const isModelStatus = pathname === '/internal/model-status';
     if (!(isEnroll || isUsage || isAnalyze || isImage || isModelStatus)) {
       return workerJson({error:'요청한 경로가 없습니다.'}, 404);
@@ -1032,7 +1035,10 @@ const handler = {
         const englishTerm = input.legacy ? output.en : output.analysis?.englishTerm;
         const evidenceInput = contextMode ?
           contextEvidenceInput(input, input.legacy ? output.discipline : output.analysis?.specialization) : input;
-        const pending = contextMode ? await startEvidence(evidenceInput, evidenceOptions) : await pendingEvidence;
+        // The app waits 35 s in total: the later search must end by 30 s after the request
+        // arrived, or the analysis is returned without evidence (search_failed: TIMEOUT).
+        const pending = contextMode ? await startEvidence(evidenceInput, {...evidenceOptions, deadline: requestStarted + ANALYZE_DEADLINE_MS})
+          : await pendingEvidence;
         const evidence = await finishEvidence(pending, {input: evidenceInput, englishTerm, env});
         if (input.legacy) output.evidence = evidence; else output.analysis.evidence = evidence;
       }
