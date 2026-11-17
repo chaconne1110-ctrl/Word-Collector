@@ -1,5 +1,5 @@
 {
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "storeDisplayName": "word-collector-electrical-v1",
   "field": "전기공학",
   "notes": [
@@ -24,7 +24,12 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
       "licenseEvidence": "PDF front matter (\"published under the terms and conditions of the Creative Commons License\") and Appendix A-3.1 \"Creative Commons Attribution 4.0 International\"; web page DC/DC_A3.html (Last-Modified 2021-11-07).",
       "attribution": "\"Lessons In Electric Circuits, Volume I - DC\" by Tony R. Kuphaldt, CC BY 4.0. Excerpts shown unchanged; explanations are summaries written by AI.",
-      "topics": ["전류·전압·저항", "옴의 법칙", "직류 회로", "커패시터·인덕터"],
+      "topics": [
+        "전류·전압·저항",
+        "옴의 법칙",
+        "직류 회로",
+        "커패시터·인덕터"
+      ],
       "fileLastModified": "2023-02-03",
       "checkedAt": "2026-11-17",
       "sha256": "b49dc6038ef2e2988c30e8920451b076602f54c959c5f56949d7fad6f08bf3f0",
@@ -49,7 +54,14 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
       "licenseEvidence": "PDF front matter and Appendix A-3.1 \"Creative Commons Attribution 4.0 International\".",
       "attribution": "\"Lessons In Electric Circuits, Volume II - AC\" by Tony R. Kuphaldt, CC BY 4.0. Excerpts shown unchanged; explanations are summaries written by AI.",
-      "topics": ["교류", "위상", "임피던스", "변압기", "역률", "교류 전동기"],
+      "topics": [
+        "교류",
+        "위상",
+        "임피던스",
+        "변압기",
+        "역률",
+        "교류 전동기"
+      ],
       "fileLastModified": "2023-02-03",
       "checkedAt": "2026-11-17",
       "sha256": "8db75ca8236796eeb329b12fb531b71c807bbdcb2435a8199a149f611c814437",
@@ -57,10 +69,165 @@
       "pdfPages": 574,
       "restrictedElements": [
         {
-          "pdfPages": [429, 430],
+          "pdfPages": [
+            429,
+            430
+          ],
           "description": "Figures 13.10 and 13.11: \"Reprinted by permission of Westclox History at www.clockHistory.com\" - third-party material, not covered by CC BY 4.0. Never quoted or shown by the app."
         }
       ]
+    },
+    {
+      "id": "kuphaldt-lec-digital",
+      "register": true,
+      "type": "textbook",
+      "field": "전기공학",
+      "title": "Lessons In Electric Circuits, Volume IV - Digital",
+      "author": "Tony R. Kuphaldt",
+      "publisher": "Open Book Project (ibiblio)",
+      "edition": "Fourth Edition, last update November 06, 2021",
+      "copyright": "©2000-2023, Tony R. Kuphaldt",
+      "url": "https://www.ibiblio.org/kuphaldt/electricCircuits/Digital/DIGI.pdf",
+      "collectionUrl": "https://www.ibiblio.org/kuphaldt/electricCircuits/index.htm",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF p.4 ('published under the terms and conditions of the Creative Commons License') and Appendix A-3.1 'Creative Commons Attribution 4.0 International (CC BY 4.0)' (PDF p.506). File identical to the official ibiblio download (SHA-256 match, Last-Modified 2023-02-03).",
+      "attribution": "\"Lessons In Electric Circuits, Volume IV - Digital\" by Tony R. Kuphaldt, CC BY 4.0.",
+      "thirdPartyMaterial": "Chapter 12 (shift registers/counters) uses parts 'courtesy of Texas Instruments' with links to TI data sheets; some figures/tables are 'reproduced', 'adapted' or 'condensed' from those data sheets - those pages are excluded.",
+      "usageNote": "Reference only: the app never shows this book's text, title or license; AI writes new text.",
+      "topics": [
+        "수 체계·2진 연산",
+        "논리 게이트",
+        "불 대수·카르노 맵",
+        "플립플롭·카운터",
+        "시프트 레지스터",
+        "A/D·D/A 변환",
+        "메모리·마이크로프로세서"
+      ],
+      "fileLastModified": "2023-02-03",
+      "checkedAt": "2026-11-18",
+      "sha256": "4a75a1f85a2d1396e8ad0cb806474435661c7c01457f9852cb75df92412fd247",
+      "sizeBytes": 3664633,
+      "pdfPages": 516,
+      "restrictedElements": [
+        {
+          "pdfPages": [
+            374,
+            383,
+            394,
+            405
+          ],
+          "description": "Logic diagrams/tables reproduced, adapted or condensed from Texas Instruments data sheets (SN74ALS165, 74AHC594, 74ALS299, CD4022B) - third-party material, not read or quoted."
+        }
+      ]
+    },
+    {
+      "id": "ellingson-em-vol1",
+      "register": true,
+      "type": "textbook",
+      "field": "전기공학",
+      "file": "ellingson-em-vol1.pdf",
+      "title": "Electromagnetics, Volume 1",
+      "author": "Steven W. Ellingson",
+      "publisher": "VT Publishing (Virginia Tech University Libraries)",
+      "edition": "Volume 1, 2018",
+      "doi": "10.21061/electromagnetics-vol-1",
+      "isbn": "978-0-9979201-8-5 (print), 978-0-9979201-9-2 (ebook)",
+      "copyright": "Copyright © 2018, Steven W. Ellingson",
+      "url": "https://doi.org/10.21061/electromagnetics-vol-1",
+      "collectionUrl": "http://hdl.handle.net/10919/84164",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "licenseEvidence": "PDF p.5 (copyright page): 'This textbook is licensed with a Creative Commons Attribution Share-Alike 4.0 license'.",
+      "attribution": "Ellingson, Steven W. (2018) Electromagnetics, Vol. 1. Blacksburg, VA: VT Publishing. https://doi.org/10.21061/electromagnetics-vol-1. Licensed with CC BY-SA 4.0.",
+      "thirdPartyMaterial": "Figures by other authors under CC BY 3.0/4.0, CC BY-SA 2.0 DE/3.0/4.0, CC0 and public domain, credited in each chapter's 'Image Credits'. Cover image © Michelle Yost, CC BY-SA 2.0. No figure under non-open terms found (text scan 2026-11-18).",
+      "usageNote": "Reference only: the app never shows this book's text, title or license; AI writes new text (8+ consecutive copied words rejected), so no adapted material is shared and ShareAlike does not apply to app output.",
+      "topics": [
+        "전자기학",
+        "전송선로",
+        "벡터 해석",
+        "정전기장",
+        "정자기장"
+      ],
+      "checkedAt": "2026-11-18",
+      "sha256": "c1ed20067f4c2b355bd8f30497d2245b83e52c7b226001058efe596e38076444",
+      "sizeBytes": 10354311,
+      "pdfPages": 240,
+      "restrictedElements": []
+    },
+    {
+      "id": "ellingson-em-vol2",
+      "register": true,
+      "type": "textbook",
+      "field": "전기공학",
+      "file": "ellingson-em-vol2.pdf",
+      "title": "Electromagnetics, Volume 2",
+      "author": "Steven W. Ellingson",
+      "publisher": "Virginia Tech Publishing (Virginia Tech University Libraries)",
+      "edition": "Volume 2, 2020",
+      "doi": "10.21061/electromagnetics-vol-2",
+      "isbn": "978-1-949373-91-2 (print), 978-1-949373-92-9 (ebook)",
+      "copyright": "Copyright © 2020 Steven W. Ellingson",
+      "url": "https://doi.org/10.21061/electromagnetics-vol-2",
+      "collectionUrl": "https://www.faculty.ece.vt.edu/swe/oem",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "licenseEvidence": "PDF p.5 (copyright page): 'Licensed with CC BY-SA 4.0. https://creativecommons.org/licenses/by-sa/4.0.' Peer-reviewed (single-blind, 3+ experts).",
+      "attribution": "Ellingson, Steven W. (2020) Electromagnetics, Vol. 2. Blacksburg, VA: Virginia Tech Publishing. https://doi.org/10.21061/electromagnetics-vol-2. Licensed with CC BY-SA 4.0.",
+      "thirdPartyMaterial": "Figures by other authors under CC BY 2.5/4.0, CC BY-SA 3.0/4.0 and public domain, credited in 'Image Credits'. Cover image © Michelle Yost, CC BY-SA 2.0. Exception: Fig. 3.3 (K.A. Mauritz) is 'Used with permission' - excluded.",
+      "usageNote": "Reference only: the app never shows this book's text, title or license; AI writes new text (8+ consecutive copied words rejected), so no adapted material is shared and ShareAlike does not apply to app output.",
+      "topics": [
+        "전자기파 전파",
+        "도파관",
+        "안테나",
+        "광섬유"
+      ],
+      "checkedAt": "2026-11-18",
+      "sha256": "8ea26b70012ed07906c43724d5b3e211cf7b4f76d7912ca46e9fe8fd688748c9",
+      "sizeBytes": 5612340,
+      "pdfPages": 230,
+      "restrictedElements": [
+        {
+          "pdfPages": [
+            47
+          ],
+          "description": "Figure 3.3 (© K.A. Mauritz, modified): 'Used with permission' - not under CC BY-SA. This page is not read or quoted."
+        }
+      ]
+    },
+    {
+      "id": "bccampus-basic-motor-control",
+      "register": true,
+      "type": "textbook",
+      "field": "전기공학",
+      "file": "basic-motor-control.pdf",
+      "title": "Basic Motor Control",
+      "author": "Aaron Lee, Chad Flinn",
+      "publisher": "BCcampus (Victoria, B.C.)",
+      "edition": "2020 (Pressbooks 5.27.1 export)",
+      "isbn": "978-1-77420-075-9 (ebook), 978-1-77420-074-2 (print)",
+      "copyright": "© 2020 Aaron Lee and Chad Flinn",
+      "url": "https://opentextbc.ca/basicmotorcontrol/",
+      "downloadUrl": "https://public-archive.bccampus.ca/pressbooks-exports/opentextbc.ca/sites/314/Basic-Motor-Control.pdf",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF p.4: 'Basic Motor Control by Aaron Lee and Chad Flinn is licensed under a Creative Commons Attribution 4.0 International License, except where otherwise noted.' Cover image 'Voltmeter Troubleshoot' by the authors, CC BY 4.0.",
+      "attribution": "Basic Motor Control by Aaron Lee and Chad Flinn is used under a CC BY 4.0 Licence. Download for free from the B.C. Open Collection.",
+      "thirdPartyMaterial": "No 'otherwise noted' exceptions or third-party credits found in a full-text scan (2026-11-18).",
+      "usageNote": "Reference only: the app never shows this book's text, title or license; AI writes new text.",
+      "topics": [
+        "전동기 제어",
+        "파일럿 기기",
+        "전동기 기동기·접촉기",
+        "과부하 계전기",
+        "제어 회로도",
+        "고장 진단"
+      ],
+      "checkedAt": "2026-11-18",
+      "sha256": "139a937a65bfb3719958dd8bac713f83b6268122643ac7ebaf435535da40942d",
+      "sizeBytes": 9953084,
+      "pdfPages": 189,
+      "restrictedElements": []
     },
     {
       "id": "openstax-university-physics-2",
@@ -71,8 +238,40 @@
       "url": "https://openstax.org/details/books/university-physics-volume-2",
       "license": "CC BY-NC-SA 4.0 (reported by the project owner from openstax.org; not re-checked here - the page is rendered by JavaScript)",
       "excludedReason": "Different terms (NonCommercial, ShareAlike) from the registered CC BY material; not part of the first registration.",
-      "topics": ["전기장·전위", "전류와 저항", "자기장", "전자기 유도"],
+      "topics": [
+        "전기장·전위",
+        "전류와 저항",
+        "자기장",
+        "전자기 유도"
+      ],
       "checkedAt": "2026-11-17"
+    },
+    {
+      "id": "tudelft-electronics-instrumentation",
+      "register": false,
+      "type": "textbook",
+      "field": "전기공학",
+      "title": "Electronics and Instrumentation for Non-Electrical Engineers",
+      "author": "Margreet Docter, Jeroen Bastemeijer",
+      "publisher": "TU Delft OPEN Publishing, Delft University of Technology",
+      "edition": "Edition 1.1",
+      "copyright": "©2026 Delft University of Technology",
+      "url": "https://interactivetextbooks.tudelft.nl/electronics-and-instrumentation-for-non-electrical-engineers/content/Introduction.html",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "Colophon page: 'licensed under a Creative Commons Attribution 4.0 International (CC BY 4.0) licence unless otherwise stated'. No third-party exceptions listed; DOI and cover credit are unfilled placeholders on the colophon.",
+      "excludedReason": "No PDF is published (web pages only); the build pipeline reads PDFs. Can be added from its pages or Markdown sources later.",
+      "topics": [
+        "전원·계측",
+        "저항 회로",
+        "커패시터·보드 선도",
+        "인덕터·공진",
+        "다이오드",
+        "트랜지스터",
+        "연산증폭기",
+        "마이크로컨트롤러"
+      ],
+      "checkedAt": "2026-11-18"
     }
   ]
 }
