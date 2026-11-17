@@ -60,3 +60,22 @@ test('Selected columns and IDs are identical in CSV and XLSX; missing IDs never 
   assert.throws(()=>toCsv(state,'',{columns:['pos']}),/항목/);
   assert.equal(JSON.stringify(state),before);
 });
+
+test('북마크 column: one row per word, grouped by notebook; a bookmarked word is marked, never repeated', () => {
+  // 전기기기: A, B, C; 회로이론: D. D is bookmarked, and later A as well.
+  const state = {courses: {machine: ['전기기기', ''], circuit: ['회로이론', '']}, saved: ['D'], terms: {
+    D: {course: 'circuit', en: 'D'}, A: {course: 'machine', en: 'A'}, B: {course: 'machine', en: 'B'}, C: {course: 'machine', en: 'C'}}};
+  const columns = ['course', 'en', 'bookmark'];
+  // 전기기기 A, C chosen + 북마크 (D) chosen.
+  assert.deepEqual(toRows(state, '', {columns, termIds: ['A', 'C', 'D']}),
+    [['단어장 이름', '표제어', '북마크'], ['전기기기', 'A', ''], ['전기기기', 'C', ''], ['회로이론', 'D', '북마크']]);
+  // A is bookmarked too; chosen in both 전기기기 and 북마크, it is still one row.
+  state.saved.push('A');
+  assert.deepEqual(toRows(state, '', {columns, termIds: ['A', 'C', 'D', 'A', 'D']}),
+    [['단어장 이름', '표제어', '북마크'], ['전기기기', 'A', '북마크'], ['전기기기', 'C', ''], ['회로이론', 'D', '북마크']]);
+  const csv = toCsv(state, '', {columns, termIds: ['A', 'D']}).text;
+  assert.equal((csv.match(/"A"/g) || []).length, 1);
+  // Without the column, the seven default columns are unchanged; data without 'saved' still exports.
+  assert.equal(toRows(state)[0].length, 7);
+  assert.deepEqual(toRows({courses: {}, terms: {x: {course: 'z', en: 'x'}}}, '', {columns: ['en', 'bookmark']})[1], ['x', '']);
+});

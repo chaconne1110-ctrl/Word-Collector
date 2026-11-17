@@ -42,29 +42,42 @@
       group.querySelector('[data-group-count]').textContent = checked + '/' + words.length + '개 선택';
     }
   }
+  // A word can appear twice on screen (its notebook and 북마크): both boxes share one selection.
+  function toggle(id, checked) {
+    checked ? selected.add(id) : selected.delete(id);
+    for (const input of groups.querySelectorAll('.word-checkbox')) if (input.dataset.termId === id) input.checked = checked;
+  }
+  function group(name, members, extraClass, allLabel = '이 단어장 전체 선택') {
+    const details = document.createElement('details'); details.open = true;
+    details.className = 'subject-card rounded-xl bg-surface-container-lowest p-4' + (extraClass ? ' ' + extraClass : '');
+    const summary = document.createElement('summary'); summary.textContent = name;
+    const parent = checkbox(allLabel, 'subject-checkbox', false, checked => {
+      for (const [id] of members) toggle(id, checked);
+      counts();
+    });
+    const count = document.createElement('span'); count.dataset.groupCount = '';
+    details.append(summary, parent.label, count);
+    for (const [id, word] of members) {
+      const child = checkbox((word.en || '') + ' · ' + (word.ko || ''), 'word-checkbox', selected.has(id), checked => {
+        toggle(id, checked); counts();
+      });
+      child.input.dataset.termId = id; details.append(child.label);
+    }
+    return details;
+  }
   function render() {
     groups.replaceChildren();
     const courses = new Map(Object.entries(state.courses).map(([id, name]) => [id, Array.isArray(name) ? name[0] : id]));
     for (const word of Object.values(state.terms)) if (!courses.has(word.course)) courses.set(word.course, word.course || '미지정');
     for (const [course, name] of courses) {
-      const details = document.createElement('details'); details.open = true;
-      details.className = 'subject-card rounded-xl bg-surface-container-lowest p-4';
-      const summary = document.createElement('summary'); summary.textContent = name;
-      const members = Object.entries(state.terms).filter(([, word]) => word.course === course);
-      const parent = checkbox('이 단어장 전체 선택', 'subject-checkbox', false, checked => {
-        for (const [id] of members) checked ? selected.add(id) : selected.delete(id);
-        for (const input of details.querySelectorAll('.word-checkbox')) input.checked = checked;
-        counts();
-      });
-      const count = document.createElement('span'); count.dataset.groupCount = '';
-      details.append(summary, parent.label, count);
-      for (const [id, word] of members) {
-        const child = checkbox((word.en || '') + ' · ' + (word.ko || ''), 'word-checkbox', selected.has(id), checked => {
-          checked ? selected.add(id) : selected.delete(id); counts();
-        });
-        child.input.dataset.termId = id; details.append(child.label);
-      }
-      groups.append(details);
+      groups.append(group(name, Object.entries(state.terms).filter(([, word]) => word.course === course)));
+    }
+    // 북마크: the bookmarked words of every notebook (in bookmark order).
+    const saved = Array.isArray(state.saved) ? state.saved.filter(id => Object.hasOwn(state.terms, id)) : [];
+    if (saved.length) {
+      const bookmarks = group('북마크', saved.map(id => [id, state.terms[id]]), 'bookmark-group', '북마크 전체 선택');
+      bookmarks.id = 'bookmarkGroup';
+      groups.append(bookmarks);
     }
     counts();
   }

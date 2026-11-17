@@ -1,8 +1,11 @@
 /* Pure export functions: usable in a browser or through require(). */
 (function (root) {
   'use strict';
+  // The seven default columns, plus the optional 북마크 column ('북마크' for a bookmarked word).
   const headers = ['전공', '단어장 이름', '표제어', '한글 뜻', '영어 정의', '정의 한글해석', '예문'];
   const columnKeys = ['discipline', 'course', 'en', 'ko', 'enDef', 'koDef', 'exampleEn'];
+  const allHeaders = [...headers, '북마크'];
+  const allColumnKeys = [...columnKeys, 'bookmark'];
   const mime = {csv: 'text/csv;charset=utf-8', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   function scalar(value) {
     if (value == null) return '';
@@ -15,18 +18,25 @@
       throw new Error('저장 데이터 구성을 확인해 주세요.');
     }
     const columns = options.columns === undefined ? columnKeys : options.columns;
-    if (!Array.isArray(columns) || !columns.length || columns.some(key => !columnKeys.includes(key)) || new Set(columns).size !== columns.length) throw new Error('출력할 항목을 하나 이상 선택해 주세요.');
-    const indices = columnKeys.map((key, index) => columns.includes(key) ? index : -1).filter(index => index >= 0);
+    if (!Array.isArray(columns) || !columns.length || columns.some(key => !allColumnKeys.includes(key)) || new Set(columns).size !== columns.length) throw new Error('출력할 항목을 하나 이상 선택해 주세요.');
+    const indices = allColumnKeys.map((key, index) => columns.includes(key) ? index : -1).filter(index => index >= 0);
     if (options.termIds !== undefined && !Array.isArray(options.termIds)) throw new Error('단어 선택을 확인해 주세요.');
     const ids = options.termIds === undefined ? null : new Set(options.termIds);
-    const rows = [indices.map(index => headers[index])];
-    for (const [id, word] of Object.entries(state.terms)) {
+    const rows = [indices.map(index => allHeaders[index])];
+    const bookmarked = new Set(Array.isArray(state.saved) ? state.saved : []);
+    // Each word is one row (a word chosen both in its notebook and in 북마크 is not repeated),
+    // grouped by notebook in the notebook order; words keep their saved order inside a notebook.
+    const order = new Map(Object.keys(state.courses).map((key, index) => [key, index]));
+    const rank = word => word && order.has(word.course) ? order.get(word.course) : order.size;
+    const entries = Object.entries(state.terms).map((entry, index) => [entry, index])
+      .sort(([[, a], i], [[, b], j]) => rank(a) - rank(b) || i - j).map(([entry]) => entry);
+    for (const [id, word] of entries) {
       if (ids && !ids.has(id)) continue;
       if (!word || typeof word !== 'object' || Array.isArray(word)) throw new Error('단어 데이터를 확인해 주세요.');
       if (course && word.course !== course) continue;
       const names = Object.hasOwn(state.courses, word.course) ? state.courses[word.course] : null;
       rows.push([word.discipline, Array.isArray(names) ? names[0] : word.course, word.en, word.ko,
-        word.enDef, word.koDef, word.exampleEn].filter((_, index) => indices.includes(index)).map(scalar));
+        word.enDef, word.koDef, word.exampleEn, bookmarked.has(id) ? '북마크' : ''].filter((_, index) => indices.includes(index)).map(scalar));
     }
     return rows;
   }
@@ -107,7 +117,7 @@
     ]);
     return {bytes, count: rows.length - 1};
   }
-  const api = {headers, columnKeys, mime, toRows, toCsv, toXlsx};
+  const api = {headers, columnKeys, allHeaders, allColumnKeys, mime, toRows, toCsv, toXlsx};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WordCollectorExport = api;
 })(globalThis);
