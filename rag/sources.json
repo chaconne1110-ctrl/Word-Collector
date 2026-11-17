@@ -230,6 +230,96 @@
       "restrictedElements": []
     },
     {
+      "id": "lehtonen-power-generation-ch8",
+      "register": true,
+      "type": "paper",
+      "field": "전기공학",
+      "file": "lehtonen-power-generation-ch8.pdf",
+      "title": "Electrical Power Generation, Conversion and Transmission Systems (Chapter 8)",
+      "author": "Matti Lehtonen, Edris Pouresmaeil, Mika Järvinen, Hanna Paulomäki",
+      "bookTitle": "Designing Renewable Energy Systems within Planetary Boundaries (eds. M. Järvinen, H. Paulomäki), Green Energy and Technology",
+      "publisher": "Springer, Cham",
+      "edition": "2025, pp. 655-686",
+      "doi": "10.1007/978-3-031-69856-9_8",
+      "copyright": "© The Author(s) 2025",
+      "url": "https://doi.org/10.1007/978-3-031-69856-9_8",
+      "downloadUrl": "https://link.springer.com/content/pdf/10.1007/978-3-031-69856-9_8.pdf",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF p.32: 'Open Access This chapter is licensed under the terms of the Creative Commons Attribution 4.0 International License ... The images or other third party material in this chapter are included in the chapter's Creative Commons license, unless indicated otherwise in a credit line'.",
+      "publisherTerms": "Springer Nature open access chapter under CC BY 4.0; reuse permitted with attribution. Third-party items with their own credit line are excluded.",
+      "attribution": "Lehtonen M., Pouresmaeil E., Järvinen M., Paulomäki H. (2025) Electrical Power Generation, Conversion and Transmission Systems. In: Järvinen M., Paulomäki H. (eds) Designing Renewable Energy Systems within Planetary Boundaries. Springer, Cham. https://doi.org/10.1007/978-3-031-69856-9_8. CC BY 4.0.",
+      "thirdPartyMaterial": "Fig. 8.2 © Maija Karala (p.4); Figs. 8.14-8.15 'Courtesy of ABB' (pp.20-21) - excluded.",
+      "usageNote": "Reference only: the app never shows this text, title or license; AI writes new text.",
+      "topics": [
+        "교류·직류 계통",
+        "발전기",
+        "전력 변환기·인버터",
+        "송전"
+      ],
+      "checkedAt": "2026-11-18",
+      "sha256": "bb442bca81140546524c76630a603e7f35e6c9a8e12fbc120705d110871d24c5",
+      "sizeBytes": 1568283,
+      "pdfPages": 32,
+      "restrictedElements": [
+        {
+          "pdfPages": [
+            4
+          ],
+          "description": "Fig. 8.2 © Maija Karala - own credit line, not covered by the chapter licence."
+        },
+        {
+          "pdfPages": [
+            20,
+            21
+          ],
+          "description": "Figs. 8.14 and 8.15 'Courtesy of ABB' - third-party material."
+        }
+      ]
+    },
+    {
+      "id": "mahr-inverter-based-power-systems",
+      "register": true,
+      "type": "textbook",
+      "readUntilReferences": true,
+      "field": "전기공학",
+      "file": "mahr-inverter-based-power-systems.pdf",
+      "title": "Control and Protection of 100% Inverter-based Power Systems",
+      "author": "Florian Mahr",
+      "publisher": "Springer Vieweg, Wiesbaden (dissertation, Friedrich-Alexander-Universität Erlangen-Nürnberg, 2024)",
+      "edition": "2025",
+      "doi": "10.1007/978-3-658-47217-7",
+      "isbn": "978-3-658-47216-0 (print), 978-3-658-47217-7 (eBook)",
+      "copyright": "© The Editor(s) (if applicable) and The Author(s) 2025",
+      "url": "https://doi.org/10.1007/978-3-658-47217-7",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseEvidence": "PDF p.4: 'This book is an open access publication. Open Access This book is licensed under the terms of the Creative Commons Attribution 4.0 International License'.",
+      "publisherTerms": "Springer Nature open access book under CC BY 4.0; third-party items with their own credit line are excluded.",
+      "attribution": "Mahr, F. (2025) Control and Protection of 100% Inverter-based Power Systems. Springer Vieweg, Wiesbaden. https://doi.org/10.1007/978-3-658-47217-7. CC BY 4.0.",
+      "thirdPartyMaterial": "No third-party credit lines found (scan 2026-11-18). One figure 'adapted from [126]' (p.205) excluded as a precaution. Bibliography (pp.302-313) is not read.",
+      "usageNote": "Reference only: the app never shows this text, title or license; AI writes new text.",
+      "topics": [
+        "전압형 컨버터(VSC)",
+        "계통 형성 인버터",
+        "보호 계전",
+        "고장 해석",
+        "모델 기반 보호"
+      ],
+      "checkedAt": "2026-11-18",
+      "sha256": "69b85d747186da44c3c47b013dab4070fbb5c59b9b1d22f378283a28fd4cd800",
+      "sizeBytes": 18812476,
+      "pdfPages": 313,
+      "restrictedElements": [
+        {
+          "pdfPages": [
+            205
+          ],
+          "description": "Figure 'adapted from [126]' (another publication) - excluded as a precaution."
+        }
+      ]
+    },
+    {
       "id": "openstax-university-physics-2",
       "register": false,
       "title": "University Physics Volume 2",
@@ -270,6 +360,32 @@
         "트랜지스터",
         "연산증폭기",
         "마이크로컨트롤러"
+      ],
+      "checkedAt": "2026-11-18"
+    },
+    {
+      "id": "chenwei810-semiconductor-manufacturing-intro",
+      "register": false,
+      "type": "textbook",
+      "field": "반도체",
+      "title": "Introduction to Semiconductor Manufacturing (半導體製造概論), English edition",
+      "author": "chenwei810 and contributors (GitHub)",
+      "publisher": "GitHub repository chenwei810/Semiconductor_Manufacturing_Introduction",
+      "edition": "master @ 38e95fe7df84 (repository created 2026-10-11, last push 2026-10-30)",
+      "copyright": "Copyright (c) 2026 the authors and contributors",
+      "url": "https://github.com/chenwei810/Semiconductor_Manufacturing_Introduction/tree/master/en",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "licenseEvidence": "Repository LICENSE file and README 'License' section: 'The text and images are licensed under CC BY-NC-SA 4.0 ... for non-commercial purposes'.",
+      "format": "Markdown chapters (25 chapters in en/, also ko/ ja/ zh-TW/ zh-CN); no PDF.",
+      "notes": "README disclaimer: based on public information and general industry knowledge; most numbers are approximate. Very new repository; authorship and review process not stated.",
+      "excludedReason": "NonCommercial (NC) terms, like OpenStax; pending the owner's decision. Markdown source would also need a reader in the build pipeline.",
+      "topics": [
+        "반도체 기초",
+        "공정 모듈",
+        "집적",
+        "수율·품질",
+        "후공정(테스트·패키징)"
       ],
       "checkedAt": "2026-11-18"
     }

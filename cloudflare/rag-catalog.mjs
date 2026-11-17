@@ -69,6 +69,28 @@ export const RAG_CATALOG = {
       licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
       checkedAt: '2026-11-18',
       restrictedPdfPages: []
+    },
+    {
+      id: 'lehtonen-power-generation-ch8',
+      title: 'Electrical Power Generation, Conversion and Transmission Systems (Chapter 8)',
+      author: 'Matti Lehtonen, Edris Pouresmaeil, Mika Järvinen, Hanna Paulomäki',
+      edition: '2025, pp. 655-686',
+      url: 'https://doi.org/10.1007/978-3-031-69856-9_8',
+      license: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      checkedAt: '2026-11-18',
+      restrictedPdfPages: [4, 20, 21]
+    },
+    {
+      id: 'mahr-inverter-based-power-systems',
+      title: 'Control and Protection of 100% Inverter-based Power Systems',
+      author: 'Florian Mahr',
+      edition: '2025',
+      url: 'https://doi.org/10.1007/978-3-658-47217-7',
+      license: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      checkedAt: '2026-11-18',
+      restrictedPdfPages: [205]
     }
   ]
 };

@@ -283,7 +283,9 @@ def command_extract(args):
             sys.exit(f'{pdf_path.name} 파일이 등록 정보와 다릅니다(SHA-256 불일치). rag/sources.json의 판본을 확인해 주세요.')
         blocked = restricted_pages(source)
         kind = 'paper' if source.get('type') == 'paper' else 'textbook'
-        pages = [page for page in page_texts(read_pdf(pdf_path), paper=kind == 'paper') if page['pdfPage'] not in blocked]
+        # 논문, 그리고 책 끝에 참고문헌만 모아 둔 학위논문·책(readUntilReferences)은 참고문헌 앞까지만 읽는다.
+        until_references = kind == 'paper' or bool(source.get('readUntilReferences'))
+        pages = [page for page in page_texts(read_pdf(pdf_path), paper=until_references) if page['pdfPage'] not in blocked]
         print(f'{source["id"]} ({source["field"]}): {len(pages)}쪽 읽음 (제외 {len(blocked)}쪽)')
         by_field[source['field']].append((source['id'], kind, pages))
     candidates = []
