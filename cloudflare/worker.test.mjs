@@ -739,8 +739,8 @@ test('analysis with X-WC-Evidence: textbook evidence is searched in parallel and
       assert.deepEqual(calls.sort(), searchStatus === 200 ? ['analysis', 'search'] : ['analysis', 'search', 'search']);
       assert.equal(body.evidence.status, searchStatus === 200 ? 'found' : 'search_failed');
       if (searchStatus === 200) {
-        assert.equal(body.evidence.sources[0].title, 'Lessons In Electric Circuits, Volume I - DC');
-        assert.deepEqual(body.evidence.sources[0].quotes, [], 'no page text in D1 -> link only, no quote');
+        assert.deepEqual(body.evidence.sources, [], 'the app never gets titles, links or copyright information');
+        assert.ok(!JSON.stringify(body).includes('Lessons In Electric Circuits'));
       }
     } finally { globalThis.fetch = originalFetch; }
   }

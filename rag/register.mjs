@@ -182,8 +182,11 @@ async function main(argv) {
   const readPdf = async source => {
     if (cache.has(source.id)) return cache.get(source.id);
     let bytes;
-    if (pdfDir) bytes = await readFile(path.join(pdfDir, path.basename(new URL(source.url).pathname)));
-    else {
+    if (pdfDir || source.file) {
+      // Papers are not downloaded: they are read from the folder (source.file).
+      if (!pdfDir) throw new RegisterError('PDF_DIR_REQUIRED', `${source.id}: --pdf-dir 폴더에 ${source.file} 파일이 필요합니다.`);
+      bytes = await readFile(path.join(pdfDir, source.file || path.basename(new URL(source.url).pathname)));
+    } else {
       log(`${source.id}: 다운로드 ${source.url}`);
       const response = await fetch(source.url, {signal: AbortSignal.timeout(180000)});
       if (!response.ok) throw new RegisterError('DOWNLOAD_FAILED', `${source.id}: HTTP ${response.status}`);

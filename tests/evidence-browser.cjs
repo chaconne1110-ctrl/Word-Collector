@@ -38,22 +38,30 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.equal(await panel.locator('summary').textContent(), '근거 보기 · 자료 근거 있음');
     await panel.locator('summary').click();
     const text = await panel.textContent();
-    for (const expected of ['자료 근거 설명 (교재 내용을 AI가 요약)', 'Lessons In Electric Circuits, Volume I - DC', 'Tony R. Kuphaldt',
-      '원문 대조 완료 · PDF 31쪽 · 교재 인쇄 쪽수 21쪽', 'AI가 만든 내용이며 자료로 검증되지 않았어요']) assert.ok(text.includes(expected), expected);
-    assert.ok(!text.includes('unverified text'), 'unverified quotes are not shown');
-    assert.equal(await panel.locator('img').count(), 0, 'quote text is never parsed as HTML');
-    assert.equal(await panel.locator('a[href="https://www.ibiblio.org/kuphaldt/electricCircuits/DC/DC.pdf"]').count(), 1);
+    for (const expected of ['자료 근거 설명 (등록 자료를 참고해 AI가 작성)', '전류는 도체를 통해 흐르는 전자의 흐름이다.',
+      'AI가 만든 내용이며 자료로 검증되지 않았어요']) assert.ok(text.includes(expected), expected);
+    // The material itself (title, author, quotes, pages, links, license) is never shown in the app.
+    for (const hidden of ['Lessons In Electric Circuits', 'Kuphaldt', 'Electric current is the flow', 'PDF 31쪽', 'CC BY'])
+      assert.ok(!text.includes(hidden), hidden + ' is not shown');
+    assert.equal(await panel.locator('a, img, blockquote').count(), 0);
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const saved = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
     assert.equal(saved.evidence.status, 'found');
-    assert.equal(saved.evidence.sources[0].quotes.length, 1);
+    assert.deepEqual(saved.evidence.sources, [], 'the word does not keep the material either');
     const id = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
     await page.goto(base + '/flashcard.html?term=' + id);
     const cardPanel = page.locator('.card-back .wc-evidence').first();
     await cardPanel.waitFor({state: 'attached'});
     assert.equal(await cardPanel.getAttribute('data-status'), 'found');
-    assert.ok((await cardPanel.textContent()).includes('원문 대조 완료 · PDF 31쪽 · 교재 인쇄 쪽수 21쪽'));
+    assert.ok(!(await cardPanel.textContent()).includes('Lessons In Electric Circuits'));
+    // A word saved by an older app version with sources: they are not shown either.
+    await page.evaluate(id => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));
+      s.terms[id].evidence.sources = [{title: 'Old Book Title', url: 'https://example.com/a.pdf', license: 'CC BY 4.0', quotes: [{text: 'Old quote text here.', verified: true, pdfPage: 3}]}];
+      localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(s)); }, id);
+    await page.reload();
+    await cardPanel.waitFor({state: 'attached'});
+    assert.ok(!(await cardPanel.textContent()).includes('Old Book Title'));
     // Opening 근거 보기 on the card back must not flip the card.
     const flipped = () => page.evaluate(() => document.querySelector('.is-flipped') !== null);
     await page.locator('.card-front').first().click();
@@ -71,6 +79,6 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     await page.reload();
     assert.equal(await page.locator('.card-back .wc-evidence').first().getAttribute('data-status'), 'unavailable');
     assert.deepEqual(errors, []);
-    console.log('PASS: 근거 보기 on review (status, sources, verified quotes with PDF/printed page, links, AI note, no HTML), saved with the word, shown on the flashcard; old words 자료 근거 미확인.');
+    console.log('PASS: 근거 보기 on review and flashcard shows status, AI explanation and notes only (no titles, quotes, pages, links or licenses, also for older saved words); old words 자료 근거 미확인.');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

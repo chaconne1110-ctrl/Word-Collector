@@ -365,7 +365,7 @@ async function runAnalysis() {
     // 일반 의미 with several parts of speech: the server reports missing ones.
     $('#review-pos-warning').textContent = typeof result.posWarning === 'string' ? result.posWarning.slice(0, 200) : '';
     $('#review-pos-warning').hidden = !$('#review-pos-warning').textContent;
-    // Found in the textbook glossary (no Gemini call): the example is the textbook's sentence.
+    // Found in the glossary prepared from the registered material (no Gemini call).
     $('#review-glossary-note').hidden = result.source !== 'glossary';
     // 일반 의미: no example sentence, so the 예문 box is not shown.
     reviewForm.elements.exampleEn.closest('fieldset').hidden = result.exampleSource === 'none';

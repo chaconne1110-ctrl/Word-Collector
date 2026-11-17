@@ -10,6 +10,8 @@
     {
       "id": "kuphaldt-lec-dc",
       "register": true,
+      "type": "textbook",
+      "field": "전기공학",
       "title": "Lessons In Electric Circuits, Volume I - DC",
       "author": "Tony R. Kuphaldt",
       "publisher": "Open Book Project (ibiblio)",
@@ -33,6 +35,8 @@
     {
       "id": "kuphaldt-lec-ac",
       "register": true,
+      "type": "textbook",
+      "field": "전기공학",
       "title": "Lessons In Electric Circuits, Volume II - AC",
       "author": "Tony R. Kuphaldt",
       "publisher": "Open Book Project (ibiblio)",

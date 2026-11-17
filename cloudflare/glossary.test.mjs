@@ -6,14 +6,15 @@ import {glossaryKey, glossaryKeys, glossaryApplies, lookupGlossary, glossaryResp
 
 globalThis.crypto ??= webcrypto;
 const baseUrl = 'https://word-collector-api.example.workers.dev';
-const ENTRY = {v: 1, en: 'current', ko: '전류', pos: '명사', enDef: 'The flow of electric charge.', koDef: '전하의 흐름.',
-  exampleEn: 'Electric current is the flow of electrons through a conductor.', exampleKo: '전류는 도체를 통한 전자의 흐름이다.',
-  relatedWords: [{en: 'voltage', ko: '전압'}, {en: 'resistance', ko: '저항'}],
-  sourceId: 'kuphaldt-lec-dc', pdfPage: 31, printedPage: '21', model: 'gemini-4-hydrogen', builtAt: '2026-11-17T00:00:00+00:00'};
+const ENTRY = {v: 2, en: 'current', ko: '전류', pos: '명사', enDef: 'The movement of electric charge.', koDef: '전하의 움직임.',
+  exampleEn: 'When you switch on the lamp, a small current runs through it.', exampleKo: '램프를 켜면 작은 전류가 흐른다.',
+  relatedWords: [{en: 'voltage', ko: '전압'}, {en: 'resistance', ko: '저항'}], field: '전기공학',
+  references: [{sourceId: 'kuphaldt-lec-dc', pdfPage: 31, printedPage: '21'}], model: 'gemini-4-hydrogen', builtAt: '2026-11-17T00:00:00+00:00'};
+const SEMI = {...ENTRY, en: 'threshold voltage', ko: '문턱 전압', field: '반도체', references: [{sourceId: 'paper-semi-01', pdfPage: 3, printedPage: null}]};
 const input = (extra = {}) => ({legacy: true, autoSubject: false, word: 'current', meaningMode: 'major', majorField: '전기공학',
   referenceText: '', selectedSubject: 'book', ...extra});
 
-function glossaryDb(rows = {current: ENTRY}) {
+function glossaryDb(rows = {'전기공학|current': ENTRY, '반도체|threshold voltage': SEMI}) {
   const queries = [];
   return {queries, prepare(sql) {
     return {args: [], bind(...args) { this.args = args; return this; },
@@ -34,8 +35,9 @@ test('keys follow the Python rule and try simple singulars', () => {
   assert.deepEqual(glossaryKeys('전류'), ['전류']);
 });
 
-test('only 전공 의미 in an electrical major, without a reference sentence', () => {
+test('only 전공 의미 in a registered field (전기공학, 반도체), without a reference sentence', () => {
   assert.equal(glossaryApplies(input()), true);
+  assert.equal(glossaryApplies(input({majorField: '반도체공학과'})), true);
   assert.equal(glossaryApplies(input({majorField: '전자공학과'})), true);
   assert.equal(glossaryApplies(input({meaningMode: 'general', majorField: ''})), false, '일반 의미 -> Gemini');
   assert.equal(glossaryApplies(input({majorField: '경제학'})), false, 'other majors -> Gemini');
@@ -46,17 +48,18 @@ test('only 전공 의미 in an electrical major, without a reference sentence', 
 test('lookup returns a checked entry, or null when missing, malformed or the table is absent', async () => {
   const hit = await lookupGlossary(input({word: 'Currents'}), glossaryDb());
   assert.equal(hit.en, 'current');
-  assert.equal(hit.source.id, 'kuphaldt-lec-dc');
   assert.equal(await lookupGlossary(input({word: 'dark current'}), glossaryDb()), null);
-  assert.equal(await lookupGlossary(input(), glossaryDb({current: {...ENTRY, ko: ''}})), null);
-  assert.equal(await lookupGlossary(input(), glossaryDb({current: {...ENTRY, sourceId: 'unknown'}})), null);
-  assert.equal(await lookupGlossary(input(), glossaryDb({current: {...ENTRY, sourceId: 'kuphaldt-lec-ac', pdfPage: 429}})), null,
-    'restricted pages are never shown');
+  assert.equal(await lookupGlossary(input(), glossaryDb({'전기공학|current': {...ENTRY, ko: ''}})), null);
+  assert.equal(await lookupGlossary(input(), glossaryDb({'전기공학|current': {...ENTRY, v: 1}})), null, 'old format is ignored');
+  // Each field has its own entries: a semiconductor term is found only for a semiconductor major.
+  assert.equal((await lookupGlossary(input({word: 'threshold voltage', majorField: '반도체공학'}), glossaryDb())).en, 'threshold voltage');
+  assert.equal(await lookupGlossary(input({word: 'threshold voltage'}), glossaryDb()), null);
+  assert.equal(await lookupGlossary(input({majorField: '반도체공학'}), glossaryDb()), null);
   const noTable = {prepare() { return {bind() { return this; }, async all() { throw new Error('no such table: glossary_terms'); }}; }};
   assert.equal(await lookupGlossary(input(), noTable), null);
 });
 
-test('the response has the app shape, with the textbook sentence as verified evidence', async () => {
+test('the response has the app shape and never includes the material, titles or copyright', async () => {
   const entry = await lookupGlossary(input(), glossaryDb());
   const result = glossaryResponse(entry, input({majorField: '전기공학과'}), {withEvidence: true});
   assert.equal(result.model, GLOSSARY_MODEL);
@@ -65,9 +68,9 @@ test('the response has the app shape, with the textbook sentence as verified evi
   assert.equal(result.course, 'book');
   assert.equal(result.exampleEn, ENTRY.exampleEn);
   assert.equal(result.evidence.status, 'found');
-  assert.deepEqual(result.evidence.sources[0].quotes, [{text: ENTRY.exampleEn, verified: true, pdfPage: 31, printedPage: '21'}]);
-  assert.equal(result.evidence.sources[0].license, 'CC BY 4.0');
-  assert.match(result.evidence.notes[0], /AI가 정리/);
+  assert.deepEqual(result.evidence.sources, []);
+  assert.match(result.evidence.notes[0], /등록 자료를 참고해 AI가 정리/);
+  for (const hidden of ['references', 'kuphaldt', 'pdfPage', 'CC BY']) assert.ok(!JSON.stringify(result).includes(hidden), hidden);
   assert.equal(glossaryResponse(entry, input()).evidence, undefined);
 });
 
@@ -99,7 +102,7 @@ const send = (env, body, headers = {}) => worker.fetch(new Request(baseUrl + '/a
     meaningMode: 'major', majorField: '전기공학', ...body})}), env);
 
 test('worker: a glossary hit answers at once without using the quota or Gemini', async () => {
-  const {env, state} = workerEnv({current: ENTRY});
+  const {env, state} = workerEnv({'전기공학|current': ENTRY});
   const oldFetch = globalThis.fetch;
   let geminiCalls = 0;
   globalThis.fetch = async () => { geminiCalls++; throw new Error('Gemini must not be called'); };
@@ -123,7 +126,7 @@ test('worker: a miss, an older app, 일반 의미 or a reference sentence all go
     [{context: 'The current of the river.', translateReference: true}, {'X-WC-Glossary': '1'}],
   ];
   for (const [body, headers] of cases) {
-    const {env, state} = workerEnv({current: ENTRY});
+    const {env, state} = workerEnv({'전기공학|current': ENTRY});
     const res = await send(env, body, headers);
     assert.equal(state.batchCalls, 1, JSON.stringify(body) + ' reaches the quota step (then Gemini)');
     assert.notEqual(res.status, 200);

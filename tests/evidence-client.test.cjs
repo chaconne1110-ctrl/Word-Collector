@@ -11,12 +11,14 @@ const found = {status: 'found', message: '등록 자료에서 이 의미를 설�
     quotes: [{text: 'Electric current is the flow of electrons.', verified: true, pdfPage: 31, printedPage: '21'},
       {text: 'model-made quote', verified: false, pdfPage: 3}]}]};
 
-test('only verified quotes and https links survive; pages are kept as numbers', () => {
+test('the app never shows the material: sources, quotes, links and licenses are dropped (also from older saved words)', () => {
   const clean = sanitize(found);
   assert.equal(clean.status, 'found');
-  assert.deepEqual(clean.sources[0].quotes, [{text: 'Electric current is the flow of electrons.', verified: true, pdfPage: 31, printedPage: '21'}]);
-  const bad = sanitize({...found, sources: [{...found.sources[0], url: 'javascript:alert(1)'}]});
-  assert.deepEqual(bad.sources, [], 'a source without a safe link is dropped');
+  assert.deepEqual(clean.sources, []);
+  for (const hidden of ['Lessons In Electric', 'CC BY', 'ibiblio', 'Electric current is the flow of electrons.'])
+    assert.ok(!JSON.stringify(clean).includes(hidden), hidden);
+  const evidence = fs.readFileSync('www/evidence.js', 'utf8');
+  assert.doesNotMatch(evidence, /source\.title|licenseUrl|blockquote|원문 보기/);
 });
 
 test('missing, unknown or failed evidence is never shown as verified', () => {
