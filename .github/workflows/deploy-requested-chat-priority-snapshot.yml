@@ -85,6 +85,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: v5"
+          echo "Deployed source branch: v5.1"
           echo "Deployed source SHA: 539c32252ec9f22e2243d3589a8799c7fd691550"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
