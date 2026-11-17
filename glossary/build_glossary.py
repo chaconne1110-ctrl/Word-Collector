@@ -162,27 +162,42 @@ def now_iso():
 
 # ---------------------------------------------------------------- 1) extract
 
-def page_texts(raw_pages, *, paper: bool):
-    """[(pdfPage, 원문)] -> 쪽 목록. 논문은 참고문헌 제목이 나오면 그 앞까지만 읽는다."""
+def page_texts(raw_pages, *, paper: bool, slides: bool = False):
+    """[(pdfPage, 글[, 인쇄 쪽])] -> 쪽 목록. 논문은 참고문헌 제목이 나오면 그 앞까지만 읽는다.
+    slides: 슬라이드의 글머리 줄(4낱말 이상)은 마침표가 없어도 한 문장으로 다룬다."""
     pages = []
-    for number, raw in raw_pages:
+    for item in raw_pages:
+        number, raw = item[0], item[1]
         lines = (raw or '').splitlines()
         top_line = next((line for line in lines if line.strip()), '')
+        printed = item[2] if len(item) > 2 else printed_page_from_top_line(top_line)
         stop = next((i for i, line in enumerate(lines) if REFERENCES_HEADING.match(line)), None) if paper else None
         if stop is not None:
             lines = lines[:stop]
-        pages.append({'pdfPage': number, 'printedPage': printed_page_from_top_line(top_line),
-                      'text': clean_page_text('\n'.join(lines))})
+        if slides:
+            lines = [line.lstrip(' •▪–-') for line in lines]
+            lines = [line if line.rstrip().endswith(('.', '!', '?', ':')) else line.rstrip() + '.'
+                     for line in lines if len(line.split()) >= 4]
+        pages.append({'pdfPage': number, 'printedPage': printed, 'text': clean_page_text('\n'.join(lines))})
         if stop is not None:
             break
     return pages
 
 
 def read_pdf(pdf_path: Path):
-    from pypdf import PdfReader          # 필요한 단계에서만 불러온다
-    reader = PdfReader(str(pdf_path))
-    for number, page in enumerate(reader.pages, start=1):
-        yield number, page.extract_text() or ''
+    """PDF -> (PDF 쪽, 글, 인쇄 쪽). 개선된 추출(pdf_text.py, 원문 대조 검사로 고친 것)을 쓰고,
+    수식 조각 줄은 문장 후보에서 뺀다. 인쇄 쪽수는 머리글을 지우기 전의 첫 줄에서 읽는다."""
+    import pymupdf
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
+    from pdf_text import extract_page, is_equation_line, repeated_margin_lines
+    doc = pymupdf.open(str(pdf_path))
+    margins = repeated_margin_lines(doc)
+    for number, page in enumerate(doc, start=1):
+        first = next((line for line in page.get_text('text').splitlines() if line.strip()), '')
+        text, _ = extract_page(page, margins)
+        lines = [line for line in text.splitlines() if not is_equation_line(line)]
+        yield number, '\n'.join(lines), printed_page_from_top_line(first)
 
 
 # ---- Markdown 자료 (예: GitHub에 Markdown으로 공개된 교재). 파일 하나를 한 "쪽"으로 다룬다
@@ -418,7 +433,7 @@ def command_extract(args):
         blocked = restricted_pages(source)
         # 논문, 그리고 책 끝에 참고문헌만 모아 둔 학위논문·책(readUntilReferences)은 참고문헌 앞까지만 읽는다.
         until_references = kind == 'paper' or bool(source.get('readUntilReferences'))
-        pages = [page for page in page_texts(read_pdf(pdf_path), paper=until_references) if page['pdfPage'] not in blocked]
+        pages = [page for page in page_texts(read_pdf(pdf_path), paper=until_references, slides=source.get('layout') == 'slides') if page['pdfPage'] not in blocked]
         print(f'{source["id"]} ({source["field"]}): {len(pages)}쪽 읽음 (제외 {len(blocked)}쪽)')
         by_field[source['field']].append((source['id'], kind, pages))
     candidates = []
