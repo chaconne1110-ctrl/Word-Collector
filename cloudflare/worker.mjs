@@ -82,7 +82,7 @@ const SYSTEM_INSTRUCTION = `당신은 전공 단어 학습 앱의 단어 분석 
 8. translateReference=true이면 referenceTranslation에 referenceText 전체를 referenceTranslationLanguage 언어로 충실하게 번역해 1,200자 이내로 작성하세요. referenceTranslationLanguage가 "ko"이면 자연스러운 한국어로, "en"이면 자연스러운 영어로 번역합니다(원문이 한국어 예문이면 영어 번역, 영어 예문이면 한국어 번역). 원문을 그대로 반복하지 말고, 생성 예문(exampleSentence)의 번역과 혼동하지 마세요.
 9. autoSubject=true이고 notebooks가 비어 있으면 word와 referenceText의 의미에 맞는 새 단어장 이름을 한국어로 간결하게(2~30자) 지어 notebookName에 넣으세요. 이 경우 기존 후보에서 선택할 필요가 없으며 relatedTerms는 빈 배열입니다.
 11. relatedWords에는 입력 단어와 같은 분야에서 의미가 밀접한 다른 단어를 정확히 2개 넣으세요(meaningMode="general"이면 일상적인 단어, 전공 의미이면 그 전공의 단어). 각 항목은 영어 표제어 englishTerm과 한국어 뜻 koreanMeaning입니다. 입력 단어 자신이나 같은 단어의 변형은 제외하고, 저장된 단어장에 없어도 됩니다(relatedTerms와 다릅니다).
-12. meaningMode는 사용자가 고른 의미 기준입니다. meaningMode="general"이면 특정 전공이 아니라 일상에서 가장 널리 쓰이는 일반적인 의미로 분석하세요(예: current → 흐름, 현재의). 이때 단어장 이름, 저장 단어, 참고 문장의 분야 때문에 전공 의미(예: 물리학의 전류)로 바꾸지 마세요. 일반 의미에서는 그 단어가 일상에서 많이 쓰이는 품사를 모두 보여 주세요(예: current는 명사와 형용사). koreanMeaning에는 품사별 뜻을 "명사: 흐름, 해류 / 형용사: 현재의, 지금의"처럼 품사 이름과 함께 " / "로 나누어 적고(품사마다 대표 뜻 1~3개, 흔히 쓰이는 품사 순서), pos에는 그 품사들을 같은 순서로 쉼표로 모두 적으세요(예: 명사, 형용사). englishDefinition은 품사마다 짧고 쉬운 정의를 "(noun) ...; (adjective) ..." 형식으로 쓰고, koreanDefinition은 그것을 "(명사) ...; (형용사) ..." 형식으로 충실하게 번역하세요. 품사가 하나뿐인 단어는 그 품사만 쓰세요. noExample=true이면 예문을 만들지 마세요(exampleSentence와 exampleKo는 스키마에 없음): 단어, 뜻, 품사, 영어 정의와 그 한국어 번역만 작성합니다. noExample이 아니면 예문은 가장 흔한 뜻 하나로 씁니다. specialization은 "일반"이라고 쓰세요. meaningMode="major"이고 majorField가 있으면 반드시 majorField 전공에서 쓰이는 의미로 분석하세요(예: current + 전기공학 → 전류). majorField가 "전기공학과"처럼 학과 이름이면 그 학문 분야로 이해하고, specialization에는 그 전공 이름(예: 전기공학)을 쓰세요. majorField가 비어 있으면 참고 문장과 단어장으로 전공을 판단하세요. 정의, 예문, 관련 단어도 모두 이 기준의 같은 의미를 따릅니다.
+12. meaningMode는 사용자가 고른 의미 기준입니다. meaningMode="general"이면 특정 전공이 아니라 일상에서 가장 널리 쓰이는 일반적인 의미로 분석하세요(예: current → 흐름, 현재의). 이때 단어장 이름, 저장 단어, 참고 문장의 분야 때문에 전공 의미(예: 물리학의 전류)로 바꾸지 마세요. 일반 의미에서는 그 단어가 일상에서 많이 쓰이는 품사를 모두 보여 주세요(예: current는 명사와 형용사). koreanMeaning에는 품사별 뜻을 "명사: 흐름, 해류 / 형용사: 현재의, 지금의"처럼 품사 이름과 함께 " / "로 나누어 적고(품사마다 대표 뜻 1~3개, 흔히 쓰이는 품사 순서), pos에는 그 품사들을 같은 순서로 쉼표로 모두 적으세요(예: 명사, 형용사). englishDefinition은 품사마다 짧고 쉬운 정의를 "(noun) ...; (adjective) ..." 형식으로 쓰고, koreanDefinition은 그것을 "(명사) ...; (형용사) ..." 형식으로 충실하게 번역하세요. 품사가 하나뿐인 단어는 그 품사만 쓰세요. noExample=true이면 예문을 만들지 마세요(exampleSentence와 exampleKo는 스키마에 없음): 단어, 뜻, 품사, 영어 정의와 그 한국어 번역만 작성합니다. noExample이 아니면 예문은 가장 흔한 뜻 하나로 씁니다. specialization은 "일반"이라고 쓰세요. meaningMode="major"이고 majorField가 있으면 반드시 majorField 전공에서 쓰이는 의미로 분석하세요(예: current + 전기공학 → 전류). majorField가 "전기공학과"처럼 학과 이름이면 그 학문 분야로 이해하고, specialization에는 그 전공 이름(예: 전기공학)을 쓰세요. majorField가 비어 있으면 참고 문장과 단어장으로 전공을 판단하세요. 정의, 예문, 관련 단어도 모두 이 기준의 같은 의미를 따릅니다. meaningMode="context"이면 사용자가 전공 분야를 전혀 모르는 경우입니다. referenceText에서 이 단어가 실제로 쓰인 뜻으로 분석하고, specialization에는 그 뜻과 가장 관련이 깊은 전공(학문 분야) 하나를 한국어로 쓰세요(예: 전기공학, 화학, 경제학). 단어장 이름이나 저장 단어 때문에 그 판단을 바꾸지 마세요. 정의, 예문, 관련 단어도 모두 이 뜻을 따릅니다.
 10. 지정된 JSON 스키마만 출력하세요. 필수 항목을 누락하거나 확인되지 않은 원문/수식/이미지/분석 이력을 추가하지 마세요.`;
 
 class ApiError extends Error {
@@ -142,8 +142,10 @@ function validateInput(value) {
   // 의미 기준: 'general' = everyday meaning, 'major' = meaning in majorField (or, when
   // blank, the field inferred from the notebook and reference sentence; older apps).
   const meaningMode = value.meaningMode === undefined ? 'major' : value.meaningMode;
-  if (!['general', 'major'].includes(meaningMode)) failInput('의미 기준(일반/전공)을 확인해 주세요.');
+  if (!['general', 'major', 'context'].includes(meaningMode)) failInput('의미 기준(일반/전공/전공 모름)을 확인해 주세요.');
   const majorField = meaningMode === 'major' ? inputText(value.majorField, '전공', 60) : '';
+  // 'context' (전공 모름): the field is taken from how the word is used in the reference sentence.
+  if (meaningMode === 'context' && !referenceText) failInput('전공을 모를 때는 단어가 쓰인 참고 문장이 필요합니다.');
   if (!Array.isArray(value.notebooks) || (!value.autoSubject && !value.notebooks.length) || value.notebooks.length > 50) {
     failInput('분류 후보 단어장은 50개 이하여야 하며 직접 선택 시 1개 이상이어야 합니다.');
   }

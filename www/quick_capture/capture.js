@@ -1,9 +1,11 @@
 // Word input page, in screen order:
-//   1. 단어장 선택: an existing notebook (any on the home screen, including the
-//      일반 단어장) or a new one (name typed here, created when the word is saved)
-//   2. 의미 기준: 일반 의미, or 전공 의미 with a major/department name
-//   3. 단어   4. 참고자료
-// The two choices are independent. It validates them and opens the separate
+//   1. 단어
+//   2. 의미 기준: 일반 의미 (word only: the reference card is hidden), 전공 의미 with a
+//      major/department name, or 전공 모름 (the field is found from the reference sentence)
+//   3. 단어장 선택: an existing notebook or a new one (name typed here, created when
+//      the word is saved)
+//   4. 참고자료 (required for 전공 모름)
+// The meaning and notebook choices are independent. It validates them and opens the separate
 // analysis page (review.html), which runs the analysis and the review.
 const CAPTURE_REQUEST_KEY = 'word-collector-capture-request-v1';
 const status = $('#analysis-status');
@@ -53,7 +55,7 @@ function restoreInputs() {
   }
   termInput.value = saved.term;
   contextInput.value = saved.context || '';
-  setMeaningMode(saved.meaningMode === 'major' ? 'major' : 'general');
+  setMeaningMode(['major', 'context'].includes(saved.meaningMode) ? saved.meaningMode : 'general');
   majorInput.value = saved.majorField || '';
   if (saved.newCourseName) {
     setDestinationMode('new');
@@ -75,8 +77,9 @@ window.addEventListener('pageshow', () => {
 analysisButton.addEventListener('click', () => {
   refreshNotebookChoices();
   const term = termInput.value.trim();
-  const context = contextInput.value.trim();
   const meaningMode = currentMeaningMode();
+  // 일반 의미 analyses the word only: the reference card is hidden and not sent.
+  const context = meaningMode === 'general' ? '' : contextInput.value.trim();
   const majorField = meaningMode === 'major' ? majorInput.value.trim() : '';
   const destination = currentDestinationMode();
   const newCourseName = destination === 'new' ? newNotebookInput.value.trim() : '';
@@ -104,6 +107,11 @@ analysisButton.addEventListener('click', () => {
   }
   if (destination === 'existing' && (!selected || !hasCourse(selected))) {
     status.textContent = '저장할 기존 단어장을 선택해 주세요.';
+    return;
+  }
+  if (meaningMode === 'context' && !context) {
+    status.textContent = '전공을 모를 때는 단어가 쓰인 참고 문장을 입력해 주세요.';
+    contextInput.focus();
     return;
   }
   const request = {id: crypto.randomUUID(), term, autoCourse: false, selected,

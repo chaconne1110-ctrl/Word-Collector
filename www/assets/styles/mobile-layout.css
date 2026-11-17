@@ -231,3 +231,9 @@ body[data-capture-step="review"] .review-group {
 body[data-capture-step="review"] .review-group > legend {
   padding: 0 6px; font-weight: 600; font-size: 13px; color: #00236f;
 }
+
+/* 의미 기준 has three buttons (일반 의미 / 전공 의미 / 전공 모름): on the narrowest phones the
+   icons are hidden so every label fits on one line. */
+@media (max-width: 359px) {
+  #meaning-mode-section [role="group"] .material-symbols-outlined { display: none; }
+}

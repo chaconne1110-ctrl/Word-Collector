@@ -336,8 +336,10 @@ async function runAnalysis() {
     const result = await WordCollectorAI.request({term,
       course: autoCourse ? undefined : destinationName, context, autoCourse,
       translateReference: Boolean(context),
-      // 의미 기준: everyday meaning, or the meaning in the major the user typed.
-      meaningMode: request.meaningMode === 'major' && request.majorField ? 'major' : 'general',
+      // 의미 기준: everyday meaning, the meaning in the major the user typed, or
+      // 'context' (전공 모름: the field is found from the reference sentence).
+      meaningMode: request.meaningMode === 'major' && request.majorField ? 'major'
+        : request.meaningMode === 'context' && context ? 'context' : 'general',
       ...(request.meaningMode === 'major' && request.majorField ? {majorField: String(request.majorField).trim().slice(0, 60)} : {}),
       notebooks: autoCourse ? currentNotebooks() : withNotebook(currentNotebooks(), destinationName)}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
@@ -355,6 +357,10 @@ async function runAnalysis() {
     $('#review-pos-warning').hidden = !$('#review-pos-warning').textContent;
     // Found in the glossary prepared from the registered material (no Gemini call).
     $('#review-glossary-note').hidden = result.source !== 'glossary';
+    // 전공 모름: show the field the analysis found from the reference sentence.
+    const foundField = request.meaningMode === 'context' && context && typeof result.discipline === 'string' ? result.discipline.trim().slice(0, 60) : '';
+    $('#review-context-field').textContent = foundField ? `참고 문장으로 찾은 가장 관련 있는 전공: ${foundField}` : '';
+    $('#review-context-field').hidden = !foundField;
     // 일반 의미: no example sentence, so the 예문 box is not shown.
     reviewForm.elements.exampleEn.closest('fieldset').hidden = result.exampleSource === 'none';
     // A reference sentence replaces the generated example: the example field

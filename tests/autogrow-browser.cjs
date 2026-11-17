@@ -27,6 +27,8 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       // Input screen: the reference sentence box grows while typing, never below its first size.
       await page.goto(base + '/quick_capture/code.html?course=book');
       await page.evaluate(() => document.fonts.ready);
+      // 4. 참고자료 is hidden for 일반 의미 (the default); 전공 의미 shows it.
+      await page.locator('#btn-meaning-major').click();
       const context = page.locator('#context-sentence-input');
       const first = await context.evaluate(box => box.getBoundingClientRect().height);
       await context.fill('Short.');
@@ -36,7 +38,6 @@ const fits = locator => locator.evaluate(box => box.scrollHeight <= box.clientHe
       assert.ok(await context.evaluate((box, first) => box.getBoundingClientRect().height > first, first), 'reference box grew');
       // Review screen: long analysis text is shown in full; typing more grows the box.
       await page.locator('#term-unified-input').fill('current');
-      await page.locator('#btn-meaning-major').click();
       await page.locator('#major-input').fill('전기공학');
       await page.locator('#submit-action-btn').click();
       await page.locator('#analysis-review').waitFor({state: 'visible'});
