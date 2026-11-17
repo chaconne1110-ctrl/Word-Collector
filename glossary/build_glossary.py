@@ -433,7 +433,8 @@ def command_extract(args):
         blocked = restricted_pages(source)
         # 논문, 그리고 책 끝에 참고문헌만 모아 둔 학위논문·책(readUntilReferences)은 참고문헌 앞까지만 읽는다.
         until_references = kind == 'paper' or bool(source.get('readUntilReferences'))
-        pages = [page for page in page_texts(read_pdf(pdf_path), paper=until_references, slides=source.get('layout') == 'slides') if page['pdfPage'] not in blocked]
+        raw = read_clean(Path(args.clean_dir), source['id']) if args.clean_dir else None
+        pages = [page for page in page_texts(raw or read_pdf(pdf_path), paper=until_references, slides=source.get('layout') == 'slides') if page['pdfPage'] not in blocked]
         print(f'{source["id"]} ({source["field"]}): {len(pages)}쪽 읽음 (제외 {len(blocked)}쪽)')
         by_field[source['field']].append((source['id'], kind, pages))
     candidates = []
@@ -594,6 +595,39 @@ def define_all(candidates, done, *, ask, model, batch_size=BATCH_SIZE, limit=Non
     return done
 
 
+def read_clean(clean_dir: Path, source_id: str):
+    """원문 대조 검사(regression_check.py)가 만든 개선 추출 결과(<id>.clean.jsonl)가 있으면 그대로 쓴다
+    (PDF를 다시 읽지 않아 빠르다). 수식 줄은 빼고, 인쇄 쪽수는 <id>.pages.jsonl의 첫 줄에서 읽는다."""
+    clean, pages = clean_dir / f'{source_id}.clean.jsonl', clean_dir / f'{source_id}.pages.jsonl'
+    if not clean.exists():
+        return None
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
+    from pdf_text import is_equation_line
+    first = {}
+    if pages.exists():
+        for line in pages.open(encoding='utf-8'):
+            row = json.loads(line)
+            first[row['pdfPage']] = row.get('firstLine', '')
+    out = []
+    for line in clean.open(encoding='utf-8'):
+        row = json.loads(line)
+        text = '\n'.join(l for l in row['text'].splitlines() if not is_equation_line(l))
+        out.append((row['pdfPage'], text, printed_page_from_top_line(first.get(row['pdfPage'], ''))))
+    return out
+
+
+def merge_shards():
+    """병렬 작업 결과(glossary.shard-*.json)를 glossary.json에 합친다."""
+    path = OUT / 'glossary.json'
+    saved = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    terms = saved.get('terms', {}) if saved.get('version') == GLOSSARY_VERSION else {}
+    for shard in sorted(OUT.glob('glossary.shard-*.json')):
+        terms.update(json.loads(shard.read_text(encoding='utf-8')).get('terms', {}))
+    write_json(path, {'version': GLOSSARY_VERSION, 'updatedAt': now_iso(), 'terms': terms})
+    return terms
+
+
 def command_define(args):
     api_key = os.environ.get('GEMINI_API_KEY', '').strip()
     if not api_key:
@@ -601,9 +635,16 @@ def command_define(args):
     candidates = json.loads((OUT / 'candidates.json').read_text(encoding='utf-8'))['candidates']
     if args.field:
         candidates = [c for c in candidates if c['field'] == args.field]
-    path = OUT / 'glossary.json'
-    saved = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    main_path = OUT / 'glossary.json'
+    saved = json.loads(main_path.read_text(encoding='utf-8')) if main_path.exists() else {}
     done = saved.get('terms', {}) if saved.get('version') == GLOSSARY_VERSION else {}
+    path = main_path
+    if args.shard:                       # 병렬 처리: 후보를 n등분해 k번째만, 결과는 따로 저장 (merge로 합침)
+        k, n = map(int, args.shard.split('/'))
+        candidates = [c for i, c in enumerate(candidates) if i % n == k]
+        path = OUT / f'glossary.shard-{k}.json'
+        if path.exists():
+            done.update(json.loads(path.read_text(encoding='utf-8')).get('terms', {}))
     save = lambda terms: write_json(path, {'version': GLOSSARY_VERSION, 'updatedAt': now_iso(), 'terms': terms})
     define_all(candidates, done, ask=lambda batch: call_gemini(batch, model=args.model, api_key=api_key),
                model=args.model, limit=args.limit, save=save)
@@ -678,13 +719,17 @@ def main(argv=None):
     extract = sub.add_parser('extract', help='PDF에서 용어 후보와 자료 문장 모으기')
     extract.add_argument('--pdf-dir', required=True, help='등록 자료 PDF가 있는 폴더')
     extract.add_argument("--max-terms", type=int, default=10000, help="분야별 최대 후보 수")
+    extract.add_argument('--clean-dir', default=None, help='개선 추출 결과(<id>.clean.jsonl) 폴더 - 있으면 PDF 대신 사용')
     define = sub.add_parser('define', help='Gemini로 용어 정리 (이어서 실행 가능)')
     define.add_argument('--model', default=DEFAULT_MODEL)
     define.add_argument('--limit', type=int, default=None, help='이번에 처리할 후보 수 (시험용)')
     define.add_argument('--field', choices=FIELDS, default=None, help='이 분야의 후보만 처리')
+    define.add_argument('--shard', default=None, help='병렬 처리: k/n (후보의 n등분 중 k번째, 0부터)')
+    sub.add_parser('merge', help='병렬 처리 결과(glossary.shard-*.json)를 glossary.json에 합치기')
     sub.add_parser('export', help='서버 등록용 SQL과 검토용 CSV 만들기')
     args = parser.parse_args(argv)
-    {'extract': command_extract, 'define': command_define, 'export': command_export}[args.command](args)
+    {'extract': command_extract, 'define': command_define, 'export': command_export,
+     'merge': lambda a: print(f'합친 항목 {len(merge_shards())}개')}[args.command](args)
 
 
 if __name__ == '__main__':
