@@ -15,7 +15,9 @@ permissions:
 jobs:
   tests:
     name: Unit and browser tests
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.55.1 installs its browser dependencies on Ubuntu up to 24.04;
+    # ubuntu-latest is moving to Ubuntu 26 (from 2026-10-19).
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
