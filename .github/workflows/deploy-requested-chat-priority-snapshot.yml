@@ -1,4 +1,4 @@
-name: Redeploy approved Word Collector v5.1 snapshot
+name: Redeploy approved Word Collector v6 snapshot
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Revalidate pinned v5.1 snapshot and redeploy Pages
+    name: Revalidate pinned v6 snapshot and redeploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -29,14 +29,14 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: '539c32252ec9f22e2243d3589a8799c7fd691550'
+          ref: 'ed86757da6bac86efda7998263ef896a8e2bedfb'
           persist-credentials: false
 
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "539c32252ec9f22e2243d3589a8799c7fd691550"
+          test "$(git rev-parse HEAD)" = "ed86757da6bac86efda7998263ef896a8e2bedfb"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -85,6 +85,6 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: v5.1"
-          echo "Deployed source SHA: 539c32252ec9f22e2243d3589a8799c7fd691550"
+          echo "Deployed source branch: v6"
+          echo "Deployed source SHA: ed86757da6bac86efda7998263ef896a8e2bedfb"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
