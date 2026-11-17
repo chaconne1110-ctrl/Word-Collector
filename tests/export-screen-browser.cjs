@@ -17,6 +17,8 @@ const assert = require('node:assert/strict');
     const page=await browser.newPage({acceptDownloads:true,viewport:{width:390,height:844}});
     const state={courses:{em:['전자기학'],cir:['회로이론']},terms:{a:{course:'em',en:'Eddy Current',ko:'와전류',exampleEn:'Old'},b:{course:'cir',en:'Voltage',ko:'전압'}}};
     await page.addInitScript(value=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify(value)),state);
+    // Windows Edge can share files (navigator.share); this test checks the download path used by other browsers.
+    await page.addInitScript(()=>{Object.defineProperty(Navigator.prototype,'canShare',{value:undefined,configurable:true});});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto('http://127.0.0.1:'+server.address().port+'/_6/code.html');
     await page.waitForSelector('.word-checkbox');
@@ -28,12 +30,15 @@ const assert = require('node:assert/strict');
     await page.locator('#exportFormat').selectOption('csv');
     let promise=page.waitForEvent('download');await page.locator('#exportActionBtn').click();
     const csv=await fs.readFile(await(await promise).path(),'utf8');
-    assert.ok(csv.includes('"표제어","한글 뜻","예문"'));assert.ok(csv.includes('Latest, ""quoted""'));assert.ok(!csv.includes('Voltage'));
+    // The 북마크 column is on by default; this word is not bookmarked, so its cell is empty.
+    assert.ok(csv.includes('"표제어","한글 뜻","예문","북마크"'));assert.ok(csv.includes('example",""'));assert.ok(csv.includes('Latest, ""quoted""'));assert.ok(!csv.includes('Voltage'));
     await page.locator('#exportFormat').selectOption('xlsx');
     promise=page.waitForEvent('download');await page.locator('#exportActionBtn').click();
     const xlsx=await fs.readFile(await(await promise).path());assert.equal(xlsx.readUInt32LE(0),0x04034b50);
-    assert.ok(xlsx.toString().includes('A1:C2'));
+    assert.ok(xlsx.toString().includes('A1:D2'));
     await page.locator('[data-column="en"]').uncheck();await page.locator('[data-column="ko"]').uncheck();await page.locator('[data-column="exampleEn"]').uncheck();
+    assert.ok(await page.locator('#exportActionBtn').isEnabled(),'the 북마크 column alone can still be exported');
+    await page.locator('[data-column="bookmark"]').uncheck();
     assert.ok(await page.locator('#exportActionBtn').isDisabled());
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms.a.en),'Eddy Current');
     assert.deepEqual(errors,[]);

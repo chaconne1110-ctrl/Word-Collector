@@ -91,6 +91,12 @@ export function normalizeWords(text) {
     .replace(/-\s*\n\s*/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim() + ' ';
 }
 
+// 전공 모름 (meaningMode 'context'): the field is only known after the analysis.
+// The evidence search then uses the analysed field as if it had been typed as the major.
+export function contextEvidenceInput(input, analysedField) {
+  return {...input, meaningMode: 'major', majorField: String(analysedField || '').trim().slice(0, 60)};
+}
+
 export function evidencePlan(input, env) {
   const store = typeof env?.RAG_FILE_SEARCH_STORE === 'string' ? env.RAG_FILE_SEARCH_STORE.trim() : '';
   if (REGULATORY.test(`${input.word} ${input.referenceText || ''} ${input.majorField || ''}`)) return {status: 'outdated_source'};

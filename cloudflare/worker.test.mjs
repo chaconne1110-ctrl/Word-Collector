@@ -754,3 +754,40 @@ test('analysis with X-WC-Evidence: textbook evidence is searched in parallel and
     assert.equal(body.evidence, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('전공 모름 (context): evidence is searched with the analysed field after the analysis, not reported as out of scope', async () => {
+  const {env, state} = mockEnv({live: true});
+  state.hash = await tokenHash(token);
+  env.RAG_FILE_SEARCH_STORE = 'fileSearchStores/word-collector-electrical-v1-abc';
+  const originalFetch = globalThis.fetch;
+  for (const [field, expected] of [['전기공학', 'found'], ['경제학', 'not_applicable']]) {
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.tools) {
+        calls.push(['search', JSON.parse(body.contents[0].parts[0].text).field]);
+        return new Response(JSON.stringify({candidates: [{content: {parts: [{text: JSON.stringify({senseFound: true,
+          groundedExplanationKo: '전류는 전자의 흐름이다.', groundedExplanationEn: 'Current is the flow of electrons.', limitation: ''})}]},
+          groundingMetadata: {groundingChunks: [{retrievedContext: {text: 'Electric current is the flow of electrons through a conductor.',
+            customMetadata: [{key: 'source_id', stringValue: 'kuphaldt-lec-dc'}]}}]}}]}), {status: 200});
+      }
+      calls.push(['analysis', JSON.parse(body.contents[0].parts[0].text).meaningMode]);
+      return new Response(JSON.stringify({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify({
+        englishTerm: 'current', koreanMeaning: '전류', specialization: field, notebookName: '회로이론',
+        englishDefinition: 'The flow of electric charge.', koreanDefinition: '전하의 흐름.', exampleSentence: 'The current is 2 A.',
+        explanation: '설명', recommendationReason: '-', relatedTerms: [], relatedWords: [{englishTerm: 'voltage', koreanMeaning: '전압'}, {englishTerm: 'resistance', koreanMeaning: '저항'}],
+        pos: '명사', exampleKo: '전류는 2A이다.'})}]}}]}), {status: 200});
+    };
+    try {
+      const res = await worker.fetch(new Request(baseUrl + '/api/analyze', {method: 'POST',
+        headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-WC-Models': 'gemini-4-hydrogen', 'X-WC-Evidence': '1'},
+        body: JSON.stringify({term: 'current', context: 'The current through the resistor is 1 mA.', autoCourse: false, course: '회로이론', meaningMode: 'context'})}), env);
+      const body = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+      assert.equal(body.evidence.status, expected, field);
+      // The search runs after the analysis, with the field the analysis found.
+      assert.deepEqual(calls, expected === 'found' ? [['analysis', 'context'], ['search', '전기공학']] : [['analysis', 'context']]);
+      if (expected === 'not_applicable') assert.match(body.evidence.message, /대상이 아니에요/);
+    } finally { globalThis.fetch = originalFetch; }
+  }
+});

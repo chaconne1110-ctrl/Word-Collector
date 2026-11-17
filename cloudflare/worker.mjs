@@ -1,4 +1,4 @@
-import {startEvidence, finishEvidence} from './rag.mjs';
+import {startEvidence, finishEvidence, contextEvidenceInput} from './rag.mjs';
 import {glossaryApplies, lookupGlossary, glossaryResponse} from './glossary.mjs';
 // Word Collector Cloudflare Worker. Derived from server/server.cjs on PR #7.
 // The original Gemini prompt, schema validation, and model are retained.
@@ -1014,8 +1014,10 @@ const handler = {
       // Evidence from the registered textbooks (rag.mjs), only for apps that
       // show it (X-WC-Evidence: 1). It runs in parallel with the analysis; its
       // failure never fails the analysis (status search_failed instead).
-      const pendingEvidence = wantsEvidence ? startEvidence(input, {env, fetchImpl: geminiFetch(env),
-        model: MODEL, apiKey: env.GEMINI_API_KEY}) : null;
+      // 전공 모름 has no field yet: its search starts after the analysis, with the analysed field.
+      const evidenceOptions = {env, fetchImpl: geminiFetch(env), model: MODEL, apiKey: env.GEMINI_API_KEY};
+      const contextMode = input.meaningMode === 'context';
+      const pendingEvidence = wantsEvidence && !contextMode ? startEvidence(input, evidenceOptions) : null;
       let output;
       try {
         output = await analyze(input, {model: analysisModelFor(request.headers.get('X-WC-Models')),
@@ -1026,9 +1028,12 @@ const handler = {
         throw error;
       }
       phase = 'OUTPUT';
-      if (pendingEvidence) {
+      if (wantsEvidence) {
         const englishTerm = input.legacy ? output.en : output.analysis?.englishTerm;
-        const evidence = await finishEvidence(await pendingEvidence, {input, englishTerm, env});
+        const evidenceInput = contextMode ?
+          contextEvidenceInput(input, input.legacy ? output.discipline : output.analysis?.specialization) : input;
+        const pending = contextMode ? await startEvidence(evidenceInput, evidenceOptions) : await pendingEvidence;
+        const evidence = await finishEvidence(pending, {input: evidenceInput, englishTerm, env});
         if (input.legacy) output.evidence = evidence; else output.analysis.evidence = evidence;
       }
       return workerJson(output);
