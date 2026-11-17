@@ -479,25 +479,31 @@ RESPONSE_SCHEMA = {'type': 'OBJECT', 'properties': {'items': {'type': 'ARRAY', '
     'required': ['items']}
 
 
-def call_gemini(batch, *, model, api_key, timeout=120, attempts=3):
+THINKING_LEVEL = 'low'      # 용어 정리는 깊은 추론이 필요 없어 낮게 (빠르고 저렴). 거부되면 설정 없이 다시 보낸다.
+
+
+def call_gemini(batch, *, model, api_key, timeout=180, attempts=6):
     body = {
         'systemInstruction': {'parts': [{'text': SYSTEM_INSTRUCTION}]},
         'contents': [{'role': 'user', 'parts': [{'text': json.dumps(batch, ensure_ascii=False)}]}],
         'generationConfig': {'responseMimeType': 'application/json', 'responseSchema': RESPONSE_SCHEMA,
-                             'maxOutputTokens': 32768},
+                             'maxOutputTokens': 32768, 'thinkingConfig': {'thinkingLevel': THINKING_LEVEL}},
     }
-    request = urllib.request.Request(GEMINI_URL.format(model=model), data=json.dumps(body).encode('utf-8'),
-                                     headers={'Content-Type': 'application/json', 'x-goog-api-key': api_key},
-                                     method='POST')
     for attempt in range(1, attempts + 1):
+        request = urllib.request.Request(GEMINI_URL.format(model=model), data=json.dumps(body).encode('utf-8'),
+                                         headers={'Content-Type': 'application/json', 'x-goog-api-key': api_key},
+                                         method='POST')
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 payload = json.load(response)
             break
         except urllib.error.HTTPError as error:
             # 응답 본문은 출력하지 않는다(요청 정보가 담길 수 있음).
+            if error.code == 400 and 'thinkingConfig' in body['generationConfig']:
+                del body['generationConfig']['thinkingConfig']      # 생각 수준 설정을 받지 않는 모델
+                continue
             if error.code in (429, 500, 502, 503, 504) and attempt < attempts:
-                time.sleep(10 * attempt)
+                time.sleep(15 * attempt + (hash(str(batch[0])) % 10))   # 호출 한도: 점점 길게, 작업자마다 조금씩 다르게
                 continue
             raise RuntimeError(f'Gemini가 요청을 거부했습니다 (HTTP {error.code}).') from None
         except (urllib.error.URLError, TimeoutError):
@@ -573,7 +579,13 @@ def define_all(candidates, done, *, ask, model, batch_size=BATCH_SIZE, limit=Non
         batch = [{'id': i, 'term': c['term'], 'field': c['field'],
                   'contexts': [{'i': j, 'text': ctx['text']} for j, ctx in enumerate(c['contexts'])],
                   **({'rewrite': True} if rewrite else {})} for i, c in enumerate(chunk)]
-        answers = {a.get('id'): a for a in ask(batch) if isinstance(a, dict)}
+        try:
+            answers = {a.get('id'): a for a in ask(batch) if isinstance(a, dict)}
+        except Exception as error:                 # 이 묶음은 건너뛰고(저장 안 함) 다음 실행 때 다시 묻는다
+            if 'HTTP 402' in str(error):          # 결제 한도: 같은 키를 쓰는 앱을 지키기 위해 바로 멈춘다
+                raise
+            log(f'묶음 실패, 다음 실행 때 다시 시도: {error}')
+            return []
         copied = []
         for i, candidate in enumerate(chunk):
             if i not in answers:                   # 답이 없던 후보는 다음 실행 때 다시 묻는다
