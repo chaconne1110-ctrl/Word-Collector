@@ -480,10 +480,9 @@ function renderDeck() {
     const legacyReference = showsLegacyReference(term);
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
-      // The back's title line ("word · 예문") is not shown; only the card counter stays.
-      counter, backTitle: '',
+      // The word stands next to the ⚡ icon on both faces; the position ("01 / 05")
+      // is shown once, in the top bar above the card.
       related: relatedEnglishWords(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
-    $$('[data-field="backTitle"]', card).forEach(node => { node.textContent = ''; });   // no "—" placeholder
     $$('[data-field="exampleEn"]', card).forEach(node => { node.parentElement.hidden = noExample; });
     // "관련 단어" (two related words from the analysis) replaces the old formula box.
     $$('[data-field="related"]', card).forEach(node => {
@@ -546,8 +545,7 @@ function renderDeck() {
     photoButton.textContent = 'AI 사진 생성 (유료 · 1회)';
     photoPanel.append(photoHeading, photoImage, photoStatus, photoButton);
     $('.card-back', card).firstElementChild.append(photoPanel);
-    // 근거 보기: the evidence saved with the word (older words: 자료 근거 미확인).
-    if (window.WordCollectorEvidence) WordCollectorEvidence.attach($('.card-back', card).firstElementChild, term.evidence);
+    // No 근거 보기 on the flashcard (the word still keeps its evidence data).
     let hasPhoto = false;
     let busyPhoto = false;
     const photoGate = WordCollectorRequestGate.create();

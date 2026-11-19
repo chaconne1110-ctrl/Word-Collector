@@ -45,42 +45,14 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.equal(saved.evidence.status, 'found');
     assert.deepEqual(saved.evidence.sources, [], 'the word does not keep the material either');
     const id = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
+    // The flashcard shows no 근거 보기 either; the material is never shown anywhere.
     await page.goto(base + '/flashcard.html?term=' + id);
-    const cardPanel = page.locator('.card-back .wc-evidence').first();
-    await cardPanel.waitFor({state: 'attached'});
-    assert.equal(await cardPanel.getAttribute('data-status'), 'found');
-    assert.equal(await cardPanel.locator('summary').textContent(), '근거 보기 · 자료 근거 있음');
-    const text = await cardPanel.textContent();
-    for (const expected of ['자료 근거 설명 (등록 자료를 참고해 AI가 작성)', '전류는 도체를 통해 흐르는 전자의 흐름이다.',
-      'AI가 만든 내용이며 자료로 검증되지 않았어요']) assert.ok(text.includes(expected), expected);
-    // The material itself (title, author, quotes, pages, links, license) is never shown in the app.
-    for (const hidden of ['Lessons In Electric Circuits', 'Kuphaldt', 'Electric current is the flow', 'PDF 31쪽', 'CC BY'])
-      assert.ok(!text.includes(hidden), hidden + ' is not shown');
-    assert.equal(await cardPanel.locator('a, img, blockquote').count(), 0);
-    // A word saved by an older app version with sources: they are not shown either.
-    await page.evaluate(id => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));
-      s.terms[id].evidence.sources = [{title: 'Old Book Title', url: 'https://example.com/a.pdf', license: 'CC BY 4.0', quotes: [{text: 'Old quote text here.', verified: true, pdfPage: 3}]}];
-      localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(s)); }, id);
-    await page.reload();
-    await cardPanel.waitFor({state: 'attached'});
-    assert.ok(!(await cardPanel.textContent()).includes('Old Book Title'));
-    // Opening 근거 보기 on the card back must not flip the card.
-    const flipped = () => page.evaluate(() => document.querySelector('.is-flipped') !== null);
-    await page.locator('.card-front').first().click();
-    await page.waitForFunction(() => document.querySelector('.is-flipped') !== null);
-    await page.waitForTimeout(900);
-    await cardPanel.locator('summary').click();
-    await page.waitForTimeout(900);
-    assert.equal(await flipped(), true, 'still showing the back after opening 근거 보기');
-    assert.equal(await cardPanel.evaluate(details => details.open), true);
-    await cardPanel.locator('summary').click();
-    await page.waitForTimeout(900);
-    assert.equal(await flipped(), true, 'still showing the back after closing 근거 보기');
-    // An older word without evidence is shown as 자료 근거 미확인.
-    await page.evaluate(id => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1')); delete s.terms[id].evidence; localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(s)); }, id);
-    await page.reload();
-    assert.equal(await page.locator('.card-back .wc-evidence').first().getAttribute('data-status'), 'unavailable');
+    await page.locator('.card-back').first().waitFor({state: 'attached'});
+    assert.equal(await page.locator('.wc-evidence').count(), 0, 'no 근거 보기 on the flashcard');
+    const cardText = await page.locator('.card-flipper').first().textContent();
+    for (const hidden of ['근거 보기', 'Lessons In Electric Circuits', 'Kuphaldt', 'Electric current is the flow', 'PDF 31쪽'])
+      assert.ok(!cardText.includes(hidden), hidden + ' is not shown');
     assert.deepEqual(errors, []);
-    console.log('PASS: 근거 보기 on review and flashcard shows status, AI explanation and notes only (no titles, quotes, pages, links or licenses, also for older saved words); old words 자료 근거 미확인.');
+    console.log('PASS: no 근거 보기 on review or flashcard; the saved word keeps its evidence status without any material (no titles, quotes, pages, links or licenses).');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

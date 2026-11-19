@@ -10,7 +10,7 @@ const {createServer} = require('../server/server.cjs');
     const page = await browser.newPage(); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
     const base=`http://127.0.0.1:${server.address().port}`;
     await page.addInitScript(()=>{
-      const word={course:'book',en:'Electromagnetic induction',ko:'전자기 유도',enDef:'A long definition. '.repeat(50),referenceSentence:'A reference sentence. '.repeat(25),referenceTranslation:'참고 문장 해석. '.repeat(60)};
+      const word={course:'book',en:'Electromagnetic induction',ko:'전자기 유도',enDef:'A long definition. '.repeat(90),referenceSentence:'A reference sentence. '.repeat(25),referenceTranslation:'참고 문장 해석. '.repeat(60)};
       localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{book:['아주 긴 전자기학 단어장 이름 '.repeat(3),'']},terms:{a:word,b:{...word,en:'Current'},c:{...word,en:'Voltage'}},saved:[]}));
     });
     let inset=0;

@@ -78,6 +78,12 @@
       min-width: 0;
     }
     .card-front { overscroll-behavior-y: contain; }
+    /* Header: the word next to the bolt. A word too long to fit beside the 수정/저장 buttons
+       moves the buttons to the next line; the word itself wraps between words. */
+    .card-head { flex-wrap: wrap !important; row-gap: 6px; column-gap: 8px; align-items: flex-start !important; }
+    .card-head-word { flex: 1 1 auto !important; min-width: 0; align-items: flex-start !important; }
+    .card-head-word > [data-field="en"] { flex: 0 1 auto !important; min-width: 0; white-space: normal; overflow-wrap: break-word;
+      font-size: clamp(22px, 7vw, 30px) !important; line-height: 1.2 !important; }
     /* Keep the deck inside the viewport; only the visible card face scrolls. */
     html:has(body[data-page="card"]), body[data-page="card"] {
       height: 100%;
@@ -202,17 +208,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Skin Effect</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded" data-field="pron">noun</span>
 </div>
@@ -247,12 +250,12 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Skin Effect AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+<div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 </div>
 <!-- AI Example Section -->
@@ -287,18 +290,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
-<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Poynting Vector</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">05 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
 <span class="font-label-mono text-[11px] text-outline">[ˈpɔɪntɪŋ ˈvɛktər]</span>
@@ -338,13 +337,13 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
+</div>
 <div class="flex items-center gap-1.5">
 <button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
-</div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Poynting Vector AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">05 / 05</span>
 </div>
 </div>
 <!-- AI Example Section -->
@@ -407,18 +406,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
-<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Permeability</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">04 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
 <span class="font-label-mono text-[11px] text-outline">[ˌpɜːrmiəˈbɪləti]</span>
@@ -458,13 +453,13 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
+</div>
 <div class="flex items-center gap-1.5">
 <button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
-</div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Permeability AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">04 / 05</span>
 </div>
 </div>
 <!-- AI Example Section -->
@@ -523,18 +518,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
-<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Lorentz Force</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">03 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
 <span class="font-label-mono text-[11px] text-outline">[ˈlɔːrənts fɔːrs]</span>
@@ -574,13 +565,13 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
+</div>
 <div class="flex items-center gap-1.5">
 <button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
-</div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Lorentz Force AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">03 / 05</span>
 </div>
 </div>
 <!-- AI Example Section -->
@@ -640,18 +631,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
-<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Permittivity</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">02 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
 <span class="font-label-mono text-[11px] text-outline">[pɜːrmɪˈtɪvəti]</span>
@@ -691,13 +678,13 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
+</div>
 <div class="flex items-center gap-1.5">
 <button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
-</div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Permittivity AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">02 / 05</span>
 </div>
 </div>
 <!-- AI Example Section -->
@@ -764,18 +751,14 @@
 <div class="card-front absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-low overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-between pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5 text-on-surface-variant">
+<div class="card-head flex items-center justify-between pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
 <span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
-<span class="font-label-mono text-label-mono tracking-tight text-on-surface-variant font-medium">전자기학</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
 <div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 <div class="pt-2 pb-1.5">
-<div class="flex items-baseline justify-between">
-<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold" data-field="en">Skin Effect</h2>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
-</div>
 <div class="flex items-center gap-2 mt-0.5">
 <span class="font-label-mono text-[11px] text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">noun</span>
 <span class="font-label-mono text-[11px] text-outline">[skɪn ɪˈfɛkt]</span>
@@ -815,12 +798,12 @@
 <div class="card-back absolute inset-0 w-full h-full bg-surface-container-lowest rounded-2xl shadow-md p-5 flex flex-col justify-between border border-surface-container-high overflow-hidden" style="overflow-y:auto">
 <div class="space-y-2.5 flex-1 flex flex-col justify-between">
 <div>
-<div class="flex items-center justify-end pb-2 border-b border-surface-container-low">
-<div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
+<div class="card-head flex items-center justify-between gap-2 pb-2 border-b border-surface-container-low">
+<div class="card-head-word flex items-center gap-1.5 text-on-surface-variant min-w-0 flex-1">
+<span class="material-symbols-outlined text-[16px] text-primary">electric_bolt</span>
+<h2 class="font-term-en-title text-display text-primary tracking-tight font-bold min-w-0" style="overflow-wrap:break-word;white-space:normal" data-field="en">Word</h2>
 </div>
-<div class="pt-2 pb-1 flex items-center justify-between">
-<span class="font-label-mono text-[11px] text-outline uppercase tracking-wider" data-field="backTitle">Skin Effect AI Synthesis</span>
-<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-mono text-[11px] font-semibold" data-field="counter">01 / 05</span>
+<div class="flex items-center gap-1.5"><button aria-label="수정" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center gap-1 text-[11px] font-label-ui font-semibold active:scale-95 transition-all" data-action="edit"><span class="material-symbols-outlined text-[15px]">edit</span>수정</button><button aria-label="저장/북마크" class="px-2 py-1 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center gap-1 text-[11px] font-label-ui font-semibold shadow-xs active:scale-95 transition-all" data-action="bookmark"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">bookmark</span>저장</button></div>
 </div>
 </div>
 <!-- AI Example Section -->

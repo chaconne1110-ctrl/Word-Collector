@@ -19,7 +19,7 @@ const {createServer} = require('../server/server.cjs');
     await page.evaluate(() => {
       const terms = Object.fromEntries(['a', 'b', 'c'].map(id => [id, {
         course: 'electromagnetics', en: `Word ${id}`, ko: '검증 단어',
-        enDef: 'A long definition that needs scrolling. '.repeat(60), koDef: '정의',
+        enDef: 'A long definition that needs scrolling. '.repeat(100), koDef: '정의',
         exampleEn: 'An example sentence. '.repeat(100), exampleKo: '예문 번역'
       }]));
       localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses: {electromagnetics: ['검증 단어장', 'Test']}, terms, saved: ['a', 'b']}));
@@ -83,7 +83,17 @@ const {createServer} = require('../server/server.cjs');
       assert.equal(await selected(), 'a', 'downward top swipe must go back');
       await page.locator('.card-front [data-field=en]').click();
       await bottom('.card-back');
-      await swipe(430, 240);
+      // Swipes starting on a button (e.g. AI 사진 생성) are taps by design: start on plain card text.
+      const fromY = await page.evaluate(() => {
+        // Mobile browsers snap a touch near a button onto it, so keep ~40px away from any control.
+        const plain = y => { const element = document.elementFromPoint(140, y);
+          return element?.closest('.card-back') && !element.closest('button, a, input, textarea, select, label'); };
+        for (let y = 450; y > 150; y -= 10) {
+          if ([-40, -20, 0, 20, 40].every(d => plain(y + d))) return y;
+        }
+        return 430;
+      });
+      await swipe(fromY, fromY - 190);
       assert.equal(await selected(), 'b', 'back-face edge swipe must advance too');
     }
     await page.evaluate(() => {

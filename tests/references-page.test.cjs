@@ -33,7 +33,10 @@ test('flashcard back: no "AI 예문 및 시각화 도해" or "word · 예문" ti
   const card = fs.readFileSync('www/flashcard.html', 'utf8');
   assert.doesNotMatch(card, /AI 예문 및 시각화 도해/);
   const app = fs.readFileSync('www/app.js', 'utf8');
-  assert.match(app, /counter, backTitle: '',/);
+  assert.doesNotMatch(app, /backTitle/);
+  // Position shown once (top bar); the word sits next to the ⚡ icon on both faces.
+  assert.doesNotMatch(card, /data-field="counter"|data-field="backTitle"/);
+  assert.equal((card.match(/electric_bolt<\/span>\r?\n<h2 [^>]*data-field="en"/g) || []).length, 12);
   assert.match(app, /\$\$\('\[data-field="related"\]', row\)\.forEach\(chip => \{ chip\.hidden = true; \}\);/);
 });
 

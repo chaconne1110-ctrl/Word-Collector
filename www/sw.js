@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261119-reference-reentry';
+const CACHE_NAME = PREFIX + '20261119-card-headers';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

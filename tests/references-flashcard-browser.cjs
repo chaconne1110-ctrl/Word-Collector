@@ -43,10 +43,33 @@ const {createServer} = require('../server/server.cjs');
     const back = await page.locator('.card-back').first().textContent();
     assert.ok(!back.includes('AI 예문 및 시각화 도해'));
     assert.ok(!back.includes('current · 예문') && !back.includes('· 예문'));
-    assert.equal((await page.locator('.card-back [data-field="backTitle"]').first().textContent()).trim(), '', 'no placeholder dash');
+    // One position counter (top bar); the word sits between the ⚡ icon and the 수정 button on both faces.
+    assert.equal(await page.locator('.card-flipper [data-field="counter"]').count(), 0);
+    assert.equal((await page.locator('#topActiveCounter').textContent()).trim(), '01 / 01');
+    for (const face of ['.card-front', '.card-back']) {
+      const header = page.locator(`${face} > :first-child > :first-child > :first-child`).first();
+      assert.equal((await header.locator('[data-field="en"]').textContent()).trim(), 'current', face + ' word in the header');
+      assert.equal(await header.locator('[data-action="edit"]').count(), 1, face + ' edit button in the same row');
+    }
     assert.ok(back.includes('The current is 2 A.'), 'example still shown');
     assert.equal(await page.locator('.card-back [data-action="edit"]').first().count(), 1, 'edit button stays');
     assert.ok(await card.count() >= 1);
+    // Long words never overlap the 수정/저장 buttons or get cut off (the buttons move below).
+    for (const width of [320, 390]) {
+      await page.setViewportSize({width, height: 844});
+      await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));
+        s.terms.t1.en = 'electromagnetic induction magnetohydrodynamics'; localStorage.setItem('lexicon-word-collector-v1', JSON.stringify(s)); });
+      await page.goto(base + '/flashcard.html?term=t1');
+      await page.locator('.card-front [data-field="en"]').waitFor();
+      const layout = await page.locator('.card-front').evaluate(face => {
+        const word = face.querySelector('.card-head [data-field="en"]').getBoundingClientRect();
+        const button = face.querySelector('.card-head [data-action="edit"]').getBoundingClientRect();
+        const el = face.querySelector('.card-head [data-field="en"]');
+        return {fits: el.scrollWidth <= el.clientWidth + 1,
+          overlap: !(word.right <= button.left + 1 || button.bottom <= word.top || word.bottom <= button.top + 1)};
+      });
+      assert.deepEqual(layout, {fits: true, overlap: false}, 'long word at ' + width + 'px');
+    }
     assert.deepEqual(errors, []);
     console.log('PASS: person icon opens 참고 자료 (20 sources with licences); flashcard back without AI label/title line; related words only on the flashcard.');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
