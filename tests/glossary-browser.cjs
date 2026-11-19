@@ -32,10 +32,10 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     await page.locator('#analysis-review').waitFor({state: 'visible'});
     assert.ok(await page.locator('#review-glossary-note').isVisible(), 'glossary note shown');
     assert.equal(await page.locator('#analysis-review [name=exampleEn]').inputValue(), 'When you switch on the lamp, a small current runs through it.');
-    await page.locator('#review-evidence .wc-evidence summary').click();
-    const evidenceText = await page.locator('#review-evidence').textContent();
-    assert.ok(evidenceText.includes('등록 자료를 참고해 AI가 정리'));
-    assert.ok(!evidenceText.includes('Lessons In Electric Circuits') && !evidenceText.includes('PDF 31쪽'), 'no material shown');
+    // No 근거 보기 on the review screen; the material is never shown.
+    const reviewText = await page.locator('#analysis-review').textContent();
+    assert.equal(await page.locator('#analysis-review .wc-evidence').count(), 0);
+    assert.ok(!reviewText.includes('Lessons In Electric Circuits') && !reviewText.includes('PDF 31쪽'), 'no material shown');
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const saved = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);

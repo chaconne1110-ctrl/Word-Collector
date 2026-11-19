@@ -237,3 +237,6 @@ body[data-capture-step="review"] .review-group > legend {
 @media (max-width: 359px) {
   #meaning-mode-section [role="group"] .material-symbols-outlined { display: none; }
 }
+
+/* Review screen: no empty status line above the result (the text is cleared after analysis). */
+body[data-capture-step="review"] #analysis-status:empty { display: none; }

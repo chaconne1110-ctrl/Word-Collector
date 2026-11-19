@@ -27,9 +27,11 @@ test('missing, unknown or failed evidence is never shown as verified', () => {
   assert.equal(notFound.explanation, null, 'an explanation is kept only for status found');
 });
 
-test('review and flashcard show 근거 보기 and the word keeps its evidence', () => {
+test('the flashcard shows 근거 보기; the review screen does not, but the word keeps its evidence', () => {
   const analysis = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
-  assert.match(analysis, /WordCollectorEvidence\.attach\(\$\('#review-evidence'\), evidence\);/);
+  assert.doesNotMatch(analysis, /WordCollectorEvidence\.attach\(/);
+  assert.doesNotMatch(fs.readFileSync('www/quick_capture/review.html', 'utf8'), /id="review-evidence"/);
+  assert.match(analysis, /draft\.evidence = evidence;/);
   assert.match(analysis, /if \(draft\.evidence\) word\.evidence = draft\.evidence;/);
   assert.match(fs.readFileSync('www/quick_capture/review.html', 'utf8'), /data-step="evidence"[^>]*>.*자료 근거 검색/);
   assert.match(fs.readFileSync('www/app.js', 'utf8'), /WordCollectorEvidence\.attach\(\$\('\.card-back', card\)\.firstElementChild, term\.evidence\)/);

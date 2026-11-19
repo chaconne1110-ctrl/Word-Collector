@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="./assets/fonts/JetBrainsMono/local.css">
 <link rel="stylesheet" href="./assets/fonts/NotoSansKR/local.css">
 <link rel="stylesheet" href="./assets/fonts/MaterialSymbols/local.css">
-<link rel="stylesheet" href="./assets/styles/edit_html.css"><style>@layer base{html,body{width:100%;margin:0;padding:0;min-height:100%;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><title>단어 수정 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"><style>body[data-page="edit"] > header { position:sticky; top:0; flex-shrink:0; } body[data-page="edit"] > main { padding-top:0; padding-bottom:calc(6rem + env(safe-area-inset-bottom, 0px)); } #edit-analysis-photo[hidden] { display:none; }</style><link rel="stylesheet" href="./assets/styles/mobile-layout.css"></head><body class="bg-background text-on-background font-body antialiased flex flex-col min-h-screen" data-page="edit"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(19,27,46,0.04)]"><div class="h-16 px-4 flex items-center justify-between"><div class="flex items-center gap-1"><button aria-label="수정 취소 및 이전으로 돌아가기" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest transition-colors" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><div class="flex flex-col ml-1"><h1 class="text-base font-semibold tracking-tight text-on-surface font-headline leading-tight">단어 수정 <span class="text-xs font-normal text-on-surface-variant font-body">(플래시카드)</span></h1><span class="text-[11px] font-label text-secondary tracking-normal font-medium">FLASHCARD #EDIT MODE</span></div></div><div class="flex items-center gap-1"><button aria-label="단어 변경사항 저장" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-secondary hover:bg-secondary-container/30 active:bg-secondary-container transition-colors" type="button" onclick="saveTermChanges()"><span class="material-symbols-outlined text-[26px]">check</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1 shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 bg-background flex-1 pb-safe pb-24"><div class="flex flex-col w-full">
+<link rel="stylesheet" href="./assets/styles/edit_html.css"><style>@layer base{html,body{width:100%;margin:0;padding:0;min-height:100%;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><title>단어 수정 · Word Collector</title><link rel="stylesheet" href="./assets/styles/bottom-navigation.css"><style>body[data-page="edit"] > header { position:sticky; top:0; flex-shrink:0; } body[data-page="edit"] > main { padding-top:0; padding-bottom:calc(6rem + env(safe-area-inset-bottom, 0px)); } #edit-analysis-photo[hidden] { display:none; }</style><link rel="stylesheet" href="./assets/styles/mobile-layout.css"></head><body class="bg-background text-on-background font-body antialiased flex flex-col min-h-screen" data-page="edit"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(19,27,46,0.04)]"><div class="h-16 px-4 flex items-center justify-between"><div class="flex items-center gap-1"><button aria-label="수정 취소 및 이전으로 돌아가기" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest transition-colors" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><div class="flex flex-col ml-1"><h1 class="text-base font-semibold tracking-tight text-on-surface font-headline leading-tight">단어 수정</h1></div></div><div class="flex items-center gap-1"><button aria-label="단어 변경사항 저장" class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-secondary hover:bg-secondary-container/30 active:bg-secondary-container transition-colors" type="button" onclick="saveTermChanges()"><span class="material-symbols-outlined text-[26px]">check</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1 shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 bg-background flex-1 pb-safe pb-24"><div class="flex flex-col w-full">
 <!-- Interactive sync toast (hidden by default) -->
 <div class="fixed top-20 left-4 right-4 z-50 transform -translate-y-6 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-between p-3.5 rounded-lg shadow-xl bg-primary text-on-primary" id="saveToast"><div class="flex items-center gap-2.5"><span id="toastIcon" class="material-symbols-outlined text-[20px] text-secondary-container">cloud_done</span><span id="toastMsg" class="text-xs font-medium font-body">플래시카드 암기 세션으로 이동합니다...</span></div><span id="toastTag" class="text-[11px] font-label text-inverse-primary tracking-tight">SAVED</span></div>
 <!-- Deletion Confirmation Modal -->
@@ -24,36 +24,15 @@
 </div>
 </dialog>
 <!-- Content Stream -->
-<div class="w-full max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3.5"><!-- Sync Status Banner -->
-<section class="rounded-lg p-3 bg-surface-container-low text-on-surface flex items-start gap-2.5 shadow-sm">
-<div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-surface-container-high text-primary">
-<span class="material-symbols-outlined text-[19px] animate-[spin_10s_linear_infinite]">sync</span>
-</div>
-<div class="flex-1 min-w-0">
-<div class="flex items-center justify-between">
-<span class="text-[11px] font-label text-primary font-semibold tracking-wide">8대 표준 학술 용어 체계 (STANDARD LEXICON)</span>
-<span class="text-[10px] font-label text-secondary font-medium flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-secondary inline-block"></span>
-ACTIVE
-</span>
-</div>
-<p class="text-xs font-body text-on-surface-variant mt-0.5 leading-snug">
-북마크에서 수정한 내용은 해당 단어장(<span class="font-semibold text-on-surface" id="edit-course-label">전자전기공학 · 회로이론</span>)의 원본 단어장에 즉시 동기화됩니다.
-</p>
-</div>
-</section>
-
-<!-- 01. 소속 및 분류 (전공 & 학술 분류 체계) -->
+<div class="w-full max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3.5"><!-- 01. 소속 및 분류 (전공 & 학술 분류 체계) -->
 <div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
 <div class="flex items-center justify-between">
 <span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">01. 소속 및 분류 (DISCIPLINE &amp; CLASSIFICATION)</span>
-<span class="text-[10px] font-label text-on-surface-variant/70">항목 1-2</span>
 </div>
 <!-- 1. 전공 (Academic Discipline) -->
 <div class="flex flex-col gap-1.5">
 <label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="disciplineInput">
 <span class="">1. 전공 (Academic Discipline)</span>
-<span class="text-[11px] font-label text-primary">ENG-EE</span>
 </label>
 <input class="w-full h-11 px-3.5 text-xs font-body font-semibold rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="disciplineInput" type="text" value="전자전기공학 (Electrical &amp; Electronic Engineering)">
 </div>
@@ -61,7 +40,6 @@ ACTIVE
 <div class="flex flex-col gap-1.5">
 <label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="subjectSelect">
 <span class="">2. 학술 분류 체계 (Academic Field)</span>
-<span class="text-[11px] font-label text-secondary font-semibold">EE-CIR-204</span>
 </label>
 <div class="relative">
 <select class="w-full h-11 px-3.5 pr-10 text-xs font-body font-medium rounded-lg bg-surface-container-low text-on-surface appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="subjectSelect">
@@ -82,7 +60,6 @@ unfold_more
 <div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
 <div class="flex items-center justify-between">
 <span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">02. 표제어 및 학술 역어 (HEADWORD &amp; KOREAN TERM)</span>
-<span class="text-[10px] font-label text-secondary font-medium">항목 3-4</span>
 </div>
 <!-- 3. 표제어 (English Headword) -->
 <div class="flex flex-col gap-1.5">
@@ -101,7 +78,6 @@ unfold_more
 <div class="flex flex-col gap-1.5">
 <label class="text-xs font-body font-semibold text-on-surface flex items-center justify-between" for="koreanTermInput">
 <span class="">4. 한국어 학술 역어 (Standard Korean Term)</span>
-<span class="text-[10px] font-label text-on-surface-variant">대한전기학회 표준</span>
 </label>
 <input class="w-full h-11 px-3.5 text-sm font-body font-semibold rounded-lg bg-surface-container-low text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-inner" id="koreanTermInput" placeholder="표준 국문 번역어" type="text" value="공진 주파수">
 </div>
@@ -111,7 +87,6 @@ unfold_more
 <div class="rounded-xl p-4 bg-surface-container-lowest shadow-sm flex flex-col gap-4">
 <div class="flex items-center justify-between">
 <span class="text-[11px] font-label text-on-surface-variant uppercase tracking-wider font-semibold">03. 정의 및 학술 예문 (DEFINITIONS &amp; EXAMPLES)</span>
-<span class="text-[10px] font-label text-primary font-semibold">항목 5-7</span>
 </div>
 <!-- 5. Standard Academic Definition -->
 <div class="flex flex-col gap-1.5">
@@ -127,7 +102,6 @@ unfold_more
 <div class="flex flex-col gap-2 p-3 rounded-lg bg-surface-container-low">
 <div class="flex items-center justify-between">
 <label class="text-xs font-body font-semibold text-on-surface" for="exampleSentenceEn">7. 예문 (Academic Example Sentence)</label>
-<span class="text-[10px] font-label text-secondary font-semibold">CONTEXT READY</span>
 </div>
 <div class="flex flex-col gap-1.5">
 <span class="text-[11px] font-label text-on-surface-variant">[영문 원문]</span>
@@ -145,23 +119,11 @@ unfold_more
 <h2 class="text-xs font-body font-semibold">분석할 때 생성한 이미지</h2>
 <img id="edit-analysis-photo" hidden alt="" style="width:100%;max-height:24rem;object-fit:contain;border-radius:.75rem;" />
 <p id="edit-photo-status" role="status" class="text-xs text-on-surface-variant">저장된 이미지를 불러오는 중입니다.</p>
-<!-- Revision Timestamp and Cloud State -->
-<div class="p-2.5 rounded-lg bg-surface-container-low text-on-surface-variant flex items-center justify-between text-[11px] font-label">
-<div class="flex items-center gap-1.5">
-<span class="material-symbols-outlined text-[15px] text-secondary">cloud_done</span>
-<span class="">저장 버튼을 눌러 변경 내용을 적용하세요.</span>
-</div>
-<span class="text-[10px] text-on-surface-variant/70">REV. 05</span>
-</div><div class="p-2.5 rounded-lg bg-secondary-container/30 border border-secondary/30 flex items-center justify-between text-[11px] font-label text-secondary"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-secondary">edit_note</span><span class="font-medium">저장 버튼을 눌러 변경 내용을 적용하세요.</span></div><span class="px-1.5 py-0.5 rounded text-[10px] bg-secondary text-on-secondary font-semibold">DRAFT SAFE</span></div>
+
 </div>
 
 <!-- Action Center -->
-<div class="rounded-xl p-3 bg-surface-container-lowest shadow-md flex flex-col gap-2 mt-1"><div class="p-2 rounded-lg bg-surface-container-low text-on-surface-variant text-[11px] font-body flex items-start gap-1.5 leading-snug"><span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0 mt-0.5">info</span><span class="">플래시카드 상단 수정 버튼을 통해 진입한 개별 단어 편집 모드입니다. 수정 완료 시 플래시카드 및 단어장에 즉시 동기화됩니다.</span></div>
-<!-- Quick Flashcard Trigger -->
-<button class="w-full h-11 rounded-lg bg-surface-container-high text-primary font-body text-xs font-semibold flex items-center justify-center gap-2 hover:bg-surface-container-highest active:scale-[0.99] transition-all" onclick="openFlashcardDirect()" type="button">
-<span class="material-symbols-outlined text-[19px]">style</span>
-플래시카드로 열기 (암기 모드)
-</button>
+<div class="rounded-xl p-3 bg-surface-container-lowest shadow-md flex flex-col gap-2 mt-1">
 <!-- Primary Action Buttons Row -->
 <div class="flex items-center gap-2">
 <!-- Delete Button with red tint -->
@@ -175,13 +137,6 @@ unfold_more
 <span class="">수정 내용 저장 (단어장에 반영)</span>
 </button>
 </div>
-</div>
-
-<!-- Footnote Meta -->
-<div class="text-center py-2">
-<span class="text-[10px] font-label text-on-surface-variant/70">
-Lexicon Precision • 8-Standard Academic Terminology Module v4.0
-</span>
 </div></div>
 </div>
 </main>

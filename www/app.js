@@ -328,11 +328,9 @@ function renderList() {
     for (const id of ids) {
       const row = template.content.firstElementChild.cloneNode(true);
       row.dataset.termId = id;
-      bindFields(row, {...state.terms[id], related: relatedEnglishWords(state.terms[id]).join(', '),
-        pron: koreanPartOfSpeech(state.terms[id].pron)});
-      $$('[data-field="related"]', row).forEach(chip => {
-        chip.hidden = !relatedEnglishWords(state.terms[id]).length;
-      });
+      bindFields(row, {...state.terms[id], related: '', pron: koreanPartOfSpeech(state.terms[id].pron)});
+      // Related words are shown on the flashcard only, not in the word lists.
+      $$('[data-field="related"]', row).forEach(chip => { chip.hidden = true; });
       rowLink(row, cardUrl(id, bookmark, course, filter, q));
       const button = $('[data-action="bookmark"]', row);
       paintBookmark(button, id);
@@ -452,8 +450,10 @@ function renderDeck() {
     const legacyReference = referenceSentence && !exampleFromReference && !noExample;
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
-      counter, backTitle: term.en + (noExample ? '' : referenceSentence ? ' · 참고 문장' : ' · 예문'),
+      // The back's title line ("word · 예문") is not shown; only the card counter stays.
+      counter, backTitle: '',
       related: relatedEnglishWords(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
+    $$('[data-field="backTitle"]', card).forEach(node => { node.textContent = ''; });   // no "—" placeholder
     $$('[data-field="exampleEn"]', card).forEach(node => { node.parentElement.hidden = noExample; });
     // "관련 단어" (two related words from the analysis) replaces the old formula box.
     $$('[data-field="related"]', card).forEach(node => {
@@ -700,7 +700,8 @@ function renderEditor() {
     const input = document.getElementById(id);
     input.value = term[key] ?? (key === 'discipline' ? '전자전기공학' : '');
   }
-  $('#edit-course-label').textContent = courseNames(term.course)[0];
+  const courseLabel = $('#edit-course-label');   // the sync banner was removed; kept safe if present
+  if (courseLabel) courseLabel.textContent = courseNames(term.course)[0];
   $('header button[aria-label^="수정 취소"]').onclick = openFlashcardDirect;
   const photo = $('#edit-analysis-photo');
   const photoStatus = $('#edit-photo-status');

@@ -230,8 +230,9 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.name = key;
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
-  input.rows = ['en', 'pos'].includes(key) ? 1 : 2; // 한국어 뜻 may list several parts of speech
-  if (key === 'related') input.placeholder = '예: capacitance';
+  // One line to start; the box grows with longer text (전공, 한국어 뜻 and 관련 단어 included).
+  input.rows = ['en', 'pos', 'discipline', 'ko', 'related'].includes(key) ? 1 : 2;
+  if (key === 'related') input.placeholder = '예: capacitance, inductance';
   if (key === 'referenceTranslation') {
     label.hidden = true;
     input.placeholder = '해석이 없으면 직접 입력하거나 다시 분석해 주세요.';
@@ -343,9 +344,9 @@ async function runAnalysis() {
       ...(request.meaningMode === 'major' && request.majorField ? {majorField: String(request.majorField).trim().slice(0, 60)} : {}),
       notebooks: autoCourse ? currentNotebooks() : withNotebook(currentNotebooks(), destinationName)}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    // Two related English words, one per line (no meanings), editable before saving.
+    // Two related English words on one line, separated by commas (no meanings), editable before saving.
     result.related = Array.isArray(result.relatedWords) ? result.relatedWords
-      .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join('\n') : '';
+      .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join(', ') : '';
     result.pos = koreanPartOfSpeech(result.pos);
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     referencePreview.textContent = context ? '참고 문장: ' + context : '';
@@ -399,11 +400,10 @@ async function runAnalysis() {
     showRecommendation(result, autoCourse, context);
     // Analysis only: no photo is requested from this page.
     setWaitingStep('analysis', 'done');
-    // Evidence from the registered textbooks. A missing or failed search is
-    // shown as "자료 근거 미확인", never as verified.
+    // Evidence from the registered textbooks: not shown on the review screen
+    // (no 근거 보기 / 자료 근거 미확인 here); the saved word keeps it.
     const evidence = WordCollectorEvidence.sanitize(result.evidence);
     setWaitingStep('evidence', evidence.status === 'search_failed' ? 'failed' : 'done');
-    WordCollectorEvidence.attach($('#review-evidence'), evidence);
     draft.evidence = evidence;
     hideWaiting();
     reviewForm.hidden = false;
@@ -412,7 +412,7 @@ async function runAnalysis() {
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
-      createsCourse ? '분석 완료. 새 단어장 이름과 결과를 검토한 뒤 저장하세요.' : '분석 완료. 아래 결과를 검토하세요.';
+      createsCourse ? '분석 완료. 새 단어장 이름과 결과를 검토한 뒤 저장하세요.' : '';
   } catch (error) {
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
     showError(['TimeoutError','AbortError'].includes(error.name) ?
@@ -452,6 +452,8 @@ async function saveReview() {
   if (!draft || saving) return;
   const result = Object.fromEntries(Object.keys(resultFields).map(key =>
     [key, reviewForm.elements[key].value.trim()]));
+  // 관련 단어 is edited as one comma-separated line; it is saved one word per line as before.
+  result.related = result.related.split(/\s*[,\n]\s*/).filter(Boolean).join('\n');
   const validation = WordCollectorPartialTerm.validate(result);
   if (!validation.ok) {
     status.textContent = validation.message;

@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261118-export-desktop-download';
+const CACHE_NAME = PREFIX + '20261119-ui-cleanup';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -33,6 +33,7 @@ const APP_SHELL = [
   "assets/styles/quick_capture_code_html.css",
   "assets/styles/words_html.css",
   "backup.html",
+  "references.html",
   "backup.js",
   "bookmarks.html",
   "csv-export.js",

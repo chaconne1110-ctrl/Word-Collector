@@ -34,16 +34,11 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
       await page.locator('#major-input').fill('전기공학');
     await page.locator('#submit-action-btn').click();
     await page.locator('#analysis-review').waitFor({state: 'visible'});
-    const panel = page.locator('#review-evidence .wc-evidence');
-    assert.equal(await panel.locator('summary').textContent(), '근거 보기 · 자료 근거 있음');
-    await panel.locator('summary').click();
-    const text = await panel.textContent();
-    for (const expected of ['자료 근거 설명 (등록 자료를 참고해 AI가 작성)', '전류는 도체를 통해 흐르는 전자의 흐름이다.',
-      'AI가 만든 내용이며 자료로 검증되지 않았어요']) assert.ok(text.includes(expected), expected);
-    // The material itself (title, author, quotes, pages, links, license) is never shown in the app.
-    for (const hidden of ['Lessons In Electric Circuits', 'Kuphaldt', 'Electric current is the flow', 'PDF 31쪽', 'CC BY'])
-      assert.ok(!text.includes(hidden), hidden + ' is not shown');
-    assert.equal(await panel.locator('a, img, blockquote').count(), 0);
+    // The review screen shows no 근거 보기 / 자료 근거 status and no "분석 완료. 아래 결과를 검토하세요." line.
+    assert.equal(await page.locator('#analysis-review .wc-evidence').count(), 0);
+    assert.ok(!(await page.locator('#analysis-review').textContent()).includes('자료 근거'));
+    assert.equal(await page.locator('#analysis-status').textContent(), '');
+    assert.equal(await page.locator('#analysis-status').isVisible(), false);
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const saved = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
@@ -54,7 +49,14 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     const cardPanel = page.locator('.card-back .wc-evidence').first();
     await cardPanel.waitFor({state: 'attached'});
     assert.equal(await cardPanel.getAttribute('data-status'), 'found');
-    assert.ok(!(await cardPanel.textContent()).includes('Lessons In Electric Circuits'));
+    assert.equal(await cardPanel.locator('summary').textContent(), '근거 보기 · 자료 근거 있음');
+    const text = await cardPanel.textContent();
+    for (const expected of ['자료 근거 설명 (등록 자료를 참고해 AI가 작성)', '전류는 도체를 통해 흐르는 전자의 흐름이다.',
+      'AI가 만든 내용이며 자료로 검증되지 않았어요']) assert.ok(text.includes(expected), expected);
+    // The material itself (title, author, quotes, pages, links, license) is never shown in the app.
+    for (const hidden of ['Lessons In Electric Circuits', 'Kuphaldt', 'Electric current is the flow', 'PDF 31쪽', 'CC BY'])
+      assert.ok(!text.includes(hidden), hidden + ' is not shown');
+    assert.equal(await cardPanel.locator('a, img, blockquote').count(), 0);
     // A word saved by an older app version with sources: they are not shown either.
     await page.evaluate(id => { const s = JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));
       s.terms[id].evidence.sources = [{title: 'Old Book Title', url: 'https://example.com/a.pdf', license: 'CC BY 4.0', quotes: [{text: 'Old quote text here.', verified: true, pdfPage: 3}]}];
