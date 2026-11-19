@@ -1,6 +1,6 @@
-name: Redeploy approved Word Collector V11.19 snapshot + evaluation apps
+name: Redeploy approved Word Collector V11.17 snapshot + evaluation apps
 
-# Site root: the requested V11.19 snapshot. Each evaluation form
+# Site root: the requested V11.17 snapshot. Each evaluation form
 # (Word file) has its own branch and is published under eval/<slug>/, with the
 # words of that form already analysed in the notebook "평가 단어 목록".
 on:
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: '3bb1ccf4f71bf82169d59db782f44eff4af0fd6e'
+          ref: 'ccdac5a98805086f96db59fb5018b57e99298ca2'
           persist-credentials: false
 
       - name: Checkout evaluation app circuit-theory (회로이론_교수님_평가표)
@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
+          test "$(git rev-parse HEAD)" = "ccdac5a98805086f96db59fb5018b57e99298ca2"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -125,7 +125,7 @@ jobs:
       - name: Run regression tests with mocked API (no Gemini charges)
         run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
 
-      - name: Assemble site (root = V11.19, eval/<slug>/ = evaluation apps)
+      - name: Assemble site (root = V11.17, eval/<slug>/ = evaluation apps)
         shell: bash
         run: |
           set -euo pipefail
@@ -157,7 +157,7 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Root: V11.19 3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
+          echo "Root: V11.17 ccdac5a98805086f96db59fb5018b57e99298ca2"
           echo "회로이론_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/circuit-theory/ (6e92064)"
           echo "전기기기_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electric-machines/ (c51f244)"
           echo "전기안전공학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electrical-safety/ (0455a5a)"
