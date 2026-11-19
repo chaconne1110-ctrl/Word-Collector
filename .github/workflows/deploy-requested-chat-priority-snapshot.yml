@@ -1,8 +1,8 @@
-name: Deploy Word Collector V11.19 + power-engineering evaluation
+name: Redeploy approved Word Collector V11.19 snapshot + evaluation apps
 
-# The main webapp remains pinned to V11.19. Publish only the power-engineering
-# evaluation app under eval/power-engineering/, leaving the other five unpublished.
-
+# Site root: the approved V11.19 snapshot. Each evaluation form
+# (Word file) has its own branch and is published under eval/<slug>/, with the
+# words of that form already analysed in the notebook "평가 단어 목록".
 on:
   push:
     branches: [main]
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   deploy-requested-snapshot:
-    name: Revalidate pinned V11.19 snapshot and redeploy Pages
+    name: Revalidate pinned snapshots and redeploy Pages
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -35,14 +35,44 @@ jobs:
           ref: '3bb1ccf4f71bf82169d59db782f44eff4af0fd6e'
           persist-credentials: false
 
-      - name: Checkout power-engineering evaluation app
+      - name: Checkout evaluation app circuit-theory (회로이론_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: '73dcfcf616a4ac87f596e8d75755a164bb7cb72e'
+          ref: '50f2455bd0615d9270e39896c348481dcef0beb3'
+          path: eval-src/circuit-theory
+          persist-credentials: false
+      - name: Checkout evaluation app electric-machines (전기기기_교수님_평가표)
+        uses: actions/checkout@v4
+        with:
+          ref: '3153188a465199dac2906b11a47398fa31abbd90'
+          path: eval-src/electric-machines
+          persist-credentials: false
+      - name: Checkout evaluation app electrical-safety (전기안전공학_교수님_평가표)
+        uses: actions/checkout@v4
+        with:
+          ref: '37b8c41e10ee395edb8f056bc242c32f4bcdd964'
+          path: eval-src/electrical-safety
+          persist-credentials: false
+      - name: Checkout evaluation app electromagnetics (전기자기학_교수님_평가표)
+        uses: actions/checkout@v4
+        with:
+          ref: '2c4277b2fe2da5067b8ee581e1cb16729a293f26'
+          path: eval-src/electromagnetics
+          persist-credentials: false
+      - name: Checkout evaluation app power-engineering (전력공학_교수님_평가표)
+        uses: actions/checkout@v4
+        with:
+          ref: '42b7487f3e27495fc7ac68afdd910a2784a5e1cb'
           path: eval-src/power-engineering
           persist-credentials: false
+      - name: Checkout evaluation app additional-experts (Word_Collector_추가_전문가_평가표)
+        uses: actions/checkout@v4
+        with:
+          ref: '3e2e90005e52b9f3013e38a32195216689fed868'
+          path: eval-src/additional-experts
+          persist-credentials: false
 
-      - name: Verify immutable source revision and app assets
+      - name: Verify immutable source revisions and app assets
         shell: bash
         run: |
           set -euo pipefail
@@ -53,10 +83,24 @@ jobs:
           test -s www/sw.js
           grep -q 'id="analysis-action-bar"' www/quick_capture/code.html
           ! grep -q 'id="tester-token"' www/quick_capture/code.html
-          test "$(git -C eval-src/power-engineering rev-parse HEAD)" = "73dcfcf616a4ac87f596e8d75755a164bb7cb72e"
-          test -s eval-src/power-engineering/www/index.html
+          test "$(git -C eval-src/circuit-theory rev-parse HEAD)" = "50f2455bd0615d9270e39896c348481dcef0beb3"
+          grep -q "lexicon-word-collector-v1-eval-circuit-theory" eval-src/circuit-theory/www/app.js
+          node --check eval-src/circuit-theory/www/data.js
+          test "$(git -C eval-src/electric-machines rev-parse HEAD)" = "3153188a465199dac2906b11a47398fa31abbd90"
+          grep -q "lexicon-word-collector-v1-eval-electric-machines" eval-src/electric-machines/www/app.js
+          node --check eval-src/electric-machines/www/data.js
+          test "$(git -C eval-src/electrical-safety rev-parse HEAD)" = "37b8c41e10ee395edb8f056bc242c32f4bcdd964"
+          grep -q "lexicon-word-collector-v1-eval-electrical-safety" eval-src/electrical-safety/www/app.js
+          node --check eval-src/electrical-safety/www/data.js
+          test "$(git -C eval-src/electromagnetics rev-parse HEAD)" = "2c4277b2fe2da5067b8ee581e1cb16729a293f26"
+          grep -q "lexicon-word-collector-v1-eval-electromagnetics" eval-src/electromagnetics/www/app.js
+          node --check eval-src/electromagnetics/www/data.js
+          test "$(git -C eval-src/power-engineering rev-parse HEAD)" = "42b7487f3e27495fc7ac68afdd910a2784a5e1cb"
           grep -q "lexicon-word-collector-v1-eval-power-engineering" eval-src/power-engineering/www/app.js
           node --check eval-src/power-engineering/www/data.js
+          test "$(git -C eval-src/additional-experts rev-parse HEAD)" = "3e2e90005e52b9f3013e38a32195216689fed868"
+          grep -q "lexicon-word-collector-v1-eval-additional-experts" eval-src/additional-experts/www/app.js
+          node --check eval-src/additional-experts/www/data.js
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -81,20 +125,24 @@ jobs:
       - name: Run regression tests with mocked API (no Gemini charges)
         run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
 
-      - name: Assemble main webapp and one evaluation app
+      - name: Assemble site (root = V11.19, eval/<slug>/ = evaluation apps)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p site/eval
           cp -R www/. site/
+          cp -R eval-src/circuit-theory/www site/eval/circuit-theory
+          cp -R eval-src/electric-machines/www site/eval/electric-machines
+          cp -R eval-src/electrical-safety/www site/eval/electrical-safety
+          cp -R eval-src/electromagnetics/www site/eval/electromagnetics
           cp -R eval-src/power-engineering/www site/eval/power-engineering
-          test -s site/index.html
-          test -s site/eval/power-engineering/index.html
+          cp -R eval-src/additional-experts/www site/eval/additional-experts
+          ls site/eval
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload V11.19 and power-engineering evaluation
+      - name: Upload public web assets
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -109,7 +157,10 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Deployed source branch: V11.19"
-          echo "Deployed source SHA: 3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
-          echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
-          echo "Power-engineering evaluation: ${{ steps.deployment.outputs.page_url }}eval/power-engineering/"
+          echo "Root: V11.19 3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
+          echo "회로이론_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/circuit-theory/ (50f2455)"
+          echo "전기기기_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electric-machines/ (3153188)"
+          echo "전기안전공학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electrical-safety/ (37b8c41)"
+          echo "전기자기학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electromagnetics/ (2c4277b)"
+          echo "전력공학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/power-engineering/ (42b7487)"
+          echo "Word_Collector_추가_전문가_평가표: ${{ steps.deployment.outputs.page_url }}eval/additional-experts/ (3e2e900)"
