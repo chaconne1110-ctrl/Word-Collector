@@ -55,7 +55,42 @@ const KEY = 'lexicon-word-collector-v1';
     const back = await editTab.locator('.card-back').first().textContent();
     assert.ok(back.includes('The voltage across R is 6 V.') && back.includes('R 양단 전압은 6V이다.'), 'the card shows the edited sentence');
     s = await read(editTab);
-    assert.equal(s.terms.old.exampleEn, 'Generated old example.', 'the hidden generated example is not overwritten');
+    assert.deepEqual([s.terms.old.exampleSource, s.terms.old.exampleEn, s.terms.old.exampleKo],
+      ['reference', 'The voltage across R is 6 V.', 'R 양단 전압은 6V이다.'], 'stored like newer words once edited');
+    // 4) Clearing the legacy example never brings the hidden generated example back.
+    await editTab.evaluate(key => { const s = JSON.parse(localStorage.getItem(key));
+      s.terms.old2 = {course: 'book', en: 'power', ko: '전력', enDef: 'Rate of energy.', koDef: '에너지율.', exampleEn: 'Hidden generated example.', exampleKo: '숨은 예문.',
+        referenceSentence: 'The power is 10 W.', referenceTranslation: '전력은 10W이다.'}; localStorage.setItem(key, JSON.stringify(s)); }, KEY);
+    await editTab.goto(base + '/edit.html?term=old2');
+    await editTab.fill('#exampleSentenceEn', '');
+    await editTab.fill('#exampleSentenceKo', '');
+    await editTab.click('button[aria-label="단어 변경사항 저장"]');
+    await editTab.waitForURL('**/flashcard.html**');
+    await editTab.locator('.card-back').first().waitFor({state: 'attached'});
+    assert.ok(!(await editTab.locator('.card-back').first().textContent()).includes('Hidden generated example.'), 'old example not shown');
+    // 5) The same word edited in two tabs: each tab writes only what it changed.
+    const tabA = editTab, tabB = otherTab;
+    await tabA.goto(base + '/edit.html?term=t2');
+    await tabB.goto(base + '/edit.html?term=t2');
+    await tabA.fill('#englishDefArea', 'Opposition to current.');
+    await tabA.click('button[aria-label="단어 변경사항 저장"]');
+    await tabA.waitForURL('**/flashcard.html**');
+    await tabB.fill('#koreanTermInput', '저항(抵抗)');
+    await tabB.click('button[aria-label="단어 변경사항 저장"]');
+    await tabB.waitForURL('**/flashcard.html**');
+    s = await read(tabB);
+    assert.deepEqual([s.terms.t2.enDef, s.terms.t2.ko], ['Opposition to current.', '저항(抵抗)'], 'both tabs\' changes kept');
+    // 6) Bookmarking a word deleted in another tab stores nothing invalid; backup stays possible.
+    await tabA.goto(base + '/flashcard.html?term=t2');
+    await tabA.locator('.card-back').first().waitFor({state: 'attached'});
+    await tabB.evaluate(key => { const s = JSON.parse(localStorage.getItem(key)); delete s.terms.t2; s.saved = s.saved.filter(id => id !== 't2'); localStorage.setItem(key, JSON.stringify(s)); }, KEY);
+    tabA.once('dialog', dialog => dialog.accept());
+    await tabA.evaluate(() => toggleBookmark('t2'));
+    s = await read(tabB);
+    assert.ok(!s.saved.includes('t2') && s.saved.every(id => s.terms[id]), 'no bookmark for a deleted word');
+    await tabB.goto(base + '/backup.html');
+    await tabB.waitForTimeout(400);
+    assert.equal(await tabB.locator('#export').isDisabled(), false, 'JSON backup still possible');
     assert.deepEqual(errors, []);
     console.log('PASS: edit save/delete keep notebooks, words and bookmarks from another tab; legacy reference sentences are edited where the card shows them.');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

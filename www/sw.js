@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261119-latest-data';
+const CACHE_NAME = PREFIX + '20261119-edit-merge';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

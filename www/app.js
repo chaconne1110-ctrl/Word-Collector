@@ -69,6 +69,7 @@ const allCourses = () => Object.fromEntries(Object.entries(state.courses || {})
 const hasCourse = id => Object.hasOwn(allCourses(), id);
 const hasTerm = id => Object.hasOwn(state.terms, id);
 const termId = params.get('term');
+let editorStart = {};   // edit page: the field values shown when the page was opened
 const course = hasCourse(params.get('course')) ? params.get('course') :
   hasTerm(termId) ? state.terms[termId].course : Object.keys(allCourses())[0] || '';
 const fromBookmark = params.get('from') === 'bookmark';
@@ -160,7 +161,16 @@ function editorFieldKey(term, key) {
 
 function toggleBookmark(id) {
   state = load();
-  const saved = state.saved.includes(id) ? state.saved.filter(item => item !== id) : [id, ...state.saved];
+  // A word deleted in another tab may still be on screen: never store its ID
+  // (a bookmark without a word makes the saved data invalid, e.g. for backup).
+  const valid = state.saved.filter(hasTerm);
+  if (!hasTerm(id)) {
+    if (valid.length !== state.saved.length) commit({...state, saved: valid});
+    alert('이 단어는 다른 화면에서 삭제되었습니다.');
+    location.replace(listUrl(fromBookmark));
+    return false;
+  }
+  const saved = valid.includes(id) ? valid.filter(item => item !== id) : [id, ...valid];
   return commit({...state, saved});
 }
 
@@ -716,9 +726,11 @@ function renderEditor() {
   const select = $('#subjectSelect');
   select.replaceChildren(...Object.entries(allCourses()).map(([id, names]) =>
     new Option(courseNames(id).join(' · '), id)));
+  editorStart = {};
   for (const [id, key] of Object.entries(fields)) {
     const input = document.getElementById(id);
     input.value = term[editorFieldKey(term, key)] ?? (key === 'discipline' ? '전자전기공학' : '');
+    editorStart[id] = input.value.trim();   // to save only what was changed on this page
   }
   const courseLabel = $('#edit-course-label');   // the sync banner was removed; kept safe if present
   if (courseLabel) courseLabel.textContent = courseNames(term.course)[0];
@@ -748,7 +760,27 @@ function saveTermChanges() {
   }
   const original = state.terms[termId];
   const updated = {...original};
-  for (const [id, key] of Object.entries(fields)) updated[editorFieldKey(original, key)] = document.getElementById(id).value.trim();
+  // Only the fields changed on this page are written: a field changed in another
+  // tab meanwhile (e.g. the definition) keeps that tab's value.
+  const value = id => document.getElementById(id).value.trim();
+  const changed = id => value(id) !== editorStart[id];
+  for (const [id, key] of Object.entries(fields)) {
+    if (key !== 'exampleEn' && key !== 'exampleKo' && changed(id)) updated[key] = value(id);
+  }
+  if (changed('exampleSentenceEn') || changed('exampleSentenceKo')) {
+    const shown = key => String(original[editorFieldKey(original, key)] ?? '').trim();
+    const en = changed('exampleSentenceEn') ? value('exampleSentenceEn') : shown('exampleEn');
+    const ko = changed('exampleSentenceKo') ? value('exampleSentenceKo') : shown('exampleKo');
+    if (showsLegacyReference(original)) {
+      // An older word showed its reference sentence instead of the generated example.
+      // Once edited, the example is what was typed here (stored like newer words), so
+      // clearing it never brings the hidden generated example back.
+      Object.assign(updated, {referenceSentence: en, referenceTranslation: ko, exampleEn: en, exampleKo: ko,
+        exampleSource: en || ko ? 'reference' : 'none'});
+    } else {
+      Object.assign(updated, {exampleEn: en, exampleKo: ko});
+    }
+  }
   if (updated.course !== original.course && !hasCourse(updated.course)) {
     alert('선택한 단어장이 다른 화면에서 삭제되었습니다. 단어장을 다시 선택해 주세요.');
     renderEditor();
