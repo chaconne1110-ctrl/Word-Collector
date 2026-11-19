@@ -68,6 +68,25 @@ const KEY = 'lexicon-word-collector-v1';
     await editTab.waitForURL('**/flashcard.html**');
     await editTab.locator('.card-back').first().waitFor({state: 'attached'});
     assert.ok(!(await editTab.locator('.card-back').first().textContent()).includes('Hidden generated example.'), 'old example not shown');
+    // 4b) Typing an example again after emptying it shows it on the card.
+    await editTab.goto(base + '/edit.html?term=old2');
+    await editTab.fill('#exampleSentenceEn', 'The power is 20 W.');
+    await editTab.fill('#exampleSentenceKo', '전력은 20W이다.');
+    await editTab.click('button[aria-label="단어 변경사항 저장"]');
+    await editTab.waitForURL('**/flashcard.html**');
+    await editTab.locator('.card-back').first().waitFor({state: 'attached'});
+    const example = editTab.locator('.card-back [data-field="exampleEn"]').first();
+    assert.equal((await example.textContent()).trim(), 'The power is 20 W.');
+    assert.equal(await example.evaluate(node => node.parentElement.hidden), false, 'example box shown again');
+    // 4c) Delete on an edit page whose word was deleted in another tab: notice, no error.
+    await editTab.goto(base + '/edit.html?term=old2');
+    await otherTab.evaluate(key => { const s = JSON.parse(localStorage.getItem(key)); delete s.terms.old2; localStorage.setItem(key, JSON.stringify(s)); }, KEY);
+    const notices = []; const onDialog = dialog => { notices.push(dialog.message()); dialog.accept(); };
+    editTab.on('dialog', onDialog);
+    await editTab.click('button[aria-label="단어 삭제"]');
+    await editTab.waitForURL('**/words.html**');
+    editTab.off('dialog', onDialog);
+    assert.deepEqual(notices, ['이 단어는 다른 화면에서 삭제되었습니다.']);
     // 5) The same word edited in two tabs: each tab writes only what it changed.
     const tabA = editTab, tabB = otherTab;
     await tabA.goto(base + '/edit.html?term=t2');

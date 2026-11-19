@@ -779,6 +779,9 @@ function saveTermChanges() {
         exampleSource: en || ko ? 'reference' : 'none'});
     } else {
       Object.assign(updated, {exampleEn: en, exampleKo: ko});
+      // Typing an example after it was emptied shows it again; emptying it hides the box.
+      if (!en && !ko) updated.exampleSource = 'none';
+      else if (updated.exampleSource === 'none') delete updated.exampleSource;
     }
   }
   if (updated.course !== original.course && !hasCourse(updated.course)) {
@@ -798,7 +801,17 @@ function saveTermChanges() {
   }
 }
 
+// The word may have been deleted in another tab while this page was open.
+function leaveIfDeleted() {
+  state = load();
+  if (hasTerm(termId)) return false;
+  $('#deleteModal').close?.();
+  alert('이 단어는 다른 화면에서 삭제되었습니다.');
+  location.replace(listUrl(fromBookmark));
+  return true;
+}
 function openDeleteModal() {
+  if (leaveIfDeleted()) return;
   const modal = $('#deleteModal');
   $('p', modal).textContent = '“' + state.terms[termId].en + '” 단어와 해당 북마크를 삭제합니다. 이 작업은 되돌릴 수 없습니다.';
   modal.showModal();
@@ -807,7 +820,7 @@ function closeDeleteModal() {
   $('#deleteModal').close();
 }
 function confirmDelete() {
-  state = load();   // keep notebooks and words added in another tab
+  if (leaveIfDeleted()) return;   // also reloads: keeps notebooks and words added in another tab
   const terms = {...state.terms};
   delete terms[termId];
   if (commit({...state, terms, saved: state.saved.filter(id => id !== termId)})) {
