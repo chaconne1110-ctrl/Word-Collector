@@ -13,6 +13,12 @@ function load() {
 }
 
 let state = load();
+// Another tab (or window) may have changed the data since this page loaded: every
+// change is built on the latest saved copy (state = load() right before it), and
+// a change made elsewhere is picked up here at once.
+globalThis.addEventListener?.('storage', event => {
+  if (event.key === storageKey || event.key === null) state = load();
+});
 function commit(next) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(next));
@@ -140,7 +146,20 @@ function paintBookmark(button, id) {
   if (page === 'card') button.replaceChildren(icon, document.createTextNode(saved ? '저장됨' : '저장'));
 }
 
+// Words saved by older versions kept a generated example but show the user's
+// reference sentence (and its translation) on the flashcard instead. The editor
+// edits what the card shows, so its example boxes map to those fields.
+function showsLegacyReference(term) {
+  const reference = typeof term?.referenceSentence === 'string' ? term.referenceSentence.trim() : '';
+  return Boolean(reference) && term.exampleSource !== 'reference' && term.exampleSource !== 'none';
+}
+function editorFieldKey(term, key) {
+  if (!showsLegacyReference(term)) return key;
+  return key === 'exampleEn' ? 'referenceSentence' : key === 'exampleKo' ? 'referenceTranslation' : key;
+}
+
 function toggleBookmark(id) {
+  state = load();
   const saved = state.saved.includes(id) ? state.saved.filter(item => item !== id) : [id, ...state.saved];
   return commit({...state, saved});
 }
@@ -302,6 +321,7 @@ function renderList() {
       const name = nameInput.value.trim();
       nameInput.setCustomValidity(name ? '' : '단어장 이름을 입력해 주세요.');
       if (!nameInput.reportValidity()) return;
+      state = load();
       const names = [name, courseNames(course)[1]];
       if (!commit({...state, courses: {...allCourses(), [course]: names}})) return;
       $('header h1').textContent = name;
@@ -447,7 +467,7 @@ function renderDeck() {
     const exampleFromReference = term.exampleSource === 'reference';
     // 일반 의미 words have no example sentence: the example box is hidden.
     const noExample = term.exampleSource === 'none';
-    const legacyReference = referenceSentence && !exampleFromReference && !noExample;
+    const legacyReference = showsLegacyReference(term);
     bindFields(card, {...term, exampleEn: legacyReference ? referenceSentence : term.exampleEn,
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       // The back's title line ("word · 예문") is not shown; only the card counter stays.
@@ -698,7 +718,7 @@ function renderEditor() {
     new Option(courseNames(id).join(' · '), id)));
   for (const [id, key] of Object.entries(fields)) {
     const input = document.getElementById(id);
-    input.value = term[key] ?? (key === 'discipline' ? '전자전기공학' : '');
+    input.value = term[editorFieldKey(term, key)] ?? (key === 'discipline' ? '전자전기공학' : '');
   }
   const courseLabel = $('#edit-course-label');   // the sync banner was removed; kept safe if present
   if (courseLabel) courseLabel.textContent = courseNames(term.course)[0];
@@ -720,14 +740,26 @@ function openFlashcardDirect() {
 }
 
 function saveTermChanges() {
-  const updated = {...state.terms[termId]};
-  for (const [id, key] of Object.entries(fields)) updated[key] = document.getElementById(id).value.trim();
+  state = load();   // built on the latest data (another tab may have added notebooks or words)
+  if (!hasTerm(termId)) {
+    alert('이 단어는 다른 화면에서 삭제되었습니다.');
+    location.replace(listUrl(fromBookmark));
+    return;
+  }
+  const original = state.terms[termId];
+  const updated = {...original};
+  for (const [id, key] of Object.entries(fields)) updated[editorFieldKey(original, key)] = document.getElementById(id).value.trim();
+  if (updated.course !== original.course && !hasCourse(updated.course)) {
+    alert('선택한 단어장이 다른 화면에서 삭제되었습니다. 단어장을 다시 선택해 주세요.');
+    renderEditor();
+    return;
+  }
   const validation = WordCollectorPartialTerm.validate(updated);
   if (!validation.ok) {
     alert(validation.message);
     return;
   }
-  const moved = updated.course !== state.terms[termId].course;
+  const moved = updated.course !== original.course;
   if (commit({...state, terms: {...state.terms, [termId]: updated}})) {
     const filter = fromBookmark && hasCourse(listFilter) && listFilter !== updated.course ? 'all' : listFilter;
     location.replace(cardUrl(termId, fromBookmark, updated.course, filter, moved || !fromBookmark ? '' : query));
@@ -743,6 +775,7 @@ function closeDeleteModal() {
   $('#deleteModal').close();
 }
 function confirmDelete() {
+  state = load();   // keep notebooks and words added in another tab
   const terms = {...state.terms};
   delete terms[termId];
   if (commit({...state, terms, saved: state.saved.filter(id => id !== termId)})) {
