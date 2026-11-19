@@ -78,6 +78,26 @@ const KEY = 'lexicon-word-collector-v1';
     const example = editTab.locator('.card-back [data-field="exampleEn"]').first();
     assert.equal((await example.textContent()).trim(), 'The power is 20 W.');
     assert.equal(await example.evaluate(node => node.parentElement.hidden), false, 'example box shown again');
+    // 4d) Words built from an English or a Korean reference sentence: empty the example,
+    // type a new one, and the card shows the new one (not the original reference sentence).
+    for (const [id, reference, translation] of [['refEn', 'The field is 3 T.', '자기장은 3T이다.'], ['refKo', '자기장은 3T이다.', 'The field is 3 T.']]) {
+      await editTab.evaluate(([key, id, reference, translation]) => { const s = JSON.parse(localStorage.getItem(key));
+        s.terms[id] = {course: 'book', en: 'field', ko: '자기장', enDef: 'Region of force.', koDef: '힘이 미치는 영역.', exampleSource: 'reference',
+          exampleEn: 'The field is 3 T.', exampleKo: '자기장은 3T이다.', referenceSentence: reference, referenceTranslation: translation};
+        localStorage.setItem(key, JSON.stringify(s)); }, [KEY, id, reference, translation]);
+      for (const [en, ko] of [['', ''], ['The field is 5 T.', '자기장은 5T이다.']]) {
+        await editTab.goto(base + '/edit.html?term=' + id);
+        await editTab.fill('#exampleSentenceEn', en);
+        await editTab.fill('#exampleSentenceKo', ko);
+        await editTab.click('button[aria-label="단어 변경사항 저장"]');
+        await editTab.waitForURL('**/flashcard.html**');
+      }
+      await editTab.locator('.card-back').first().waitFor({state: 'attached'});
+      const shown = editTab.locator('.card-back [data-field="exampleEn"]').first();
+      assert.equal((await shown.textContent()).trim(), 'The field is 5 T.', id + ': new example shown');
+      assert.equal((await editTab.locator('.card-back [data-field="exampleKo"]').first().textContent()).trim(), '자기장은 5T이다.', id);
+      assert.equal(await shown.evaluate(node => node.parentElement.hidden), false, id);
+    }
     // 4c) Delete on an edit page whose word was deleted in another tab: notice, no error.
     await editTab.goto(base + '/edit.html?term=old2');
     await otherTab.evaluate(key => { const s = JSON.parse(localStorage.getItem(key)); delete s.terms.old2; localStorage.setItem(key, JSON.stringify(s)); }, KEY);

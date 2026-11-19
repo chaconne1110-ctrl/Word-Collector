@@ -781,7 +781,13 @@ function saveTermChanges() {
       Object.assign(updated, {exampleEn: en, exampleKo: ko});
       // Typing an example after it was emptied shows it again; emptying it hides the box.
       if (!en && !ko) updated.exampleSource = 'none';
-      else if (updated.exampleSource === 'none') delete updated.exampleSource;
+      else if (updated.exampleSource === 'none') {
+        // A word built from a reference sentence keeps 'reference': without it the card
+        // would treat the word as legacy and show the original reference sentence again.
+        const reference = typeof updated.referenceSentence === 'string' ? updated.referenceSentence.trim() : '';
+        if (reference) updated.exampleSource = 'reference';
+        else delete updated.exampleSource;
+      }
     }
   }
   if (updated.course !== original.course && !hasCourse(updated.course)) {
