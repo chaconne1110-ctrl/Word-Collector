@@ -1,5 +1,6 @@
 name: Redeploy approved Word Collector V11.19 snapshot + evaluation apps
 
+# Re-publish requested 2026-11-20: power-engineering evaluation URL; keep all other snapshots unchanged.
 # Site root: the approved V11.19 snapshot. Each evaluation form
 # (Word file) has its own branch and is published under eval/<slug>/, with the
 # words of that form already analysed in the notebook "평가 단어 목록".
