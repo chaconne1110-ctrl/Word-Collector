@@ -1,7 +1,7 @@
-name: Redeploy approved Word Collector V11.19 webapp only
+name: Deploy Word Collector V11.19 + power-engineering evaluation
 
-# Publishes only www/ from the pinned V11.19 revision.
-# Evaluation app branches and source files stay intact but are not published here.
+# The main webapp remains pinned to V11.19. Publish only the power-engineering
+# evaluation app under eval/power-engineering/, leaving the other five unpublished.
 
 on:
   push:
@@ -35,6 +35,13 @@ jobs:
           ref: '3bb1ccf4f71bf82169d59db782f44eff4af0fd6e'
           persist-credentials: false
 
+      - name: Checkout power-engineering evaluation app
+        uses: actions/checkout@v4
+        with:
+          ref: '73dcfcf616a4ac87f596e8d75755a164bb7cb72e'
+          path: eval-src/power-engineering
+          persist-credentials: false
+
       - name: Verify immutable source revision and app assets
         shell: bash
         run: |
@@ -46,6 +53,10 @@ jobs:
           test -s www/sw.js
           grep -q 'id="analysis-action-bar"' www/quick_capture/code.html
           ! grep -q 'id="tester-token"' www/quick_capture/code.html
+          test "$(git -C eval-src/power-engineering rev-parse HEAD)" = "73dcfcf616a4ac87f596e8d75755a164bb7cb72e"
+          test -s eval-src/power-engineering/www/index.html
+          grep -q "lexicon-word-collector-v1-eval-power-engineering" eval-src/power-engineering/www/app.js
+          node --check eval-src/power-engineering/www/data.js
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -70,13 +81,23 @@ jobs:
       - name: Run regression tests with mocked API (no Gemini charges)
         run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
 
+      - name: Assemble main webapp and one evaluation app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site/eval
+          cp -R www/. site/
+          cp -R eval-src/power-engineering/www site/eval/power-engineering
+          test -s site/index.html
+          test -s site/eval/power-engineering/index.html
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload public web assets from requested branch
+      - name: Upload V11.19 and power-engineering evaluation
         uses: actions/upload-pages-artifact@v3
         with:
-          path: www
+          path: site
           name: github-pages-attempt-${{ github.run_attempt }}
 
       - name: Deploy approved web snapshot to existing Pages URL
@@ -91,3 +112,4 @@ jobs:
           echo "Deployed source branch: V11.19"
           echo "Deployed source SHA: 3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
           echo "Pages URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "Power-engineering evaluation: ${{ steps.deployment.outputs.page_url }}eval/power-engineering/"
