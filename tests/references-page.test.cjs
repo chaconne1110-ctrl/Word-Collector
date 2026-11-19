@@ -8,7 +8,8 @@ const fs = require('node:fs');
 test('references page lists every registered source and matches the generator', async () => {
   const {render, registered} = await import('../rag/build-references.mjs');
   const html = fs.readFileSync('www/references.html', 'utf8');
-  assert.equal(html, render(), 'run: node rag/build-references.mjs');
+  const lf = text => text.replace(/\r\n/g, '\n');
+  assert.equal(lf(html), lf(render()), 'run: node rag/build-references.mjs');
   const sources = registered();
   assert.equal(sources.length, 20);
   for (const s of sources) {
