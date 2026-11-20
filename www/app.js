@@ -1,6 +1,6 @@
 const page = document.body.dataset.page;
 const params = new URLSearchParams(location.search);
-const storageKey = 'lexicon-word-collector-v1';
+const storageKey = 'lexicon-word-collector-v1-eval-electromagnetics';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
