@@ -714,6 +714,11 @@ def command_export(args):
     terms = json.loads((OUT / 'glossary.json').read_text(encoding='utf-8'))['terms']
     entries = [entry for entry in terms.values() if entry]
     lookup = build_lookup(entries)
+    # Manual corrections (merged duplicates, fixed meanings): glossary/corrections.json.
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
+    from apply_corrections import apply_to_lookup, load_corrections
+    lookup, _ = apply_to_lookup(lookup, load_corrections(), key_of=lookup_key)
     (OUT / 'glossary.sql').write_text(glossary_sql(lookup), encoding='utf-8')
     with (OUT / 'glossary.csv').open('w', encoding='utf-8-sig', newline='') as handle:
         writer = csv.writer(handle)

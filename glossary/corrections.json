@@ -1,0 +1,29 @@
+{
+  "about": "Manual glossary corrections (2026-11-20, from the offline and dictionary reviews; no Gemini). Every group of entries with the same field and English term (ignoring case, hyphens and plural/abbreviation keys) is merged into one entry: the entry owning the plain English key, or the overrides below. Keys listed in dropKeys are removed, addKeys point to the merged entry, replace edits the Korean fields (ko, koDef, exampleKo).",
+  "overrides": [
+    {"field": "반도체", "en": "die", "ko": "다이, 칩 조각"},
+    {"field": "반도체", "en": "lot", "ko": "로트, 웨이퍼 묶음"},
+    {"field": "반도체", "en": "well", "ko": "웰, 우물 영역"},
+    {"field": "반도체", "en": "contaminant", "ko": "오염 물질, 오염원"},
+    {"field": "반도체", "en": "high volume manufacturing", "ko": "대량 생산, 양산"},
+    {"field": "반도체", "en": "tetramethylammonium hydroxide", "ko": "수산화테트라메틸암모늄, TMAH"},
+    {"field": "반도체", "en": "threshold voltage", "ko": "문턱 전압, 임계 전압"},
+    {"field": "반도체", "en": "bosch process", "ko": "보쉬 공정", "dropKeys": ["반도체|보슈 공정"]},
+    {"field": "반도체", "en": "electropositive metal", "ko": "전기 양성 금속",
+     "replace": [["매우 강한 양성 금속", "매우 강한 전기 양성 금속"]], "dropKeys": ["반도체|양성 금속"]},
+    {"field": "반도체", "en": "charged species", "ko": "하전 입자, 하전 화학종",
+     "dropKeys": ["반도체|대전종"], "addKeys": ["반도체|하전 화학종"]},
+    {"field": "전기공학", "en": "electrically short dipole", "ko": "전기적으로 짧은 다이폴",
+     "replace": [["전기적 단축 다이폴", "전기적으로 짧은 다이폴"], ["전기적 단소 다이폴", "전기적으로 짧은 다이폴"]],
+     "dropKeys": ["전기공학|전기적 단축 다이폴", "전기공학|전기적 단소 다이폴"], "addKeys": ["전기공학|전기적으로 짧은 다이폴"]},
+    {"field": "전기공학", "en": "lumped element", "ko": "집중 정수 소자, 집중 소자", "pos": "명사구", "addKeys": ["전기공학|집중 정수 소자"]},
+    {"field": "전기공학", "en": "normally closed", "ko": "상시 닫힘, 상시 폐쇄"},
+    {"field": "전기공학", "en": "normally closed contact", "ko": "상시 폐쇄 접점, b접점"},
+    {"field": "전기공학", "en": "normally open", "ko": "상시 열림, 상시 개방"},
+    {"field": "전기공학", "en": "place weight", "ko": "자리 가중치, 자릿값"},
+    {"field": "전기공학", "en": "formula", "ko": "공식, 수식"},
+    {"field": "전기공학", "en": "spatial power density", "ko": "공간 전력 밀도"},
+    {"field": "전기공학", "en": "gated s r latch", "ko": "게이트형 S-R 래치"},
+    {"field": "전기공학", "en": "karnaugh map", "ko": "카르노 맵, 카르노 도표", "dropKeys": ["전기공학|카르노 도"]}
+  ]
+}
