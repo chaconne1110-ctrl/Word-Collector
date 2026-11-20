@@ -1,4 +1,4 @@
-const PREFIX = 'wordcollector-public-static-';
+const PREFIX = 'wordcollector-eval-electrical-safety-static-';
 const CACHE_NAME = PREFIX + '20261120-list-scroll';
 const APP_SHELL = [
   "_1/code.html",
