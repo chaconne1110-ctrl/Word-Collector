@@ -20,6 +20,13 @@ test('references page lists every registered source and matches the generator', 
   // Sources that are not registered are not listed.
   for (const id of ['lehtonen-power-generation-ch8', 'openstax-university-physics-2']) assert.doesNotMatch(html, new RegExp(id));
   assert.match(html, /<h1>참고 자료<\/h1>/);
+  // The Korean dictionaries used to check meanings are listed too, with their licences.
+  const {dictionaries} = await import('../rag/build-references.mjs');
+  assert.deepEqual(dictionaries().map(d => d.id), ['nikl-urimalsaem', 'nikl-onyongeo', 'nikl-krdict']);
+  for (const d of dictionaries()) {
+    assert.equal(d.register, false, d.id + ' is not File Search material');
+    assert.match(html, new RegExp(`data-source-id="${d.id}"`), d.id);
+  }
   assert.match(fs.readFileSync('www/sw.js', 'utf8'), /"references\.html",/);
 });
 

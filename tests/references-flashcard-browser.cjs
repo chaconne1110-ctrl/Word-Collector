@@ -22,9 +22,9 @@ const {createServer} = require('../server/server.cjs');
     await page.locator('a[aria-label="참고 자료"]').click();
     await page.waitForURL('**/references.html');
     assert.equal(await page.locator('h1').textContent(), '참고 자료');
-    assert.equal(await page.locator('.ref').count(), 20);
+    assert.equal(await page.locator('.ref').count(), 23, '20 textbooks/papers + 3 Korean dictionaries');
     const text = await page.locator('main').textContent();
-    for (const expected of ['Lessons In Electric Circuits, Volume I - DC', 'Tony R. Kuphaldt', 'CC BY 4.0', 'CC BY-NC-SA 4.0', '전기공학', '반도체'])
+    for (const expected of ['Lessons In Electric Circuits, Volume I - DC', 'Tony R. Kuphaldt', 'CC BY 4.0', 'CC BY-NC-SA 4.0', '전기공학', '반도체', '우리말샘', '온용어', '한국어기초사전', 'CC BY-SA 2.0 KR'])
       assert.ok(text.includes(expected), expected);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal overflow');
     await page.locator('a.back').click();

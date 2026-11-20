@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261120-list-scroll';
+const CACHE_NAME = PREFIX + '20261120-dictionaries';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",

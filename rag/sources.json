@@ -998,6 +998,63 @@
         }
       ],
       "layout": "slides"
+    },
+    {
+      "id": "nikl-urimalsaem",
+      "register": false,
+      "type": "dictionary",
+      "use": "glossary-review",
+      "field": "국어",
+      "title": "우리말샘",
+      "author": "국립국어원",
+      "publisher": "국립국어원",
+      "edition": "온라인 사전 (Open API)",
+      "url": "https://opendict.korean.go.kr/",
+      "license": "CC BY-SA 2.0 KR",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/kr/",
+      "licenseEvidence": "opendict.korean.go.kr/service/copyrightPolicy: 별도 명시가 없는 모든 자료는 CC BY-SA 2.0 대한민국. 상업적 이용 가능, 저작자 표시 필수, 변경 시 동일 라이선스. 예외: 멀티미디어 파일(파일별 정책), 출전이 있는 용례(원저작자 허락 필요).",
+      "copyright": "국립국어원",
+      "attribution": "국립국어원, 우리말샘, CC BY-SA 2.0 KR.",
+      "restrictedElements": "멀티미디어 파일(이미지·영상·소리·발음)과 출전이 있는 용례는 쓰지 않음.",
+      "checkedAt": "2026-11-20"
+    },
+    {
+      "id": "nikl-onyongeo",
+      "register": false,
+      "type": "dictionary",
+      "use": "glossary-review",
+      "field": "전문용어",
+      "title": "온용어 (국립국어원 전문용어, K-term)",
+      "author": "국립국어원",
+      "publisher": "국립국어원",
+      "edition": "온라인 전문용어 (Open API)",
+      "url": "https://kli.korean.go.kr/term/",
+      "license": "공공누리 제0유형·제1유형 (용어별)",
+      "licenseUrl": "https://www.kogl.or.kr/info/license.do",
+      "licenseEvidence": "kli.korean.go.kr/term Open API 안내: 용어마다 공공누리 유형(kr_gvrn_lcns_ty). 0유형 자유이용(출처표시 불필요), 1유형 출처표시·상업적 이용·변경 가능. 2~4유형과 AI유형 등은 사용하지 않음.",
+      "copyright": "국립국어원 (용어별 공공누리)",
+      "attribution": "국립국어원, 온용어, 공공누리 제1유형 (제0유형 포함).",
+      "restrictedElements": "공공누리 제0·1유형 외의 용어는 쓰지 않음.",
+      "checkedAt": "2026-11-20"
+    },
+    {
+      "id": "nikl-krdict",
+      "register": false,
+      "type": "dictionary",
+      "use": "glossary-review",
+      "field": "국어",
+      "title": "한국어기초사전",
+      "author": "국립국어원",
+      "publisher": "국립국어원",
+      "edition": "온라인 사전 (Open API)",
+      "url": "https://krdict.korean.go.kr/",
+      "license": "CC BY-SA 2.0 KR",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/kr/",
+      "licenseEvidence": "krdict.korean.go.kr 저작권 정책: 별도 명시가 없는 모든 자료는 CC BY-SA 2.0 대한민국. 상업적 이용 가능, 저작자 표시 필수, 변경 시 동일 라이선스. 예외: 멀티미디어 파일(파일별 정책).",
+      "copyright": "국립국어원",
+      "attribution": "국립국어원, 한국어기초사전, CC BY-SA 2.0 KR.",
+      "restrictedElements": "멀티미디어 파일은 쓰지 않음.",
+      "checkedAt": "2026-11-20"
     }
   ]
 }
