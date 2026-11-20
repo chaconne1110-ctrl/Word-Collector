@@ -87,11 +87,27 @@ def read_cache(path):
 
 
 def write_cache(path, data):
-    """Write to a private temporary file, then swap it in, so a reader never sees half a file."""
+    """Write to a private temporary file, then swap it in, so a reader never sees half a file.
+    On Windows the swap fails while another worker has the file open; retry briefly, and if
+    it is still busy just skip caching (the answer itself is still used). Never stops the run."""
     temporary = f'{path}.{os.getpid()}.{threading.get_ident()}.tmp'
-    with open(temporary, 'w', encoding='utf-8') as handle:
-        json.dump(data, handle, ensure_ascii=False)
-    os.replace(temporary, path)
+    try:
+        with open(temporary, 'w', encoding='utf-8') as handle:
+            json.dump(data, handle, ensure_ascii=False)
+        for attempt in range(5):
+            try:
+                os.replace(temporary, path)
+                return True
+            except PermissionError:
+                time.sleep(0.05 * (attempt + 1))
+        return False
+    except OSError:
+        return False
+    finally:
+        try:
+            os.remove(temporary)
+        except OSError:
+            pass
 
 
 def fetch_json(url, source, offline):

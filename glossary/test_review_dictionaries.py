@@ -109,6 +109,47 @@ class ReviewDictionariesTest(unittest.TestCase):
             finally:
                 review.CACHE = saved
 
+    def test_locked_cache_file_never_stops_the_review(self):
+        import os, tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'answer.json')
+            calls = []
+            def busy(src, dst):
+                calls.append(dst)
+                raise PermissionError(32, 'file is being used by another process')
+            with mock.patch.object(review.os, 'replace', busy), mock.patch.object(review.time, 'sleep'):
+                self.assertFalse(review.write_cache(path, {'channel': {'total': 1}}))   # skipped, no exception
+            self.assertEqual(len(calls), 5)
+            self.assertEqual(os.listdir(tmp), [])                                       # no leftover temp file
+            # Busy only briefly: the retry succeeds.
+            real_replace, state = os.replace, {'n': 0}
+            def busy_once(src, dst):
+                state['n'] += 1
+                if state['n'] == 1:
+                    raise PermissionError(32, 'busy')
+                real_replace(src, dst)
+            with mock.patch.object(review.os, 'replace', busy_once), mock.patch.object(review.time, 'sleep'):
+                self.assertTrue(review.write_cache(path, {'channel': {'total': 2}}))
+            self.assertEqual(review.read_cache(path), {'channel': {'total': 2}})
+            self.assertEqual(os.listdir(tmp), ['answer.json'])
+
+    def test_fetch_returns_the_answer_even_if_it_cannot_be_cached(self):
+        import io, json, tempfile
+        from unittest import mock
+        answer = {'channel': {'returnCode': '1', 'return_object': [{'resultlist': []}]}}
+        class Response(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = review.CACHE
+            review.CACHE = tmp
+            try:
+                with mock.patch.object(review.urllib.request, 'urlopen', lambda *a, **k: Response(json.dumps(answer).encode())),                      mock.patch.object(review.os, 'replace', mock.Mock(side_effect=PermissionError(32, 'busy'))),                      mock.patch.object(review.time, 'sleep'):
+                    self.assertEqual(review.fetch_json('https://kli.korean.go.kr/term/api/search.do?key=K&apiSearchWord=z', 'kterm', offline=False), answer)
+            finally:
+                review.CACHE = saved
+
     def test_no_data_without_keys(self):
         self.assertIsNone(review.opendict_terms('전류', '', offline=False))
         self.assertIsNone(review.kterm_items('전류', '', offline=False))
