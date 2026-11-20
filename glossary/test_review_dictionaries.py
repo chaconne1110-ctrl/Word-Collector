@@ -17,6 +17,13 @@ class ReviewDictionariesTest(unittest.TestCase):
         self.assertTrue(review.same_term('skin effect', 'skin effect'))
         self.assertTrue(review.same_term('skin effect', 'skin effects'))
         self.assertTrue(review.same_term('switch', 'switches'))
+        for one, many in [('diode', 'diodes'), ('phase', 'phases'), ('loss', 'losses'), ('bus', 'buses'),
+                          ('density', 'densities'), ('gas', 'gases'), ('process', 'processes'), ('box', 'boxes')]:
+            self.assertTrue(review.same_term(one, many), (one, many))
+            self.assertTrue(review.same_term(many, one), (many, one))
+            self.assertTrue(review.same_term('power ' + one, 'power ' + many), one)
+        self.assertFalse(review.same_term('diode', 'diod'))
+        self.assertFalse(review.same_term('phase', 'phasor'))
         self.assertFalse(review.same_term('current', 'commutation'))
         # A longer compound is a different term, in either direction.
         self.assertFalse(review.same_term('semiconductor', 'semiconductor laser'))
@@ -69,6 +76,36 @@ class ReviewDictionariesTest(unittest.TestCase):
                 with open(path, 'w', encoding='utf-8') as handle:
                     json.dump(good, handle)
                 self.assertEqual(review.fetch_json(url, 'kterm', offline=True), good)
+            finally:
+                review.CACHE = saved
+
+    def test_parallel_workers_removing_the_same_refusal_do_not_crash(self):
+        import json, os, tempfile, hashlib
+        from concurrent.futures import ThreadPoolExecutor
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = review.CACHE
+            review.CACHE = tmp
+            try:
+                url = 'https://kli.korean.go.kr/term/api/search.do?key=SECRET&apiSearchWord=y'
+                os.makedirs(os.path.join(tmp, 'kterm'))
+                path = os.path.join(tmp, 'kterm', hashlib.sha256(b'apiSearchWord=y').hexdigest() + '.json')
+                for _ in range(20):
+                    with open(path, 'w', encoding='utf-8') as handle:
+                        json.dump({'channel': {'returnCode': '022'}}, handle)
+                    with ThreadPoolExecutor(8) as pool:
+                        results = list(pool.map(lambda _: review.fetch_json(url, 'kterm', offline=True), range(8)))
+                    self.assertEqual(results, [None] * 8)    # pending, never a crash or a result
+                    if os.path.exists(path):                    # every worker found it busy: the next run removes it
+                        self.assertIsNone(review.fetch_json(url, 'kterm', offline=True))
+                    self.assertFalse(os.path.exists(path))
+                # The file vanishing between the check and the read is also "not cached".
+                self.assertIsNone(review.read_cache(path))
+                with open(path, 'w', encoding='utf-8') as handle:
+                    handle.write('{"channel": ')          # half-written file
+                self.assertIsNone(review.read_cache(path))
+                review.write_cache(path, {'channel': {'total': 0}})
+                self.assertEqual(review.read_cache(path), {'channel': {'total': 0}})
+                self.assertEqual([name for name in os.listdir(os.path.dirname(path)) if name.endswith('.tmp')], [])
             finally:
                 review.CACHE = saved
 

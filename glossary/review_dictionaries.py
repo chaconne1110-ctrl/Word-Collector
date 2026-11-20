@@ -26,7 +26,7 @@ Responses are cached in glossary/out/review/cache/, so a rerun sends no request 
 
   python glossary/review_dictionaries.py [--limit N] [--offline] [--workers 4] [--patent FILE]
 """
-import argparse, csv, hashlib, json, os, re, sys, time, urllib.parse, urllib.request
+import argparse, csv, hashlib, json, os, re, sys, threading, time, urllib.parse, urllib.request
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
@@ -76,19 +76,41 @@ def english_parts(translation):
     return {norm_en(part) for part in parts if re.search(r'[A-Za-z]', part) and norm_en(part)}
 
 
+def read_cache(path):
+    """Cached answer, or None when there is none. Parallel workers may remove or
+    rewrite the same file at the same time; that is treated as "not cached"."""
+    try:
+        with open(path, encoding='utf-8') as handle:
+            return json.load(handle)
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+        return None
+
+
+def write_cache(path, data):
+    """Write to a private temporary file, then swap it in, so a reader never sees half a file."""
+    temporary = f'{path}.{os.getpid()}.{threading.get_ident()}.tmp'
+    with open(temporary, 'w', encoding='utf-8') as handle:
+        json.dump(data, handle, ensure_ascii=False)
+    os.replace(temporary, path)
+
+
 def fetch_json(url, source, offline):
     os.makedirs(os.path.join(CACHE, source), exist_ok=True)
     query = urllib.parse.urlsplit(url).query
     cache_id = '&'.join(part for part in query.split('&') if not part.startswith('key='))
     path = os.path.join(CACHE, source, hashlib.sha256(cache_id.encode()).hexdigest() + '.json')
-    if os.path.exists(path):
-        with open(path, encoding='utf-8') as handle:
-            cached = json.load(handle)
+    cached = read_cache(path)
+    if cached is not None:
         if not api_error(cached):
             return cached
         # A refusal saved by an older version is not an answer: drop it and ask again
-        # (or report the entry as pending when offline / limited).
-        os.remove(path)
+        # (or report the entry as pending when offline / limited). Another worker may
+        # be removing or reading the same file at the same moment (on Windows an open
+        # file cannot be removed), so a missing or busy file is fine: it is just not used.
+        try:
+            os.remove(path)
+        except (FileNotFoundError, PermissionError):
+            pass
     if offline or source in LIMITED:
         return None
     data = None
@@ -107,8 +129,7 @@ def fetch_json(url, source, offline):
         # cache it and never treat it as "no result".
         LIMITED.add(source)
         return None
-    with open(path, 'w', encoding='utf-8') as handle:
-        json.dump(data, handle, ensure_ascii=False)
+    write_cache(path, data)
     time.sleep(0.15)   # be gentle with the free public APIs
     return data
 
@@ -167,8 +188,19 @@ def fits_field(name, field):
     return any(part in str(name) for part in FIELDS.get(field, ()))
 
 
-def singular(word):
-    return re.sub(r'(?<=[a-z]{3})(es|s)$', '', word)
+def plural_forms(word):
+    """Regular English plurals of a word: diode -> diodes, loss -> losses,
+    phase -> phases, switch -> switches, density -> densities."""
+    forms = {word + 's'}
+    if re.search(r'(s|x|z|ch|sh)$', word):
+        forms.add(word + 'es')
+    if re.search(r'[^aeiou]y$', word):
+        forms.add(word[:-1] + 'ies')
+    return forms
+
+
+def same_word(a, b):
+    return a == b or b in plural_forms(a) or a in plural_forms(b)
 
 
 def same_term(a, b):
@@ -177,7 +209,8 @@ def same_term(a, b):
     'current' != 'electric current'), so it never counts as confirmed."""
     if not a or not b:
         return False
-    return [singular(w) for w in a.split()] == [singular(w) for w in b.split()]
+    words_a, words_b = a.split(), b.split()
+    return len(words_a) == len(words_b) and all(same_word(x, y) for x, y in zip(words_a, words_b))
 
 
 def judge(entry, opendict, kterm):
