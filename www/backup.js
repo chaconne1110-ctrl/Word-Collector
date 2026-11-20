@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = 'lexicon-word-collector-v1';
+  const KEY = 'lexicon-word-collector-v1-eval-additional-experts';
   const $ = id => document.getElementById(id);
   let reviewed = null;
   let currentExported = false;
