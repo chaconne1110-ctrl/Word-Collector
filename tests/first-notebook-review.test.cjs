@@ -49,6 +49,6 @@ test('notebook and meaning are chosen independently: an existing notebook or a n
     '>3. 단어장 선택<', 'id="subject-select"', 'id="new-notebook-input"', '>4. 참고자료<', 'id="context-sentence-input"'].map(text => html.indexOf(text));
   assert.ok(order.every(index => index > 0), JSON.stringify(order));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
-  assert.ok(html.includes('placeholder="전공명 또는 학과명 (예: 전기공학, 전기공학과)"'));
+  assert.ok(html.includes('placeholder="전공명 또는 학과명"'));
   assert.ok(html.includes('for="new-notebook-input">새 단어장 이름 <span class="text-error">*</span></label><input required aria-required="true"'));
 });

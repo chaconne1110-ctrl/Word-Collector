@@ -60,7 +60,7 @@ const {createServer}=require('../server/server.cjs');
   await page.evaluate(()=>localStorage.removeItem('lexicon-word-collector-v1'));
   await page.goto(base+'/quick_capture/code.html');
   // Fresh install: no notebooks, so only a new notebook (name required) is possible.
-  assert.ok(await page.locator('#no-notebooks').isVisible());
+  assert.equal(await page.locator('#no-notebooks').count(), 0);
   assert.ok(await page.locator('#section-dest-new').isVisible());
   assert.ok(await page.locator('#btn-dest-existing').isDisabled());
   await page.goto(base+'/index.html');

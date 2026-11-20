@@ -41,7 +41,7 @@ function refreshNotebookChoices() {
   $('#existing-notebook-count').textContent = '등록된 ' + notebookEntries.length + '개 단어장';
   const existingButton = $('#btn-dest-existing');
   existingButton.disabled = notebookEntries.length === 0;
-  $('#no-notebooks').hidden = notebookEntries.length !== 0;
+  const noNotebooks = $('#no-notebooks'); if (noNotebooks) noNotebooks.hidden = notebookEntries.length !== 0;
   if (!notebookEntries.length) setDestinationMode('new');
 }
 

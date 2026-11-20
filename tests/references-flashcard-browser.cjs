@@ -43,6 +43,7 @@ const {createServer} = require('../server/server.cjs');
     const back = await page.locator('.card-back').first().textContent();
     assert.ok(!back.includes('AI 예문 및 시각화 도해'));
     assert.ok(!back.includes('current · 예문') && !back.includes('· 예문'));
+    assert.ok(!back.includes('Contextual'), 'no Contextual badge on the back');
     // One position counter (top bar); the word sits between the ⚡ icon and the 수정 button on both faces.
     assert.equal(await page.locator('.card-flipper [data-field="counter"]').count(), 0);
     assert.equal((await page.locator('#topActiveCounter').textContent()).trim(), '01 / 01');

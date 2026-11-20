@@ -536,7 +536,7 @@ function renderDeck() {
       while (walker.nextNode()) {
         if (sentence.contains(walker.currentNode) || translation?.contains(walker.currentNode)) continue;
         walker.currentNode.textContent = walker.currentNode.textContent
-          .replace('AI 생성 예문', '사용자 참고 문장').replace('Contextual', '직접 입력')
+          .replace('AI 생성 예문', '사용자 참고 문장')
           .replace('국문 번역', exampleFromReference ? '국문 번역' : referenceTranslationLabel(referenceSentence));
       }
     }

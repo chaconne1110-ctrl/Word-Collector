@@ -74,5 +74,5 @@ test('home can create empty notebooks without requiring AI usage', () => {
   const capturePage=fs.readFileSync('www/quick_capture/code.html','utf8');
   assert.doesNotMatch(capturePage,/등록된 4개 과목/);
   assert.match(capturePage,/id="existing-notebook-count"/);
-  assert.match(capturePage,/아직 단어장이 없어요/);
+  assert.doesNotMatch(capturePage,/아직 단어장이 없어요/); // notice removed; the new-notebook field is shown instead
 });

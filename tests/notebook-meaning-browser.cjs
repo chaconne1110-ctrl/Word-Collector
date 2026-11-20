@@ -40,7 +40,7 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     await openInput();
     assert.ok(await page.locator('#btn-dest-existing').isDisabled());
     assert.ok(await page.locator('#section-dest-new').isVisible());
-    assert.ok(await page.locator('#no-notebooks').isVisible());
+    assert.equal(await page.locator('#no-notebooks').count(), 0);
     assert.equal(await page.locator('label[for="new-notebook-input"]').textContent(), '새 단어장 이름 *');
     assert.equal(await page.locator('#btn-meaning-general').getAttribute('aria-pressed'), 'true');
     // Screen order: 1. 단어 2. 의미 기준 3. 단어장 선택 4. 참고자료.
