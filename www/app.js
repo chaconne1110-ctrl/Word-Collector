@@ -174,14 +174,39 @@ function toggleBookmark(id) {
   return commit({...state, saved});
 }
 
+// Word lists keep their scroll position: opening a flashcard and coming back
+// (the card's back button or the phone/browser back) shows the same place in
+// the same list (notebook, filter, search). Going home starts lists at the top.
+const LIST_SCROLL_KEY = 'wc-list-scroll-v1';
+function listScrollId() {
+  const p = new URLSearchParams(location.search);
+  return [page, p.get('course') || '', p.get('filter') || '', p.get('q') || ''].join('|');
+}
+function rememberListScroll() {
+  if (page !== 'words' && page !== 'bookmarks') return;
+  try { sessionStorage.setItem(LIST_SCROLL_KEY, JSON.stringify({id: listScrollId(), y: Math.round(window.scrollY)})); } catch {}
+}
+function restoreListScroll() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(LIST_SCROLL_KEY) || 'null'); } catch {}
+  if (!saved || saved.id !== listScrollId() || !(saved.y > 0)) return;
+  const apply = () => window.scrollTo(0, saved.y);
+  apply();
+  requestAnimationFrame(apply);            // after layout settles
+  document.fonts?.ready.then(apply);       // web fonts can change row heights
+}
+function forgetListScroll() {
+  try { sessionStorage.removeItem(LIST_SCROLL_KEY); } catch {}
+}
+
 function rowLink(row, url) {
   row.tabIndex = 0;
   row.setAttribute('role', 'link');
   row.addEventListener('click', event => {
-    if (!event.target.closest('button, a')) location.href = url;
+    if (!event.target.closest('button, a')) { rememberListScroll(); location.href = url; }
   });
   row.addEventListener('keydown', event => {
-    if (event.target === row && event.key === 'Enter') location.href = url;
+    if (event.target === row && event.key === 'Enter') { rememberListScroll(); location.href = url; }
   });
 }
 
@@ -874,7 +899,7 @@ window.addEventListener('resize', () => autoGrowAll());
 // Text reflows when the web font finishes loading: fit the boxes again.
 document.fonts?.ready.then(() => autoGrowAll());
 
-if (page === 'home') renderHome();
-if (page === 'words' || page === 'bookmarks') renderList();
+if (page === 'home') { forgetListScroll(); renderHome(); }
+if (page === 'words' || page === 'bookmarks') { renderList(); restoreListScroll(); }
 if (page === 'card') renderDeck();
 if (page === 'edit') { renderEditor(); autoGrowAll(); }
