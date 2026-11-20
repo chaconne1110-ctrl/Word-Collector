@@ -1,8 +1,8 @@
-name: Redeploy approved Word Collector V11.19 snapshot + evaluation apps
+name: Deploy latest Word Collector v1 plus six evaluation webapps
 
 # Re-publish requested 2026-11-20: power-engineering evaluation URL; keep all other snapshots unchanged.
-# Requested 2026-11-20: republish all seven approved snapshots (main + six evaluations).
-# Site root: the approved V11.19 snapshot. Each evaluation form
+# Requested 2026-11-20: deploy newest v1 as the root app; keep six existing independently stored evaluation apps.
+# Site root: verified v1 commit (adds word-list scroll restoration). Each evaluation form
 # (Word file) has its own branch and is published under eval/<slug>/, with the
 # words of that form already analysed in the notebook "평가 단어 목록".
 on:
@@ -34,7 +34,7 @@ jobs:
       - name: Checkout pinned requested branch revision
         uses: actions/checkout@v4
         with:
-          ref: '3bb1ccf4f71bf82169d59db782f44eff4af0fd6e'
+          ref: '47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b'
           persist-credentials: false
 
       - name: Checkout evaluation app circuit-theory (회로이론_교수님_평가표)
@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
+          test "$(git rev-parse HEAD)" = "47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"
           test -s www/index.html
           test -s www/quick_capture/code.html
           test -s www/analysis-api.js
@@ -127,7 +127,7 @@ jobs:
       - name: Run regression tests with mocked API (no Gemini charges)
         run: node --test tests/*.test.cjs server/test/*.test.cjs cloudflare/*.test.mjs
 
-      - name: Assemble site (root = V11.19, eval/<slug>/ = evaluation apps)
+      - name: Assemble site (root = v1, eval/<slug>/ = evaluation apps)
         shell: bash
         run: |
           set -euo pipefail
@@ -159,7 +159,7 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Root: V11.19 3bb1ccf4f71bf82169d59db782f44eff4af0fd6e"
+          echo "Root: v1 47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"
           echo "회로이론_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/circuit-theory/ (50f2455)"
           echo "전기기기_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electric-machines/ (3153188)"
           echo "전기안전공학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electrical-safety/ (37b8c41)"
