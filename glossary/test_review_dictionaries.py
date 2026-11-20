@@ -9,34 +9,39 @@ class ReviewDictionariesTest(unittest.TestCase):
         self.assertEqual(review.norm('송전-선'), '송전선')
         self.assertEqual(review.norm('자속 밀도 (B)'), '자속밀도')
 
-    def test_ko_variants_split_alternatives(self):
-        self.assertEqual(review.ko_variants('전송선, 송전선'), {'전송선', '송전선'})
+    def test_english_parts_split_mixed_language_translations(self):
+        self.assertEqual(review.english_parts('translocation##でんりゅう##转移'), {'translocation'})
+        self.assertEqual(review.english_parts('Current; electric current'), {'current', 'electric current'})
 
-    def test_ok_when_a_dictionary_term_matches_in_the_field(self):
-        entry = {'field': '전기공학', 'en': 'transmission line', 'ko': '전송선, 송전선'}
-        verdict, seen = review.judge(entry, [{'word': '송전-선', 'field': '전기·전자', 'origin': 'transmission line'}], [])
-        self.assertEqual(verdict, 'ok')
-        self.assertEqual(seen[0][0], '우리말샘')
+    def test_same_term_allows_a_longer_form(self):
+        self.assertTrue(review.same_term('current', 'electric current'))
+        self.assertTrue(review.same_term('skin effect', 'skin effect'))
+        self.assertFalse(review.same_term('current', 'commutation'))
 
-    def test_mismatch_when_the_field_has_other_terms(self):
-        entry = {'field': '전기공학', 'en': 'skin effect', 'ko': '피부 효과'}
-        verdict, _ = review.judge(entry, [{'word': '표피^효과', 'field': '전기·전자', 'origin': 'skin effect'}], [])
-        self.assertEqual(verdict, 'mismatch')
+    def test_confirmed_when_kterm_has_the_english_term_in_the_field(self):
+        entry = {'field': '전기공학', 'en': 'skin effect', 'ko': '표피 효과'}
+        kterm = [{'word': '표피^효과', 'field': '인공물 전기/전자', 'english': {'skin effect'}, 'source': 'x'}]
+        self.assertEqual(review.judge(entry, [], kterm)[0], 'confirmed')
 
-    def test_other_fields_are_ignored(self):
+    def test_en_differs_when_the_field_term_is_for_other_english(self):
         entry = {'field': '전기공학', 'en': 'current', 'ko': '전류'}
-        verdict, _ = review.judge(entry, [{'word': '해류', 'field': '해양', 'origin': 'current'}], [])
-        self.assertEqual(verdict, 'unknown')
+        kterm = [{'word': '전류', 'field': '인공물 전기/전자', 'english': {'commutation'}, 'source': 'x'}]
+        self.assertEqual(review.judge(entry, [], kterm)[0], 'en_differs')
 
-    def test_kterm_needs_the_english_term_in_its_origin(self):
-        entry = {'field': '반도체', 'en': 'photoresist', 'ko': '감광제'}
-        verdict, _ = review.judge(entry, [], [{'word': '감광제', 'field': '전기·전자', 'origin': 'photoresist'}])
-        self.assertEqual(verdict, 'ok')
-        verdict, _ = review.judge(entry, [], [{'word': '감광제', 'field': '전기·전자', 'origin': 'something else'}])
-        self.assertEqual(verdict, 'unknown')
+    def test_exists_other_field_and_not_found(self):
+        entry = {'field': '전기공학', 'en': 'skin effect', 'ko': '표피 효과'}
+        self.assertEqual(review.judge(entry, [{'word': '표피^효과', 'field': '전기·전자', 'definition': ''}], [])[0], 'exists')
+        self.assertEqual(review.judge(entry, [{'word': '표피^효과', 'field': '의학', 'definition': ''}], [])[0], 'other_field')
+        self.assertEqual(review.judge(entry, [], [])[0], 'not_found')
 
-    def test_no_data_without_keys_and_offline_cache(self):
-        self.assertIsNone(review.opendict_terms('current', '', offline=False))
+    def test_api_refusals_are_errors_not_answers(self):
+        self.assertTrue(review.api_error({'channel': {'returnCode': '022', 'return_object': '일일 요청 건 초과'}}))
+        self.assertTrue(review.api_error({'error': {'error_code': '020'}}))
+        self.assertFalse(review.api_error({'channel': {'returnCode': '1', 'return_object': '검색 결과가 없습니다.'}}))
+        self.assertFalse(review.api_error({'channel': {'total': 3, 'item': []}}))
+
+    def test_no_data_without_keys(self):
+        self.assertIsNone(review.opendict_terms('전류', '', offline=False))
         self.assertIsNone(review.kterm_items('전류', '', offline=False))
 
 

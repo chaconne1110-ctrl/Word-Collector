@@ -1,39 +1,45 @@
 """Review the server glossary against free Korean dictionaries (no Gemini, no cost).
 
 Sources (licences checked 2026-11-20, recorded in rag/sources.json):
-  - 우리말샘 (opendict.korean.go.kr, CC BY-SA 2.0 KR): searched by English 원어,
-    technical senses only; the field (cat) must fit the entry's field.
-  - 온용어 (kli.korean.go.kr/term, 국립국어원 전문용어): searched by the Korean
-    term; only items whose KOGL type is 0 or 1 are used.
-  - 한국어기초사전 (krdict.korean.go.kr, CC BY-SA 2.0 KR): searched by the Korean
-    term with English translations; used for general words only.
+  - 온용어 (kli.korean.go.kr/term, 국립국어원 전문용어): searched by the Korean term
+    (the API has no English search); only items with KOGL type 0 or 1 are used.
+    Items carry the field and the English equivalent ('translation').
+  - 우리말샘 (opendict.korean.go.kr, CC BY-SA 2.0 KR): searched by the Korean term;
+    gives the field (cat) and definition. It has no English equivalents.
+  - 특허 영한 기술용어 사전 (KIPRISPlus, no use restriction): optional extra signal
+    via --patent FILE (EK_TRANS_DIC.txt, CP949); its quality is uneven, so it never
+    decides a verdict on its own.
 
-Nothing is regenerated: the review only classifies each entry as
-  ok        a dictionary confirms the Korean meaning for this English term and field
-  mismatch  dictionaries list other Korean terms for it (needs a fix)
-  unknown   no dictionary data for it (cannot judge)
-and writes glossary/out/review/report.json and report.csv.
+Each glossary entry (Korean meaning of an English term in a field) is classified:
+  confirmed    온용어 lists this Korean term in the field with this English term
+  en_differs   온용어 lists this Korean term in the field, but only for other English terms
+  exists       the Korean term is a term of this field (우리말샘/온용어), English not given
+  other_field  the Korean term exists only in other fields or as a general word
+  not_found    no dictionary has this Korean term
+  pending      a dictionary did not answer (온용어 allows only a limited number of
+               requests per day): rerun later; answers are cached, so it continues
+Nothing is regenerated. Writes glossary/out/review/report.json and report.csv.
 
 Keys come from Windows user environment variables (never printed):
-  NIKL_OPENDICT_KEY, NIKL_KTERM_KEY, KRDICT_KEY
+  NIKL_OPENDICT_KEY, NIKL_KTERM_KEY   (KRDICT_KEY is not needed for this review)
 Responses are cached in glossary/out/review/cache/, so a rerun sends no request twice.
 
-  python glossary/review_dictionaries.py [--limit N] [--offline]
+  python glossary/review_dictionaries.py [--limit N] [--offline] [--workers 4] [--patent FILE]
 """
 import argparse, csv, hashlib, json, os, re, sys, time, urllib.parse, urllib.request
-from collections import Counter
+from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'out', 'review')
 CACHE = os.path.join(OUT, 'cache')
 ENTRIES = os.path.join(OUT, 'server-entries.json')
 
-# Dictionary fields (category names as the APIs return them) that fit each glossary field.
+# Dictionary field names (as the APIs return them) that fit each glossary field.
 FIELDS = {
-    '전기공학': ('전기', '전자', '물리', '통신', '기계'),
-    '반도체': ('전기', '전자', '물리', '화학', '재료', '공업', '광업', '금속'),
+    '전기공학': ('전기', '전자', '물리', '통신', '기계', '에너지', '정보', '광학'),
+    '반도체': ('전기', '전자', '물리', '화학', '화공', '재료', '공업', '광업', '금속', '정보', '기계', '광학'),
 }
-OPENDICT_ENGLISH = os.environ.get('NIKL_OPENDICT_LANG', '4')   # lang code for English (checked on the first real call)
 
 
 def env(name):
@@ -49,7 +55,7 @@ def env(name):
 
 
 def norm(text):
-    """Compare Korean terms without spacing marks (우리말샘 uses ^ and -), spaces or brackets."""
+    """Compare Korean terms without spacing marks (^ and -), spaces or brackets."""
     text = re.sub(r'\([^)]*\)|\[[^]]*\]', '', str(text or ''))
     return re.sub(r'[\s^\-·ㆍ_]+', '', text).strip().lower()
 
@@ -60,61 +66,95 @@ def ko_variants(ko):
     return {norm(part) for part in parts if norm(part)}
 
 
+def norm_en(text):
+    return re.sub(r'[^a-z0-9]+', ' ', str(text or '').lower()).strip()
+
+
+def english_parts(translation):
+    """'translocation##でんりゅう##转移' / 'Current; electric current' -> English pieces."""
+    parts = re.split(r'##|[;,/]', str(translation or ''))
+    return {norm_en(part) for part in parts if re.search(r'[A-Za-z]', part) and norm_en(part)}
+
+
 def fetch_json(url, source, offline):
     os.makedirs(os.path.join(CACHE, source), exist_ok=True)
-    path = os.path.join(CACHE, source, hashlib.sha256(url.split('key=')[0].encode() + url.split('&', 1)[-1].encode()).hexdigest() + '.json')
+    query = urllib.parse.urlsplit(url).query
+    cache_id = '&'.join(part for part in query.split('&') if not part.startswith('key='))
+    path = os.path.join(CACHE, source, hashlib.sha256(cache_id.encode()).hexdigest() + '.json')
     if os.path.exists(path):
         with open(path, encoding='utf-8') as handle:
             return json.load(handle)
-    if offline:
+    if offline or source in LIMITED:
         return None
+    data = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'WordCollector-glossary-review'}), timeout=20) as response:
+            request = urllib.request.Request(url, headers={'User-Agent': 'WordCollector-glossary-review'})
+            with urllib.request.urlopen(request, timeout=20) as response:
                 data = json.loads(response.read().decode('utf-8'))
             break
         except Exception:
             if attempt == 2:
                 return None
             time.sleep(2 * (attempt + 1))
+    if api_error(data):
+        # A refusal (e.g. 022 daily limit, 020 unknown key) is not an answer: never
+        # cache it and never treat it as "no result".
+        LIMITED.add(source)
+        return None
     with open(path, 'w', encoding='utf-8') as handle:
         json.dump(data, handle, ensure_ascii=False)
     time.sleep(0.15)   # be gentle with the free public APIs
     return data
 
 
-def opendict_terms(en, key, offline):
-    """Korean headwords whose 원어 is the English term, with their field (technical senses)."""
+LIMITED = set()   # sources that refused this run (daily limit): not asked again until the next run
+
+
+def api_error(data):
+    """True for an API refusal: 온용어/우리말샘 return an error code instead of results."""
+    if not isinstance(data, dict):
+        return True
+    if 'error' in data:
+        return True
+    code = str((data.get('channel') or {}).get('returnCode', '1')).strip()
+    return code not in ('', '1')
+
+
+def opendict_terms(ko, key, offline):
+    """우리말샘 senses whose headword is exactly the Korean term (any field)."""
     if not key and not offline:
         return None
-    query = urllib.parse.urlencode({'key': key, 'q': en, 'req_type': 'json', 'advanced': 'y', 'target': 2,
-                                    'method': 'exact', 'lang': OPENDICT_ENGLISH, 'type4': 'technical', 'num': 100})
+    query = urllib.parse.urlencode({'key': key, 'q': ko, 'req_type': 'json', 'advanced': 'y', 'method': 'exact', 'num': 100})
     data = fetch_json('https://opendict.korean.go.kr/api/search?' + query, 'opendict', offline)
     if data is None:
         return None
     found = []
     for item in (data.get('channel', {}).get('item') or []):
+        if norm(item.get('word')) != norm(ko):
+            continue
         for sense in item.get('sense') or []:
-            found.append({'word': item.get('word', ''), 'field': sense.get('cat', ''), 'origin': sense.get('origin', '')})
+            found.append({'word': item.get('word', ''), 'field': sense.get('cat', '') or '', 'definition': sense.get('definition', '')})
     return found
 
 
 def kterm_items(ko, key, offline):
-    """온용어 items for the Korean term (KOGL type 0 or 1 only)."""
+    """온용어 items whose term is exactly the Korean term; only KOGL type 0 or 1."""
     if not key and not offline:
         return None
     query = urllib.parse.urlencode({'key': key, 'apiSearchWord': ko, 'num': 100})
     data = fetch_json('https://kli.korean.go.kr/term/api/search.do?' + query, 'kterm', offline)
     if data is None:
         return None
-    items = data.get('items') or data.get('item') or data.get('result') or []
+    objects = data.get('channel', {}).get('return_object')
+    results = objects[0].get('resultlist') if isinstance(objects, list) and objects and isinstance(objects[0], dict) else []
     usable = []
-    for item in items if isinstance(items, list) else []:
-        licence = str(item.get('kr_gvrn_lcns_ty', ''))
-        if licence and not re.match(r'^\s*(0|1)\b|^\s*제?\s*[01]\s*유형', licence):
+    for item in results if isinstance(results, list) else []:
+        if norm(item.get('word')) != norm(ko) or str(item.get('kr_gvrn_lcns_ty', '')).strip() not in ('0', '1'):
             continue
-        usable.append({'word': item.get('word', ''), 'field': ' '.join(filter(None, [item.get('category_main', ''), item.get('category_sub', '')])),
-                       'origin': ' '.join(filter(None, [str(item.get('origin', '')), str(item.get('translation', ''))]))})
+        usable.append({'word': item.get('word', ''),
+                       'field': ' '.join(filter(None, [item.get('category_main', ''), item.get('category_sub', '')])),
+                       'english': english_parts(item.get('translation')), 'source': item.get('source', '')})
     return usable
 
 
@@ -122,60 +162,104 @@ def fits_field(name, field):
     return any(part in str(name) for part in FIELDS.get(field, ()))
 
 
+def same_term(a, b):
+    """'current' ~ 'electric current', 'skin effect' ~ 'skin effect'."""
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    short, long = sorted((a, b), key=len)
+    return len(short) >= 4 and re.search(r'(^| )' + re.escape(short) + r'( |$)', long) is not None
+
+
 def judge(entry, opendict, kterm):
-    """ok / mismatch / unknown, with the dictionary terms that were seen."""
-    wanted = ko_variants(entry['ko'])
-    en = entry['en'].lower()
-    candidates = []
-    for row in opendict or []:
-        if fits_field(row['field'], entry['field']):
-            candidates.append(('우리말샘', row['word'], row['field']))
-    for row in kterm or []:
-        if en in row['origin'].lower() and fits_field(row['field'], entry['field']):
-            candidates.append(('온용어', row['word'], row['field']))
-    if not candidates:
-        return 'unknown', []
-    if any(norm(word) in wanted or any(norm(word) and norm(word) in w for w in wanted) for _, word, _ in candidates):
-        return 'ok', candidates
-    return 'mismatch', candidates
+    """Korean-first check of one glossary entry (see the module docstring)."""
+    en = norm_en(re.sub(r'\([^)]*\)', '', entry['en']))
+    kt_field = [row for row in (kterm or []) if fits_field(row['field'], entry['field'])]
+    od_field = [row for row in (opendict or []) if fits_field(row['field'], entry['field'])]
+    seen = [('온용어', row['word'], row['field'], ', '.join(sorted(row['english']))) for row in kt_field] + \
+           [('우리말샘', row['word'], row['field'], '') for row in od_field]
+    if any(same_term(en, other) for row in kt_field for other in row['english']):
+        return 'confirmed', seen
+    if any(row['english'] for row in kt_field):
+        return 'en_differs', seen
+    if kt_field or od_field:
+        return 'exists', seen
+    if kterm or opendict:
+        others = [('온용어', row['word'], row['field'], ', '.join(sorted(row['english']))) for row in (kterm or [])] + \
+                 [('우리말샘', row['word'], row['field'] or '일반어', '') for row in (opendict or [])]
+        return 'other_field', others
+    return 'not_found', []
+
+
+def load_patent(path):
+    """EK_TRANS_DIC.txt (tab-separated, CP949): English -> set of Korean translations."""
+    index = defaultdict(set)
+    if not path:
+        return index
+    with open(path, encoding='cp949', errors='replace') as handle:
+        next(handle, None)
+        for line in handle:
+            parts = line.rstrip('\n').split('\t')
+            if len(parts) == 2:
+                index[norm_en(parts[0].replace('_', ' '))].add(norm(parts[1].replace('_', ' ')))
+    return index
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=0, help='review only the first N entries')
     parser.add_argument('--offline', action='store_true', help='use cached responses only (no requests)')
+    parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument('--patent', default='', help='path to KIPRISPlus EK_TRANS_DIC.txt (optional)')
     args = parser.parse_args(argv)
-    keys = {name: env(name) for name in ('NIKL_OPENDICT_KEY', 'NIKL_KTERM_KEY', 'KRDICT_KEY')}
+    keys = {name: env(name) for name in ('NIKL_OPENDICT_KEY', 'NIKL_KTERM_KEY')}
     missing = [name for name, value in keys.items() if not value]
     if missing and not args.offline:
         print('Missing API keys (Windows user environment variables): ' + ', '.join(missing))
-        if len(missing) == 3:
-            return 2
+        return 2
     with open(ENTRIES, encoding='utf-8') as handle:
         entries = json.load(handle)
     if args.limit:
         entries = entries[:args.limit]
+    patent = load_patent(args.patent)
+
+    def review(entry):
+        ko = re.sub(r'\([^)]*\)', '', entry['ko'].split(',')[0]).strip()
+        opendict = opendict_terms(ko, keys['NIKL_OPENDICT_KEY'], args.offline)
+        kterm = kterm_items(ko, keys['NIKL_KTERM_KEY'], args.offline)
+        if opendict is None or kterm is None:
+            # A dictionary did not answer (daily limit or network): finish on a later run.
+            verdict, seen = 'pending', []
+        else:
+            verdict, seen = judge(entry, opendict, kterm)
+        patent_ko = patent.get(norm_en(entry['en']), set())
+        return {**{k: entry[k] for k in ('field', 'en', 'ko')}, 'checkedKo': ko, 'verdict': verdict,
+                'patent': ('agrees' if patent_ko & ko_variants(entry['ko']) else 'differs') if patent_ko else '',
+                'dictionary': ' / '.join(sorted({f'{word} ({source}, {field}{": " + english if english else ""})'
+                                                 for source, word, field, english in seen}))[:600]}
+
     rows, counts = [], Counter()
-    for index, entry in enumerate(entries, 1):
-        opendict = opendict_terms(entry['en'], keys['NIKL_OPENDICT_KEY'], args.offline)
-        kterm = kterm_items(entry['ko'].split(',')[0].strip(), keys['NIKL_KTERM_KEY'], args.offline)
-        verdict, seen = judge(entry, opendict, kterm)
-        counts[verdict] += 1
-        rows.append({**{k: entry[k] for k in ('field', 'en', 'ko')}, 'verdict': verdict,
-                     'dictionary': ' / '.join(sorted({f'{word} ({source}, {field})' for source, word, field in seen}))})
-        if index % 200 == 0:
-            print(index, dict(counts), flush=True)
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:   # a few requests at a time (free public APIs)
+        for index, row in enumerate(pool.map(review, entries), 1):
+            rows.append(row)
+            counts[row['verdict']] += 1
+            if index % 250 == 0:
+                print(index, dict(counts), flush=True)
     report = {'reviewed': len(rows), 'counts': dict(counts),
               'byField': {field: dict(Counter(r['verdict'] for r in rows if r['field'] == field)) for field in sorted({r['field'] for r in rows})},
+              'patent': dict(Counter(r['patent'] or 'not covered' for r in rows)),
               'rows': rows}
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, 'report.json'), 'w', encoding='utf-8') as handle:
         json.dump(report, handle, ensure_ascii=False, indent=1)
     with open(os.path.join(OUT, 'report.csv'), 'w', encoding='utf-8-sig', newline='') as handle:
-        writer = csv.DictWriter(handle, fieldnames=['field', 'en', 'ko', 'verdict', 'dictionary'])
+        writer = csv.DictWriter(handle, fieldnames=['field', 'en', 'ko', 'checkedKo', 'verdict', 'patent', 'dictionary'])
         writer.writeheader()
-        writer.writerows(rows)
-    print(json.dumps({k: report[k] for k in ('reviewed', 'counts', 'byField')}, ensure_ascii=False))
+        writer.writerows(sorted(rows, key=lambda r: (['en_differs', 'other_field', 'not_found', 'exists', 'confirmed', 'pending'].index(r['verdict']), r['field'], r['en'])))
+    if LIMITED:
+        print('Daily limit reached for: ' + ', '.join(sorted(LIMITED)) + ' (rerun later; cached answers are kept)')
+    print(json.dumps({k: report[k] for k in ('reviewed', 'counts', 'byField', 'patent')}, ensure_ascii=False))
     return 0
 
 
