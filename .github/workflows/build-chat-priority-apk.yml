@@ -1,3 +1,4 @@
+# APK rebuild requested 2026-11-21: compile this v1 branch without changing app code or deploying the web.
 name: Build chat-priority Android debug APK (no deploy)
 
 on:
