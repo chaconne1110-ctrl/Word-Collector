@@ -10,7 +10,7 @@
   const buttons = [...document.querySelectorAll('[data-format]')];
   let busy = false;
   function read() {
-    const raw = localStorage.getItem('lexicon-word-collector-v1');
+    const raw = localStorage.getItem('lexicon-word-collector-v1-eval-power-engineering');
     return raw === null ? structuredClone(seed) : JSON.parse(raw);
   }
   function refresh() {

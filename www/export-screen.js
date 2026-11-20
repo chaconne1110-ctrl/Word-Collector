@@ -7,7 +7,7 @@
   const button = query('#exportActionBtn'), status = query('#exportStatus');
   let state, selected = new Set(), initialized = false, busy = false;
   function read() {
-    const raw = localStorage.getItem('lexicon-word-collector-v1');
+    const raw = localStorage.getItem('lexicon-word-collector-v1-eval-power-engineering');
     const value = raw === null ? structuredClone(seed) : JSON.parse(raw);
     api.toRows(value); // Validate; never silently replace corrupt saved data with examples.
     return value;
@@ -116,6 +116,6 @@
   });
   function update() { try { refresh(); } catch (error) { fail(error); } }
   window.addEventListener('pageshow', update);
-  window.addEventListener('storage', event => { if (event.key === 'lexicon-word-collector-v1' || event.key === null) update(); });
+  window.addEventListener('storage', event => { if (event.key === 'lexicon-word-collector-v1-eval-power-engineering' || event.key === null) update(); });
   update();
 })();
