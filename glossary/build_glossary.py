@@ -720,6 +720,11 @@ def command_export(args):
     from apply_corrections import apply_to_lookup, load_corrections
     lookup, _ = apply_to_lookup(lookup, load_corrections(), key_of=lookup_key)
     (OUT / 'glossary.sql').write_text(glossary_sql(lookup), encoding='utf-8')
+    # The review CSV lists exactly what the SQL stores: one row per corrected entry.
+    corrected = {}
+    for entry in lookup.values():
+        corrected.setdefault(json.dumps(entry, ensure_ascii=False, sort_keys=True), entry)
+    entries = list(corrected.values())
     with (OUT / 'glossary.csv').open('w', encoding='utf-8-sig', newline='') as handle:
         writer = csv.writer(handle)
         writer.writerow(['분야', '영어', '뜻', '품사', '영어 정의', '한국어 정의', '예문', '예문 해석', '참고 자료(서버 기록용)'])

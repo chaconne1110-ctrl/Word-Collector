@@ -42,5 +42,31 @@ class ApplyCorrectionsTest(unittest.TestCase):
                 self.assertTrue(key.startswith(item['field'] + '|'), key)
 
 
+class ExportCsvTest(unittest.TestCase):
+    def test_csv_lists_the_corrected_entries_like_the_sql(self):
+        import csv, json, tempfile
+        from pathlib import Path
+        import build_glossary as build
+        entry = {'en': 'electrically-short dipole', 'ko': '전기적 단축 다이폴', 'pos': '명사구', 'enDef': 'd', 'koDef': 'k',
+                 'exampleEn': 'e', 'exampleKo': '전기적 단축 다이폴은 짧다.', 'field': '전기공학',
+                 'references': [{'sourceId': 's', 'pdfPage': 1}], 'model': 'm', 'builtAt': 't', 'term': 'electrically short dipole',
+                 'aliases': [], 'count': 3, 'relatedWords': []}
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = build.OUT
+            build.OUT = Path(tmp)
+            try:
+                (Path(tmp) / 'glossary.json').write_text(json.dumps({'terms': {'x': entry}}, ensure_ascii=False), encoding='utf-8')
+                build.command_export(None)
+                rows = list(csv.reader((Path(tmp) / 'glossary.csv').open(encoding='utf-8-sig')))
+                sql = (Path(tmp) / 'glossary.sql').read_text(encoding='utf-8')
+            finally:
+                build.OUT = saved
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][2], '전기적으로 짧은 다이폴')
+        self.assertEqual(rows[1][7], '전기적으로 짧은 다이폴은 짧다.')
+        self.assertIn('전기적으로 짧은 다이폴', sql)
+        self.assertNotIn('단축', ''.join(rows[1]))
+
+
 if __name__ == '__main__':
     unittest.main()

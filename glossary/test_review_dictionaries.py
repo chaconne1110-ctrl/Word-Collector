@@ -13,10 +13,21 @@ class ReviewDictionariesTest(unittest.TestCase):
         self.assertEqual(review.english_parts('translocation##でんりゅう##转移'), {'translocation'})
         self.assertEqual(review.english_parts('Current; electric current'), {'current', 'electric current'})
 
-    def test_same_term_allows_a_longer_form(self):
-        self.assertTrue(review.same_term('current', 'electric current'))
+    def test_same_term_allows_only_plural_forms(self):
         self.assertTrue(review.same_term('skin effect', 'skin effect'))
+        self.assertTrue(review.same_term('skin effect', 'skin effects'))
+        self.assertTrue(review.same_term('switch', 'switches'))
         self.assertFalse(review.same_term('current', 'commutation'))
+        # A longer compound is a different term, in either direction.
+        self.assertFalse(review.same_term('semiconductor', 'semiconductor laser'))
+        self.assertFalse(review.same_term('semiconductor laser', 'semiconductor'))
+        self.assertFalse(review.same_term('current', 'electric current'))
+
+    def test_compound_in_dictionary_is_not_confirmed(self):
+        entry = {'en': 'semiconductor', 'ko': '반도체 레이저', 'field': '반도체'}
+        kterm = [{'word': '반도체 레이저', 'field': '전기·전자', 'english': {'semiconductor laser'}, 'source': ''}]
+        verdict, _ = review.judge(entry, [], kterm)
+        self.assertNotEqual(verdict, 'confirmed')
 
     def test_confirmed_when_kterm_has_the_english_term_in_the_field(self):
         entry = {'field': '전기공학', 'en': 'skin effect', 'ko': '표피 효과'}
@@ -39,6 +50,27 @@ class ReviewDictionariesTest(unittest.TestCase):
         self.assertTrue(review.api_error({'error': {'error_code': '020'}}))
         self.assertFalse(review.api_error({'channel': {'returnCode': '1', 'return_object': '검색 결과가 없습니다.'}}))
         self.assertFalse(review.api_error({'channel': {'total': 3, 'item': []}}))
+
+    def test_cached_refusal_from_an_older_run_is_not_a_result(self):
+        import json, os, tempfile, hashlib, urllib.parse
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = review.CACHE
+            review.CACHE = tmp
+            try:
+                url = 'https://kli.korean.go.kr/term/api/search.do?key=SECRET&apiSearchWord=x'
+                os.makedirs(os.path.join(tmp, 'kterm'))
+                cache_id = 'apiSearchWord=x'
+                path = os.path.join(tmp, 'kterm', hashlib.sha256(cache_id.encode()).hexdigest() + '.json')
+                with open(path, 'w', encoding='utf-8') as handle:
+                    json.dump({'channel': {'returnCode': '022', 'return_object': '일일 요청 건 초과'}}, handle)
+                self.assertIsNone(review.fetch_json(url, 'kterm', offline=True))   # pending, not "no result"
+                self.assertFalse(os.path.exists(path))
+                good = {'channel': {'returnCode': '1', 'return_object': [{'resultlist': []}]}}
+                with open(path, 'w', encoding='utf-8') as handle:
+                    json.dump(good, handle)
+                self.assertEqual(review.fetch_json(url, 'kterm', offline=True), good)
+            finally:
+                review.CACHE = saved
 
     def test_no_data_without_keys(self):
         self.assertIsNone(review.opendict_terms('전류', '', offline=False))

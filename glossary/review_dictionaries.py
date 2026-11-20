@@ -83,7 +83,12 @@ def fetch_json(url, source, offline):
     path = os.path.join(CACHE, source, hashlib.sha256(cache_id.encode()).hexdigest() + '.json')
     if os.path.exists(path):
         with open(path, encoding='utf-8') as handle:
-            return json.load(handle)
+            cached = json.load(handle)
+        if not api_error(cached):
+            return cached
+        # A refusal saved by an older version is not an answer: drop it and ask again
+        # (or report the entry as pending when offline / limited).
+        os.remove(path)
     if offline or source in LIMITED:
         return None
     data = None
@@ -162,14 +167,17 @@ def fits_field(name, field):
     return any(part in str(name) for part in FIELDS.get(field, ()))
 
 
+def singular(word):
+    return re.sub(r'(?<=[a-z]{3})(es|s)$', '', word)
+
+
 def same_term(a, b):
-    """'current' ~ 'electric current', 'skin effect' ~ 'skin effect'."""
+    """Same English term, allowing only plural forms: 'skin effect' ~ 'skin effects'.
+    A longer compound is a different term ('semiconductor' != 'semiconductor laser',
+    'current' != 'electric current'), so it never counts as confirmed."""
     if not a or not b:
         return False
-    if a == b:
-        return True
-    short, long = sorted((a, b), key=len)
-    return len(short) >= 4 and re.search(r'(^| )' + re.escape(short) + r'( |$)', long) is not None
+    return [singular(w) for w in a.split()] == [singular(w) for w in b.split()]
 
 
 def judge(entry, opendict, kterm):
