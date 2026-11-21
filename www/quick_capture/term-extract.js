@@ -84,7 +84,7 @@
     zero one two three four five six seven eight nine ten first second third shown table chapter section page
     figure equation example problem solution answer question exercise note cause improve reduce effective
     large plant detail decrease obtain occur consist define describe usually typical typically great small
-    consider assume certain important given apply known again later once twice next`.split(/\s+/).filter(Boolean));
+    consider assume certain important given apply known again later once twice next equal maximum minimum`.split(/\s+/).filter(Boolean));
 
   // A word, keeping hyphenated compounds ("cross-sectional") whole.
   const WORD = /[A-Za-z]+(?:[-‐‑'’][A-Za-z]+)*/g;

@@ -3,6 +3,7 @@
 //   scanned.pdf  – 1 page that is only an image (no text layer)
 //   photo.jpg    – a "photo" of an English sentence (for OCR)
 //   pages.pdf    – 3 pages with different text (only the chosen page is read)
+//   mixed-photo.jpg – phone-like photo of a Korean page with English sentences
 // Run: CHROMIUM_PATH=<chromium or msedge> node tests/fixtures/scan/make-fixtures.cjs
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,6 +13,11 @@ const SENTENCES = [
   'The skin effect increases the resistance of the conductor.',
   'At high frequency the skin effect reduces the area of the conductor.',
   'Power factor correction uses capacitors.'
+];
+// The English sentences on the Korean textbook page (mixed-photo.jpg).
+const MIXED_ENGLISH = [
+  'The impedance of an RLC circuit depends on the frequency. At resonance, the inductive reactance equals the capacitive reactance, and the current is maximum.',
+  'The power factor is the ratio of real power to apparent power. A low power factor increases line losses.'
 ];
 
 function pdf(objects) {
@@ -85,7 +91,19 @@ function scannedPdf(jpeg, width, height) {
     fs.writeFileSync(path.join(out, 'scanned.pdf'), scannedPdf(jpeg, 1100, 260));
     fs.writeFileSync(path.join(out, 'text.pdf'), textPdf());
     fs.writeFileSync(path.join(out, 'pages.pdf'), pagesPdf());
-    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf']) {
+    // A phone-like photo of a Korean textbook page with English sentences: tilted,
+    // shaded paper on a dark desk, slightly blurred. The English OCR model turns the
+    // Korean lines into made-up words; only the English words may become candidates.
+    const desk = await browser.newPage({viewport: {width: 1200, height: 1600}});
+    await desk.setContent(`<body style="margin:0;background:linear-gradient(135deg,#6b5a48,#3d3128)"><div style="position:absolute;left:90px;top:120px;width:1000px;height:1350px;background:linear-gradient(90deg,#f4efe4,#e6dfd0);transform:rotate(-4deg);box-shadow:0 20px 60px #000;padding:60px;box-sizing:border-box;font:28px/1.7 'Malgun Gothic','Noto Sans CJK KR',serif;color:#222;filter:blur(0.8px)">
+<h2 style="font-size:40px">제 3 장 교류 회로 (AC Circuits)</h2>
+<p>교류 회로에서 임피던스(impedance)는 저항과 리액턴스의 합으로 나타낸다. 유도성 리액턴스는 주파수에 비례한다.</p>
+<p>${MIXED_ENGLISH[0]}</p>
+<p>예제 3.2 다음 회로의 역률(power factor)을 구하시오. 단, R = 10 Ω, X<sub>L</sub> = 20 Ω 이다.</p>
+<p>${MIXED_ENGLISH[1]}</p>
+<p style="font-size:22px;color:#555">그림 3-4 직렬 RLC 회로의 페이저도 · 32쪽</p></div></body>`);
+    fs.writeFileSync(path.join(out, 'mixed-photo.jpg'), await desk.screenshot({type: 'jpeg', quality: 80}));
+    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf', 'mixed-photo.jpg']) {
       console.log(name, fs.statSync(path.join(out, name)).size, 'bytes');
     }
   } finally { await browser.close(); }

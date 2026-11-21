@@ -118,8 +118,20 @@
       if (message?.status === 'recognizing text') onProgress(message.progress);
     };
     const worker = await getOcr();
-    const {data} = await worker.recognize(canvas);
-    return data?.text || '';
+    const {data} = await worker.recognize(canvas, {}, {blocks: true, text: true});
+    return confidentText(data);
+  }
+  // Keep only words the engine is sure of. English text reads at 90+; Korean letters,
+  // symbols and smudges forced into the English model come out as made-up words
+  // ("LFE", "epic", "olth") scored mostly below 80. A dropped word leaves a "·" so
+  // the words on either side never join into a fake phrase.
+  const MIN_WORD_CONFIDENCE = 85;
+  function confidentText(data) {
+    if (!Array.isArray(data?.blocks)) return data?.text || '';
+    return data.blocks.map(block => (block.paragraphs || []).map(paragraph =>
+      (paragraph.lines || []).map(line => (line.words || []).map(word =>
+        word.confidence >= MIN_WORD_CONFIDENCE ? word.text : '·').join(' ')).join('\n')
+    ).join('\n\n')).join('\n\n');
   }
 
   // ---- PDF (PDF.js) --------------------------------------------------------------

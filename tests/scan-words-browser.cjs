@@ -126,6 +126,21 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.ok(terms.includes('skin effect') && terms.includes('conductor'), 'OCR of scanned page: ' + terms);
     assert.match(await page.locator('#scan-status').textContent(), /1쪽을 읽었어요\. \(스캔한 쪽이라 글자 인식/);
 
+    // 4b. Phone-like photo of a Korean textbook page with English sentences (real OCR):
+    // Korean lines read by the English model must not become made-up candidates.
+    const ENGLISH_ON_PAGE = ('The impedance of an RLC circuit depends on the frequency. At resonance, the inductive ' +
+      'reactance equals the capacitive reactance, and the current is maximum. The power factor is the ratio of real ' +
+      'power to apparent power. A low power factor increases line losses. AC Circuits').toLowerCase();
+    await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'mixed-photo.jpg'));
+    await page.locator('#read-photo').click();
+    await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
+    terms = await candidateTerms();
+    for (const term of ['impedance', 'reactance', 'resonance', 'power factor', 'capacitive', 'inductive']) {
+      assert.ok(terms.includes(term), `${term} found in mixed photo: ${terms}`);
+    }
+    const madeUp = terms.filter(term => !term.toLowerCase().split(' ').every(word => ENGLISH_ON_PAGE.includes(word)));
+    assert.deepEqual(madeUp, [], 'only words from the English sentences: ' + terms);
+
     // 5. Photo: preview, rotate, read with OCR.
     await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'photo.jpg'));
     await page.locator('#photo-card').waitFor({state: 'visible'});
