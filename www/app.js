@@ -13,6 +13,13 @@ function load() {
 }
 
 let state = load();
+// A new installation shows the first-run notebooks from data.js; write them to storage
+// once so every page (backup included) works with the same saved data.
+try {
+  if (localStorage.getItem(storageKey) === null && Object.keys(seed.courses || {}).length) {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
+} catch { /* storage unavailable: the page still shows the first-run data */ }
 // Another tab (or window) may have changed the data since this page loaded: every
 // change is built on the latest saved copy (state = load() right before it), and
 // a change made elsewhere is picked up here at once.

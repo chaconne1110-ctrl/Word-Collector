@@ -32,7 +32,10 @@
   const counts = data => ({courses: Object.keys(data.courses).length,
     terms: Object.keys(data.terms).length, saved: data.saved.length});
   function readCurrent() {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(KEY);
+    // Backup opened before any other page of a new installation: the first-run
+    // notebooks (data.js) are what the app shows, so they are what is backed up.
+    if (raw === null && typeof seed !== 'undefined' && Object.keys(seed.courses || {}).length) raw = JSON.stringify(seed);
     if (raw === null) throw new Error('이 주소에 저장된 단어 데이터가 없습니다. 기존 앱에서 단어 저장 후 다시 확인하세요.');
     return {raw, data: validate(JSON.parse(raw))};
   }
