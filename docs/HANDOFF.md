@@ -83,7 +83,8 @@ Capacitor 8 (`npx cap sync android` → `android/`에서 Gradle 빌드). 앱 ID�
 | `rag/` | 자료·저작권 기록 `sources.json`, 참고 자료 화면 생성 `build-references.mjs` |
 | `glossary/` | 단어집 구축 `build_glossary.py`, 사전 대조 `review_dictionaries.py`, 교정 `corrections.json`·`apply_corrections.py` |
 | `docs/first-run-evidence-sources.md` | 첫 실행 단어 중 "근거 있음" 27개의 실제 출처 |
-| `android/`, `ios/` 빌드 설정 | Capacitor 네이티브 프로젝트, 로고 원본 `assets/branding/` |
+| `android/` | Capacitor Android 프로젝트 (iOS 프로젝트는 macOS에서 `npx cap add ios`로 만들고, iOS 빌드 워크플로는 `.github/workflows/build-ios*`·`build-iphone*`) |
+| `assets/branding/`, `scripts/generate-launcher-icons.sh` | 로고 원본과 아이콘 생성 |
 
 - 단어집 교정: `glossary/corrections.json`에 추가 → `python glossary/apply_corrections.py server` → `glossary/out/review/fix.sql`을 새 서버 D1(`word-collector-db-v3`)에 `wrangler d1 execute --remote --file`로 반영.
 - 사전 검토: `python glossary/review_dictionaries.py --patent <EK_TRANS_DIC.txt>` (키: `NIKL_KTERM_KEY`, `NIKL_OPENDICT_KEY`, `KRDICT_KEY` 환경 변수). 온용어는 하루 약 1,400건까지만 답한다. 특허 영한 용어사전(EK_TRANS_DIC.txt)은 공공데이터포털에서 받는다.
