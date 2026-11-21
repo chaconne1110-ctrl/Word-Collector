@@ -155,6 +155,10 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     }
     const madeUp = terms.filter(term => !term.toLowerCase().split(' ').every(word => ENGLISH_ON_PAGE.includes(word)));
     assert.deepEqual(madeUp, [], 'only words from the English sentences: ' + terms);
+    // Sentences never show placeholder dots or the noise lines made from Korean text.
+    for (const sentence of await page.locator('#candidate-list .cand-sentence').allTextContents()) {
+      assert.doesNotMatch(sentence, /·|…\s*…/, sentence);
+    }
 
     // 5. Photo: preview, rotate, read with OCR.
     await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'photo.jpg'));

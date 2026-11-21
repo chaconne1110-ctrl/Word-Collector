@@ -122,15 +122,23 @@
     return confidentText(data);
   }
   // Keep only words the engine is sure of. English text reads at 90+; Korean letters,
-  // symbols and smudges forced into the English model come out as made-up words
-  // ("LFE", "epic", "olth") scored mostly below 80. A dropped word leaves a "·" so
-  // the words on either side never join into a fake phrase.
+  // symbols, reflections and smudges forced into the English model come out as
+  // made-up words ("LFE", "epic", "olth") scored mostly below 80.
+  // - A line where fewer than half the words are sure is noise: it is left out.
+  // - Inside a kept line, a run of dropped words shows as one "…" in the sentence.
   const MIN_WORD_CONFIDENCE = 85;
+  function confidentLine(line) {
+    const words = (line.words || []).filter(word => /[A-Za-z0-9]/.test(word.text || ''));
+    const sure = words.filter(word => word.confidence >= MIN_WORD_CONFIDENCE);
+    if (!sure.length || sure.length * 2 < words.length) return '';
+    return words.map(word => word.confidence >= MIN_WORD_CONFIDENCE ? word.text : '…').join(' ')
+      .replace(/…(?:\s*…)+/g, '…').replace(/^…\s*|\s*…$/g, '');
+  }
   function confidentText(data) {
     if (!Array.isArray(data?.blocks)) return data?.text || '';
     return data.blocks.map(block => (block.paragraphs || []).map(paragraph =>
-      (paragraph.lines || []).map(line => (line.words || []).map(word =>
-        word.confidence >= MIN_WORD_CONFIDENCE ? word.text : '·').join(' ')).join('\n')
+      // A left-out line ends the sentence there (blank line), so text never runs across it.
+      (paragraph.lines || []).map(confidentLine).join('\n').replace(/\n{2,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
     ).join('\n\n')).join('\n\n');
   }
 
