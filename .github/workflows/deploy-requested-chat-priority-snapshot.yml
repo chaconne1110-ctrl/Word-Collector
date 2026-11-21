@@ -1,4 +1,4 @@
-name: Deploy Word Collector 7 existing apps plus v2.3 three-notebook webapp
+name: Deploy Word Collector existing webapps and isolated v3
 
 # Requested 2026-11-22: the six evaluation apps now call the v3 analysis server (word-collector-api-v3); their screens and words are unchanged. Root and v2.3 variant unchanged.
 # Re-publish requested 2026-11-20: power-engineering evaluation URL; keep all other snapshots unchanged.
@@ -82,6 +82,13 @@ jobs:
           path: variant-src/v23-three
           persist-credentials: false
 
+      - name: Checkout pinned Word Collector v3 source
+        uses: actions/checkout@v4
+        with:
+          ref: '4130dddb5680f29caba68eafa4902f2e267e0942'
+          path: variant-src/v3
+          persist-credentials: false
+
       - name: Verify immutable source revisions and app assets
         shell: bash
         run: |
@@ -117,6 +124,12 @@ jobs:
           node --check variant-src/v23-three/www/app.js
           node --check variant-src/v23-three/www/analysis-api.js
           node --check variant-src/v23-three/android-seeds/three-notebooks-data.js
+          test "$(git -C variant-src/v3 rev-parse HEAD)" = "4130dddb5680f29caba68eafa4902f2e267e0942"
+          test -s variant-src/v3/www/index.html
+          node --check variant-src/v3/www/app.js
+          node --check variant-src/v3/www/analysis-api.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v3/www/analysis-api.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v3/www/anonymous-auth.js
           node <<'NODE'
           const fs = require('node:fs');
           const vm = require('node:vm');
@@ -199,6 +212,33 @@ jobs:
           node --check site/v2.3-three-notebooks/sw.js
           test "$(find site/eval -mindepth 1 -maxdepth 1 -type d | wc -l)" = 6
           ls -ld site/v2.3-three-notebooks site/eval/*
+          # Standalone v3 URL; original root, six evaluator apps and v2.3 stay intact.
+          mkdir -p site/v3
+          cp -R variant-src/v3/www/. site/v3/
+          # All Pages paths share one origin, so isolate the v3 browser data
+          # from existing Word Collector versions without altering v3 app logic.
+          find site/v3 -type f \( -name '*.js' -o -name '*.html' \) -print0 |
+            xargs -0 sed -i \
+              -e 's/lexicon-word-collector-v1/lexicon-word-collector-v3-standalone/g' \
+              -e 's/wc-list-scroll-v1/wc-list-scroll-v3-standalone/g' \
+              -e 's/word-collector-capture-request-v1/word-collector-capture-request-v3-standalone/g' \
+              -e 's/word-collector-capture-started-v1/word-collector-capture-started-v3-standalone/g' \
+              -e 's/wordcollector-photo-store-v1/wordcollector-photo-store-v3-standalone/g' \
+              -e 's/word-collector-private-auth-v1/word-collector-private-auth-v3-standalone/g' \
+              -e 's/word-collector-web-tester-session-v1/word-collector-web-tester-session-v3-standalone/g' \
+              -e 's/word-collector-device-id-v1/word-collector-device-id-v3-standalone/g' \
+              -e 's/word-collector-tester-auth-v1/word-collector-tester-auth-v3-standalone/g' \
+              -e 's/wordcollector-public-static-/wordcollector-v3-public-static-/g'
+          test -s site/v3/index.html
+          grep -Fq "lexicon-word-collector-v3-standalone" site/v3/app.js
+          grep -Fq "wordcollector-v3-public-static-" site/v3/sw.js
+          grep -Fq "word-collector-api-v3.yechan-lim-elec.workers.dev" site/v3/analysis-api.js
+          ! grep -Fq 'lexicon-word-collector-v1' site/v3/app.js
+          node --check site/v3/app.js
+          node --check site/v3/analysis-api.js
+          node --check site/v3/sw.js
+          test -s site/v2.3-three-notebooks/index.html
+          test "$(find site/eval -mindepth 1 -maxdepth 1 -type d | wc -l)" = 6
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -218,7 +258,9 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Root: v1 47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"\n          echo "v2.3 3-notebook webapp: ${{ steps.deployment.outputs.page_url }}v2.3-three-notebooks/ (64e12a8f)"
+          echo "Root: v1 47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"
+          echo "Word Collector v3 webapp: ${{ steps.deployment.outputs.page_url }}v3/ (4130dddb5)"
+          echo "v2.3 3-notebook webapp: ${{ steps.deployment.outputs.page_url }}v2.3-three-notebooks/ (64e12a8f)"
           echo "회로이론_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/circuit-theory/ (0d6e634)"
           echo "전기기기_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electric-machines/ (7c8531e)"
           echo "전기안전공학_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/electrical-safety/ (d4afae9)"
