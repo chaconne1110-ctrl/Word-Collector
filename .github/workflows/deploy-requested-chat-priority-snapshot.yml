@@ -1,4 +1,4 @@
-name: Deploy Word Collector existing webapps and isolated v3
+name: Deploy Word Collector existing apps plus V11.21 snapshot
 
 # Requested 2026-11-22: /v3/ now serves v3.4 (1e22ce9: new logo, three first-run notebooks, review order, backup fix); same v3-standalone storage keys and cache prefix. Root, six evaluation apps and v2.3 variant unchanged.
 # Requested 2026-11-22: the six evaluation apps now call the v3 analysis server (word-collector-api-v3); their screens and words are unchanged. Root and v2.3 variant unchanged.
@@ -90,6 +90,13 @@ jobs:
           path: variant-src/v3
           persist-credentials: false
 
+      - name: Checkout pinned V11.21 webapp source
+        uses: actions/checkout@v4
+        with:
+          ref: '157eee1d97128432b8d40a9e340d1ac24c640965'
+          path: variant-src/v1121
+          persist-credentials: false
+
       - name: Verify immutable source revisions and app assets
         shell: bash
         run: |
@@ -129,6 +136,26 @@ jobs:
           test -s variant-src/v3/www/index.html
           node --check variant-src/v3/www/app.js
           node --check variant-src/v3/www/analysis-api.js
+          test "$(git -C variant-src/v1121 rev-parse HEAD)" = "157eee1d97128432b8d40a9e340d1ac24c640965"
+          test -s variant-src/v1121/www/index.html
+          node --check variant-src/v1121/www/app.js
+          node --check variant-src/v1121/www/data.js
+          node --check variant-src/v1121/www/analysis-api.js
+          node --check variant-src/v1121/www/sw.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v1121/www/analysis-api.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v1121/www/anonymous-auth.js
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const sandbox = {};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('variant-src/v1121/www/data.js','utf8') + '\n;globalThis.firstRunSeed = seed;',sandbox);
+          const seed = sandbox.firstRunSeed;
+          const ids = Object.keys(seed.courses);
+          if (JSON.stringify(ids.map(id => seed.courses[id][0])) !== JSON.stringify(['전력공학','회로이론','전기기기'])) throw Error('V11.21 notebook titles unexpected');
+          if (Object.keys(seed.terms).length !== 72) throw Error('V11.21 expected 72 terms');
+          for(const id of ids) if(Object.values(seed.terms).filter(term=>term.course===id).length !== 24) throw Error('V11.21 expected 24 terms each');
+          NODE
           grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v3/www/analysis-api.js
           grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' variant-src/v3/www/anonymous-auth.js
           node <<'NODE'
@@ -241,6 +268,35 @@ jobs:
           test -s site/v2.3-three-notebooks/index.html
           test "$(find site/eval -mindepth 1 -maxdepth 1 -type d | wc -l)" = 6
 
+          # New V11.21 app at its own path; preserve root, six evaluations, v2.3 and v3.4.
+          mkdir -p site/V11.21
+          cp -R variant-src/v1121/www/. site/V11.21/
+          # GitHub Pages subpaths share an origin: isolate browser records,
+          # anonymous credentials, images, transient states and SW caches.
+          find site/V11.21 -type f \( -name '*.js' -o -name '*.html' \) -print0 |
+            xargs -0 sed -i \
+              -e 's/lexicon-word-collector-v1/lexicon-word-collector-v1121-standalone/g' \
+              -e 's/wc-list-scroll-v1/wc-list-scroll-v1121-standalone/g' \
+              -e 's/word-collector-capture-request-v1/word-collector-capture-request-v1121-standalone/g' \
+              -e 's/word-collector-capture-started-v1/word-collector-capture-started-v1121-standalone/g' \
+              -e 's/wordcollector-photo-store-v1/wordcollector-photo-store-v1121-standalone/g' \
+              -e 's/word-collector-private-auth-v1/word-collector-private-auth-v1121-standalone/g' \
+              -e 's/word-collector-web-tester-session-v1/word-collector-web-tester-session-v1121-standalone/g' \
+              -e 's/word-collector-device-id-v1/word-collector-device-id-v1121-standalone/g' \
+              -e 's/word-collector-tester-auth-v1/word-collector-tester-auth-v1121-standalone/g' \
+              -e 's/wordcollector-public-static-/wordcollector-v1121-static-/g'
+          test -s site/V11.21/index.html
+          grep -Fq "lexicon-word-collector-v1121-standalone" site/V11.21/app.js
+          ! grep -Fq 'lexicon-word-collector-v1' site/V11.21/app.js
+          grep -Fq 'wordcollector-v1121-static-' site/V11.21/sw.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' site/V11.21/analysis-api.js
+          node --check site/V11.21/app.js
+          node --check site/V11.21/data.js
+          node --check site/V11.21/sw.js
+          test -s site/v3/index.html
+          test -s site/v2.3-three-notebooks/index.html
+          test "$(find site/eval -mindepth 1 -maxdepth 1 -type d | wc -l)" = 6
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -259,7 +315,7 @@ jobs:
       - name: Summarize deployment
         shell: bash
         run: |
-          echo "Root: v1 47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"
+          echo "Root: v1 47bb6b5f0b9eb83aa88ffceb2f41c112f7abcb4b"\n          echo "V11.21 webapp: ${{ steps.deployment.outputs.page_url }}V11.21/ (157eee1d9)"
           echo "Word Collector v3 webapp: ${{ steps.deployment.outputs.page_url }}v3/ (4130dddb5)"
           echo "v2.3 3-notebook webapp: ${{ steps.deployment.outputs.page_url }}v2.3-three-notebooks/ (64e12a8f)"
           echo "회로이론_교수님_평가표: ${{ steps.deployment.outputs.page_url }}eval/circuit-theory/ (0d6e634)"
