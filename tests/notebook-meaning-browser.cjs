@@ -31,11 +31,15 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
       await page.goto(base + '/quick_capture/code.html' + query);
       await setupAnalysisClient(page, () => WordCollectorAI.setLocalServer(true));
     }
-    // Fresh install: no notebooks at all (no default 일반 단어장).
+    // Fresh install: only the three chosen notebooks (전력공학, 회로이론, 전기기기), no 일반 단어장.
     await page.goto(base + '/index.html');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
-    assert.equal(await read(), null);
+    assert.equal(await page.locator('[data-subject]:visible').count(), 3);
+    // After deleting every notebook: nothing left (the rest of this test starts here).
+    await page.evaluate(() => localStorage.setItem('lexicon-word-collector-v1', JSON.stringify({courses:{},terms:{},saved:[]})));
+    await page.reload();
+    assert.deepEqual(await read(), {courses:{},terms:{},saved:[]});
     assert.equal(await page.locator('[data-subject]:visible').count(), 0);
     await openInput();
     assert.ok(await page.locator('#btn-dest-existing').isDisabled());
@@ -62,7 +66,7 @@ const {setupAnalysisClient} = require('./browser-client-fixture.cjs');
     assert.equal(sent.at(-1).meaningMode, 'general');
     assert.equal(sent.at(-1).selectedSubject, '영어 단어');
     assert.equal(await page.locator('#review-new-course').inputValue(), '영어 단어');
-    assert.equal(await read(), null, 'nothing is saved before the review is saved');
+    assert.deepEqual(await read(), {courses:{},terms:{},saved:[]}, 'nothing is saved before the review is saved');
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     assert.equal(await page.locator('header h1').textContent(), '영어 단어');

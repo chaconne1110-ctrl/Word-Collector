@@ -26,11 +26,17 @@ function run(initial) {
     memory
   };
 }
-test('fresh installation has no notebooks, words, or bookmarks (no default 일반 단어장)', () => {
+test('fresh installation starts with the three chosen notebooks (전력공학, 회로이론, 전기기기; 24 words each), no bookmarks', () => {
   const app = run();
-  assert.deepEqual(app.state(), {courses:{},terms:{},saved:[]});
-  assert.equal(app.get('Object.keys(allCourses()).length'), 0);
-  assert.equal(app.memory.size, 0);
+  const state = app.state();
+  const names = Object.values(state.courses).map(([name]) => name).sort();
+  assert.deepEqual(names, ['전기기기', '전력공학', '회로이론']);
+  const perNotebook = {};
+  for (const term of Object.values(state.terms)) perNotebook[state.courses[term.course][0]] = (perNotebook[state.courses[term.course][0]] || 0) + 1;
+  assert.deepEqual(perNotebook, {전력공학: 24, 회로이론: 24, 전기기기: 24});
+  assert.deepEqual(state.saved, []);
+  assert.ok(!names.includes('일반 단어장'));
+  assert.equal(app.get('Object.keys(allCourses()).length'), 3);
 });
 test('previously saved data remains untouched on upgrade', () => {
   const saved = {

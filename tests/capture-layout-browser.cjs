@@ -57,9 +57,9 @@ const {createServer}=require('../server/server.cjs');
    await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('lexicon-word-collector-v1'));s.terms={};localStorage.setItem('lexicon-word-collector-v1',JSON.stringify(s));});
    if(width===320 && safe===34){await page.goto(base+'/quick_capture/code.html');await page.screenshot({path:'/tmp/capture-clean-320.png',fullPage:true});}
   }
-  await page.evaluate(()=>localStorage.removeItem('lexicon-word-collector-v1'));
+  await page.evaluate(()=>localStorage.setItem('lexicon-word-collector-v1',JSON.stringify({courses:{},terms:{},saved:[]})));
   await page.goto(base+'/quick_capture/code.html');
-  // Fresh install: no notebooks, so only a new notebook (name required) is possible.
+  // No notebooks left (all deleted): only a new notebook (name required) is possible.
   assert.equal(await page.locator('#no-notebooks').count(), 0);
   assert.ok(await page.locator('#section-dest-new').isVisible());
   assert.ok(await page.locator('#btn-dest-existing').isDisabled());
