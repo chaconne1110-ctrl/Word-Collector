@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createClient}=require('../www/analysis-api.js');
 const token='wc_'+'a'.repeat(64);
-const endpoint='https://word-collector-api.yechan-lim-elec.workers.dev/api/analyze';
+const endpoint='https://word-collector-api-v3.yechan-lim-elec.workers.dev/api/analyze';
 const notebooks=[
   {course:'전력공학',words:[]},
   {course:'반도체공정',words:[]}

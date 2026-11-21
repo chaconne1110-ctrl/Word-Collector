@@ -5,7 +5,7 @@
   // yet answers with the previous model; both results are accepted.
   // 'textbook-glossary': the word was found in the textbook glossary (no Gemini call).
   const ACCEPTED_MODELS = [MODEL, 'gemini-3.5-flash-lite', 'textbook-glossary'];
-  const CLOUD_URL = 'https://word-collector-api.yechan-lim-elec.workers.dev';
+  const CLOUD_URL = 'https://word-collector-api-v3.yechan-lim-elec.workers.dev';
   // Earlier deployed Workers reject user-created manual notebooks and all-empty auto notebooks
   // on the legacy request shape, even though their modern request shape accepts both.
   // The validation error happens before quota reservation. Retry ONLY these two HTTP 400

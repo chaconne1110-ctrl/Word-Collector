@@ -52,7 +52,7 @@ test('Android tester code survives page reloads and is never stored in JS localS
   assert.equal(analysis.en, 'Transformer');
   assert.equal(requests.length, 1);
   assert.equal(requests[0].headers.Authorization, 'Bearer ' + code);
-  assert.equal(requests[0].url, 'https://word-collector-api.yechan-lim-elec.workers.dev/api/analyze');
+  assert.equal(requests[0].url, 'https://word-collector-api-v3.yechan-lim-elec.workers.dev/api/analyze');
 
   page2.setLocalServer(true);
   await page2.request({term: 'Transformer'});

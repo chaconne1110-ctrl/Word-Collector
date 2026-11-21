@@ -3,7 +3,7 @@
 // This is a per-browser credential, not strong human identity; server applies additional IP ceilings.
 (function (root) {
   'use strict';
-  const API = 'https://word-collector-api.yechan-lim-elec.workers.dev';
+  const API = 'https://word-collector-api-v3.yechan-lim-elec.workers.dev';
   const DB_NAME = 'word-collector-private-auth-v1';
   const STORE_NAME = 'credentials';
   const RECORD = 'auto-anonymous-v1';

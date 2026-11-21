@@ -35,7 +35,7 @@ test('iPhone credentials survive reloads through native Keychain and requests us
   const two = client(store, requests);
   assert.equal(await two.restoreTesterToken(), true);
   await two.request({term: 'Transformer'});
-  assert.equal(requests[0].url, 'https://word-collector-api.yechan-lim-elec.workers.dev/api/analyze');
+  assert.equal(requests[0].url, 'https://word-collector-api-v3.yechan-lim-elec.workers.dev/api/analyze');
   assert.equal(requests[0].headers.Authorization, 'Bearer ' + token);
   two.setLocalServer(true);
   await two.request({term: 'Transformer'});

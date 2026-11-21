@@ -8,7 +8,7 @@ test('cloud client uses HTTPS bearer authentication once and never sends tokens 
  assert.throws(()=>createClient({token:'not-a-code'}),/인증 코드/);
  assert.throws(()=>createClient({baseUrl:'https://untrusted.example',token}),/허용되지/);
  const client=createClient({native:true,token,nativeHttp:{request:async opts=>{
-  calls++;assert.equal(opts.url,'https://word-collector-api.yechan-lim-elec.workers.dev/api/analyze');
+  calls++;assert.equal(opts.url,'https://word-collector-api-v3.yechan-lim-elec.workers.dev/api/analyze');
   assert.equal(opts.headers.Authorization,'Bearer '+token);assert.equal(opts.disableRedirects,true);
   return {status:200,data:result};
  }}});
