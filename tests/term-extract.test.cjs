@@ -4,44 +4,38 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {extractCandidates, splitSentences} = require('../www/quick_capture/term-extract.js');
 
-const terms = text => extractCandidates(text).map(candidate => candidate.term);
-const find = (text, term) => extractCandidates(text).find(candidate => candidate.term === term);
+const terms = (text, mode) => extractCandidates(text, mode ? {mode} : undefined).map(candidate => candidate.term);
+const find = (text, term, mode) => extractCandidates(text, mode ? {mode} : undefined).find(candidate => candidate.term === term);
 
-test('common everyday words and grammar words are left out, major terms stay', () => {
-  const found = terms('The engineer measured the impedance and the capacitance of the circuit at a high frequency.');
-  for (const term of ['impedance', 'capacitance', 'circuit', 'frequency', 'engineer']) assert.ok(found.includes(term), term);
-  for (const word of ['the', 'and', 'of', 'at', 'a', 'high']) assert.ok(!found.includes(word), word);
+test('모든 단어 (default): every English word except grammar words', () => {
+  const found = terms('The engineer measured the impedance and the area of the circuit at a high frequency.');
+  for (const term of ['engineer', 'measured', 'impedance', 'area', 'circuit', 'high', 'frequency']) assert.ok(found.includes(term), term);
+  for (const word of ['the', 'and', 'of', 'at', 'a']) assert.ok(!found.includes(word), word);
 });
 
-test('inflected forms of everyday words are everyday too', () => {
-  const found = terms('It causes losses. The area was reduced and the largest values increased quickly.');
-  for (const word of ['causes', 'reduced', 'largest', 'increased', 'quickly', 'values']) assert.ok(!found.includes(word), word);
-  assert.ok(found.includes('losses') || found.includes('loss'));
+test('전공용어 위주: everyday words and their inflected forms are left out too', () => {
+  const text = 'It causes losses. The area was reduced and the largest values increased quickly at high impedance.';
+  const found = terms(text, 'major');
+  for (const word of ['causes', 'reduced', 'largest', 'increased', 'quickly', 'values', 'area', 'high']) assert.ok(!found.includes(word), word);
+  assert.ok(found.includes('impedance') && found.includes('losses'));
+  // The same words are all there in 모든 단어.
+  for (const word of ['causes', 'reduced', 'largest', 'area', 'high', 'impedance']) assert.ok(terms(text).includes(word), word);
 });
 
-test('2–3 word phrases that repeat are recognised, with their count', () => {
-  const text = 'The skin effect matters. The skin effect grows with frequency. ' +
-    'Power factor correction is common. We need power factor correction. The power factor is low.';
-  assert.equal(find(text, 'skin effect').count, 2);
-  assert.equal(find(text, 'skin effect').kind, 'phrase');
-  assert.equal(find(text, 'power factor correction').count, 2);
-  assert.equal(find(text, 'power factor').count, 3);
-  // Once only and made of everyday words: not a phrase candidate.
-  assert.equal(find('The power factor is low.', 'power factor'), undefined);
+test('only single words: no 2–3 word phrases', () => {
+  const text = 'The skin effect matters. The skin effect grows. Power factor correction is common.';
+  for (const mode of ['all', 'major']) {
+    const found = extractCandidates(text, {mode});
+    assert.ok(found.every(candidate => !/\s/.test(candidate.term)), mode + ': ' + found.map(c => c.term));
+  }
+  assert.equal(find(text, 'skin').count, 2);
+  assert.equal(find(text, 'effect').count, 2);
 });
 
-test('a phrase inside a longer phrase with the same count is dropped', () => {
-  const text = 'Power factor correction helps. Power factor correction is cheap.';
-  const found = terms(text);
-  assert.ok(found.includes('power factor correction'));
-  assert.ok(!found.includes('power factor') && !found.includes('factor correction'));
-});
-
-test('phrases never cross punctuation, numbers or grammar words', () => {
-  const found = terms('Use copper, wire and copper; wire. The coil of wire. The coil of wire. Ohm 5 resistor, Ohm 5 resistor.');
-  assert.ok(!found.includes('copper wire'));
-  assert.ok(!found.includes('coil of wire'));
-  assert.ok(!found.includes('ohm resistor'));
+test('contractions, short words and letter runs without a vowel are never candidates', () => {
+  const found = terms("Don't touch it. We can't go. An ox ran by. Tbl xyz rhythm.");
+  for (const word of ["don't", "can't", 'ox', 'by', 'tbl']) assert.ok(!found.includes(word), word);
+  assert.ok(found.includes('touch') && found.includes('rhythm'));
 });
 
 test('words broken by a hyphen at a line end are joined; hyphenated compounds stay whole', () => {
@@ -63,9 +57,8 @@ test('duplicates are merged: case, plural forms and possessives', () => {
   assert.equal(found.length, 1);
   assert.equal(found[0].term, 'transistor');
   assert.equal(found[0].count, 4);
-  const losses = extractCandidates('Core losses heat it. The core loss is measured. Core losses again.')
-    .filter(candidate => candidate.kind === 'phrase');
-  assert.deepEqual(losses.map(candidate => [candidate.term, candidate.count]), [['core loss', 3]]);
+  assert.equal(find('Batteries die. A battery lasts. Boxes and a box.', 'battery').count, 2);
+  assert.equal(find('Batteries die. A battery lasts. Boxes and a box.', 'box').count, 2);
 });
 
 test('acronyms keep capitals; names keep a capital only when written with one mid-sentence', () => {
@@ -85,17 +78,16 @@ test('each candidate keeps the first sentence it appears in (≤ 600 characters,
   assert.ok(candidate.sentence.includes('hysteresis'));
 });
 
-test('links, e-mail addresses, noise without vowels and Korean text give no candidates', () => {
-  const found = terms('See https://example.com/impedance or me@example.com. Tbl rhythm 전류와 전압.');
-  assert.deepEqual(found, ['rhythm']);
+test('links, e-mail addresses and Korean text give no candidates', () => {
+  assert.deepEqual(terms('See https://example.com/impedance or me@example.com. 전류와 전압.'), ['see']);
   assert.deepEqual(extractCandidates(''), []);
   assert.deepEqual(extractCandidates(null), []);
 });
 
-test('candidates are sorted by count, phrases first on ties', () => {
-  const list = extractCandidates('Skin effect and inductance. Skin effect again. Inductance again. Rotor.');
+test('candidates are sorted by count, then alphabetically', () => {
+  const list = extractCandidates('Rotor and stator. Stator again. Stator here. Rotor too.');
   assert.deepEqual(list.map(candidate => [candidate.term, candidate.count]),
-    [['skin effect', 2], ['effect', 2], ['inductance', 2], ['rotor', 1]]);
+    [['stator', 3], ['rotor', 2], ['again', 1]]);   // "here", "and", "too" are grammar words
 });
 
 test('the scan page keeps the file local: no upload, no storage of the full text', () => {
@@ -103,7 +95,9 @@ test('the scan page keeps the file local: no upload, no storage of the full text
   assert.doesNotMatch(scan, /fetch\(|XMLHttpRequest|localStorage/);
   assert.match(scan, /cacheMethod: 'none'/);
   // Only the picked words and their sentences are handed to the input page.
-  assert.match(scan, /words = \[\.\.\.selected\][\s\S]*term: candidates\[index\]\.term[\s\S]*sentence: candidates\[index\]\.sentence/);
+  assert.match(scan, /const words = \[\.\.\.selected\.values\(\)\]\.map\(pick => \(\{\s*term: pick\.term\.slice\(0, 120\),\s*sentence: pick\.sentence\.slice\(0, 600\)\s*\}\)\)/);
+  // OCR keeps only confidently recognised words.
+  assert.match(scan, /MIN_WORD_CONFIDENCE = 85/);
   for (const file of ['quick_capture/scan.html', 'quick_capture/scan.js', 'quick_capture/term-extract.js', 'licenses.html']) {
     assert.match(fs.readFileSync('www/sw.js', 'utf8'), new RegExp('"' + file.replace('.', '\\.') + '",'));
   }

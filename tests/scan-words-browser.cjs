@@ -73,10 +73,25 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await readPage(1);
     await page.locator('#candidate-card').waitFor({state: 'visible'});
     let terms = await candidateTerms();
-    for (const term of ['skin effect', 'conductor', 'resistance', 'capacitors']) assert.ok(terms.includes(term), `${term} in ${terms}`);
-    for (const common of ['the', 'high', 'increases', 'area', 'uses']) assert.ok(!terms.includes(common), `${common} is excluded`);
+    // 모든 단어 (default): every English word except grammar words, one word per candidate.
+    assert.equal(await page.locator('#mode-all').getAttribute('aria-pressed'), 'true');
+    for (const term of ['skin', 'effect', 'conductor', 'resistance', 'capacitors', 'high', 'increases', 'area', 'uses']) {
+      assert.ok(terms.includes(term), `${term} in ${terms}`);
+    }
+    for (const grammar of ['the', 'of', 'at']) assert.ok(!terms.includes(grammar), grammar + ' is a grammar word');
+    assert.ok(terms.every(term => !/\s/.test(term)), 'no phrases: ' + terms);
+    // 전공용어 위주: everyday words go; a word picked before switching stays picked.
+    await pick('area');
+    await page.locator('#mode-major').click();
+    terms = await candidateTerms();
+    for (const common of ['high', 'increases', 'area', 'uses']) assert.ok(!terms.includes(common), common + ' left out in 전공용어 위주');
+    assert.ok(terms.includes('conductor') && terms.includes('resistance'));
+    assert.match(await page.locator('#candidate-title').textContent(), /1개 선택/);
+    await page.locator('#mode-all').click();
+    assert.equal(await row('area').locator('input').isChecked(), true);
+    await page.locator('#clear-selection').click();
     assert.equal(ocrCalls, 0, 'a text PDF is not sent to OCR');
-    assert.equal(await row('skin effect').locator('.cand-count').textContent(), '2회');
+    assert.equal(await row('skin').locator('.cand-count').textContent(), '2회');
     await noSideScroll('scan 390');
 
     // 1b. Several pages: only the one page entered is read, any page of the PDF.
@@ -86,13 +101,13 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await readPage(2);
     await page.locator('#candidate-card').waitFor({state: 'visible'});
     terms = await candidateTerms();
-    assert.ok(terms.includes('hysteresis loop'), 'page 2: ' + terms);
-    assert.ok(!terms.includes('armature winding') && !terms.includes('skin effect'), 'other pages are not read: ' + terms);
+    assert.ok(terms.includes('hysteresis'), 'page 2: ' + terms);
+    assert.ok(!terms.includes('armature') && !terms.includes('skin'), 'other pages are not read: ' + terms);
     assert.match(await page.locator('#scan-status').textContent(), /2쪽을 읽었어요/);
     await readPage(3);
     await page.waitForFunction(() => /3쪽을 읽었어요/.test(document.getElementById('scan-status').textContent));
     terms = await candidateTerms();
-    assert.ok(terms.includes('armature winding') && !terms.includes('hysteresis loop'), 'page 3 replaces page 2: ' + terms);
+    assert.ok(terms.includes('armature') && !terms.includes('hysteresis'), 'page 3 replaces page 2: ' + terms);
     // The number box only takes one number (no ranges); out-of-range, decimal or empty is refused.
     for (const wrong of ['4', '0', '2.5', '']) {
       await readPage(wrong);
@@ -123,7 +138,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await readPage(1);
     await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
     terms = await candidateTerms();
-    assert.ok(terms.includes('skin effect') && terms.includes('conductor'), 'OCR of scanned page: ' + terms);
+    assert.ok(terms.includes('skin') && terms.includes('conductor'), 'OCR of scanned page: ' + terms);
     assert.match(await page.locator('#scan-status').textContent(), /1쪽을 읽었어요\. \(스캔한 쪽이라 글자 인식/);
 
     // 4b. Phone-like photo of a Korean textbook page with English sentences (real OCR):
@@ -135,7 +150,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.locator('#read-photo').click();
     await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
     terms = await candidateTerms();
-    for (const term of ['impedance', 'reactance', 'resonance', 'power factor', 'capacitive', 'inductive']) {
+    for (const term of ['impedance', 'reactance', 'resonance', 'power', 'factor', 'capacitive', 'inductive']) {
       assert.ok(terms.includes(term), `${term} found in mixed photo: ${terms}`);
     }
     const madeUp = terms.filter(term => !term.toLowerCase().split(' ').every(word => ENGLISH_ON_PAGE.includes(word)));
@@ -154,13 +169,13 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.locator('#read-photo').click();
     await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
     terms = await candidateTerms();
-    assert.ok(terms.includes('skin effect') && terms.includes('resistance'), 'OCR of photo: ' + terms);
+    assert.ok(terms.includes('skin') && terms.includes('resistance'), 'OCR of photo: ' + terms);
     if (SHOTS) await page.screenshot({path: path.join(SHOTS, 'scan-390.png')});
 
     // Filter and pick two words.
-    await page.locator('#candidate-filter').fill('skin');
-    assert.deepEqual(await candidateTerms(), ['skin effect']);
-    await pick('skin effect');
+    await page.locator('#candidate-filter').fill('ski');
+    assert.deepEqual(await candidateTerms(), ['skin']);
+    await pick('skin');
     await page.locator('#candidate-filter').fill('');
     await pick('resistance');
     assert.match(await page.locator('#candidate-title').textContent(), /2개 선택/);
@@ -171,7 +186,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     // Input page: the picked words replace card 1; 전공 모름 is chosen; notebook as usual.
     await page.locator('#scan-selection-card').waitFor({state: 'visible'});
     assert.equal(await page.locator('#term-card').isVisible(), false);
-    assert.deepEqual(await page.locator('#scan-selection-list li p.font-semibold').allTextContents(), ['skin effect', 'resistance']);
+    assert.deepEqual(await page.locator('#scan-selection-list li p.font-semibold').allTextContents(), ['skin', 'resistance']);
     assert.equal(await page.locator('#btn-meaning-context').getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('#context-sentence-input').isVisible(), false);
     assert.match(await page.locator('#submit-btn-text').textContent(), /2개/);
@@ -188,7 +203,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.locator('#analysis-review').waitFor({state: 'visible'});
     assert.match(await page.locator('#analysis-review h2').textContent(), /\(1\/2\)/);
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].word, 'skin effect');
+    assert.equal(requests[0].word, 'skin');
     assert.equal(requests[0].meaningMode, 'context');
     assert.equal(requests[0].referenceText, 'The skin effect increases the resistance of the conductor.');
     assert.equal(await page.locator('#batch-skip').isVisible(), true);
@@ -205,7 +220,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.waitForURL('**/words.html?**');
 
     const words = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms));
-    assert.deepEqual(words.map(word => word.en).sort(), ['resistance', 'skin effect']);
+    assert.deepEqual(words.map(word => word.en).sort(), ['resistance', 'skin']);
     assert.ok(words.every(word => word.course === 'test' && /conductor/.test(word.referenceSentence)));
     assert.equal(await page.evaluate(() => sessionStorage.getItem('word-collector-scan-selection-v1')), null);
 

@@ -1,15 +1,15 @@
-// PDF·사진에서 단어 찾기: finds major-term candidates in English text read from a
+// PDF·사진에서 단어 찾기: finds single-word candidates in English text read from a
 // PDF or a photo (OCR). Runs in the browser (scan.js) and in Node unit tests.
+//   - mode 'all' (모든 단어, the default): every English word except grammar words
+//   - mode 'major' (전공용어 위주): common everyday English is left out as well
 //   - joins words broken by a hyphen at a line end ("induc-\ntance" → "inductance")
-//   - single words that are not common everyday English (common words are left out)
-//   - 2–3 word phrases (e.g. "skin effect", "power factor") that appear at least twice
-//   - plural/singular forms are merged, a phrase inside a longer phrase with the same
-//     count is dropped, and each candidate keeps the first sentence it appears in
+//   - plural/singular forms are merged; each candidate keeps its count and the first
+//     sentence it appears in
 // Nothing here is stored: the caller keeps only the words the user picks and their sentences.
 (function(root) {
   'use strict';
 
-  // Grammar words: never start, end or sit inside a phrase, never a candidate.
+  // Grammar words (articles, pronouns, prepositions, auxiliaries…): never a candidate.
   const FUNCTION_WORDS = new Set(`a an the and or nor but if then else than so as at by for from in into of on onto
     off out over under to up down with within without about above below across after before behind between
     beyond during except inside near outside past since through throughout toward towards until upon via per
@@ -135,48 +135,37 @@
   }
 
   function singularKey(key, keys) {
-    const last = key.split(' ').pop();
-    const head = key.slice(0, key.length - last.length);
     const forms = [];
-    if (/ies$/.test(last)) forms.push(last.slice(0, -3) + 'y');
-    if (/(?:s|x|z|ch|sh)es$/.test(last)) forms.push(last.slice(0, -2));
-    if (/[^s]s$/.test(last)) forms.push(last.slice(0, -1));
-    for (const form of forms) if (keys.has(head + form)) return head + form;
-    return key;
+    if (/ies$/.test(key)) forms.push(key.slice(0, -3) + 'y');
+    if (/(?:s|x|z|ch|sh)es$/.test(key)) forms.push(key.slice(0, -2));
+    if (/[^s]s$/.test(key)) forms.push(key.slice(0, -1));
+    return forms.find(form => keys.has(form)) || key;
   }
 
-  function extractCandidates(text, {minPhraseCount = 2} = {}) {
-    const found = new Map();   // key → {term forms, count, sentence, kind, words}
-    const add = (key, surface, sentence, kind, size, first = false) => {
-      let entry = found.get(key);
-      if (!entry) found.set(key, entry = {key, forms: new Map(), count: 0, sentence: '', kind, size, lowerSeen: false, midCapital: false});
-      entry.count++;
-      if (/^[a-z]/.test(surface)) entry.lowerSeen = true;
-      else if (!first) entry.midCapital = true;
-      entry.forms.set(surface, (entry.forms.get(surface) || 0) + 1);
-      if (!entry.sentence) entry.sentence = sentence;
-    };
+  // Which words can be candidates. Both modes leave out grammar words, contractions
+  // ("don't"), words shorter than 3 letters and letter runs without a vowel (OCR noise);
+  // acronyms ("RLC", "MOSFETs") are kept. 'major' also leaves out everyday English.
+  function isCandidate(surface, lower, mode) {
+    if (isAcronym(surface)) return !FUNCTION_WORDS.has(lower);
+    if (lower.length < 3 || !hasVowel(lower) || /['’]/.test(lower)) return false;
+    if (lower.split(/[-‐‑]/).every(part => FUNCTION_WORDS.has(part))) return false;
+    return mode === 'major' ? !isEveryday(lower) : true;
+  }
+
+  function extractCandidates(text, {mode = 'all'} = {}) {
+    const found = new Map();   // key → {forms, count, sentence, lowerSeen, midCapital}
     for (const sentence of splitSentences(text)) {
-      const tokens = [...sentence.matchAll(WORD)].map(match => ({
-        surface: match[0].replace(/['’]s$/i, ''),
-        lower: match[0].replace(/['’]s$/i, '').toLowerCase(),
-        index: match.index
-      }));
-      // A phrase never spans punctuation, digits or symbols between its words.
-      const joined = (a, b) => /^[\s-]*$/.test(sentence.slice(a.index + a.surface.length, b.index).replace(/['’]s/i, ''));
-      tokens.forEach((token, i) => {
-        const {surface, lower} = token;
-        if (isAcronym(surface) ? !FUNCTION_WORDS.has(lower) : lower.length >= 3 && hasVowel(lower) && !isEveryday(lower)) {
-          add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 'word', 1, i === 0);
-        }
-        for (let size = 2; size <= 3; size++) {
-          const words = tokens.slice(i, i + size);
-          if (words.length < size) break;
-          if (words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2)) break;
-          if (words.slice(1).some((word, k) => !joined(words[k], word))) break;
-          if (!words.some(word => word.lower.length >= 3)) continue;
-          add(words.map(word => word.lower).join(' '), words.map(word => word.surface).join(' '), sentence, 'phrase', size);
-        }
+      [...sentence.matchAll(WORD)].forEach((match, i) => {
+        const surface = match[0].replace(/['’]s$/i, '');
+        const lower = surface.toLowerCase();
+        if (!isCandidate(surface, lower, mode)) return;
+        const key = isAcronym(surface) ? surface.replace(/s$/, '') : lower;
+        let entry = found.get(key);
+        if (!entry) found.set(key, entry = {key, forms: new Map(), count: 0, sentence, lowerSeen: false, midCapital: false});
+        entry.count++;
+        if (/^[a-z]/.test(surface)) entry.lowerSeen = true;
+        else if (i > 0) entry.midCapital = true;
+        entry.forms.set(surface, (entry.forms.get(surface) || 0) + 1);
       });
     }
     // Merge plural forms into the singular form when both appear.
@@ -191,21 +180,14 @@
       for (const [form, n] of entry.forms) base.forms.set(form, (base.forms.get(form) || 0) + n);
       found.delete(key);
     }
-    let candidates = [...found.values()].filter(entry => entry.kind === 'word' || entry.count >= minPhraseCount);
-    // "power factor" inside "power factor correction" with the same count is the same use.
-    const phrases = candidates.filter(entry => entry.kind === 'phrase');
-    candidates = candidates.filter(entry => entry.kind === 'word' || !phrases.some(other =>
-      other.size > entry.size && other.count === entry.count && (' ' + other.key + ' ').includes(' ' + entry.key + ' ')));
-    return candidates.map(entry => {
+    return [...found.values()].map(entry => {
       // Keep capitals only for acronyms, or names written with a capital every time
       // (also in the middle of a sentence, e.g. "Faraday").
       const forms = [...entry.forms.keys()];
-      const name = entry.kind === 'word' && !entry.lowerSeen && entry.midCapital;
-      const term = entry.kind === 'word' && isAcronym(forms[0]) ? entry.key :
-        name ? entry.key[0].toUpperCase() + entry.key.slice(1) : entry.key;
-      return {term, count: entry.count, kind: entry.kind, sentence: sentenceAround(entry.sentence, forms[0])};
-    }).sort((a, b) => b.count - a.count || (a.kind === b.kind ? 0 : a.kind === 'phrase' ? -1 : 1) ||
-      a.term.localeCompare(b.term));
+      const name = !entry.lowerSeen && entry.midCapital;
+      const term = isAcronym(forms[0]) ? entry.key : name ? entry.key[0].toUpperCase() + entry.key.slice(1) : entry.key;
+      return {term, count: entry.count, sentence: sentenceAround(entry.sentence, forms[0])};
+    }).sort((a, b) => b.count - a.count || a.term.localeCompare(b.term));
   }
 
   const api = {extractCandidates, splitSentences, normalizeText, FUNCTION_WORDS, COMMON_WORDS};

@@ -344,44 +344,60 @@
   }
 
   // ---- 후보 단어 ------------------------------------------------------------------
+  // 모든 단어 (default) or 전공용어 위주. The read text stays in memory only while this
+  // page is open so the list can switch without reading the file again.
   let candidates = [];
-  const selected = new Set();   // candidate index
+  let readText = '';
+  let candidateMode = 'all';
+  const selected = new Map();   // term → {term, sentence}; kept when the mode switches
   function hideCandidates() {
     candidates = [];
+    readText = '';
     selected.clear();
     candidateList.replaceChildren();
     candidateCard.hidden = true;
     actionBar.hidden = true;
   }
+  function setCandidateMode(mode) {
+    candidateMode = mode;
+    for (const [id, value] of [['mode-all', 'all'], ['mode-major', 'major']]) {
+      $('#' + id).setAttribute('aria-pressed', String(value === mode));
+    }
+    candidates = WordCollectorTermExtract.extractCandidates(readText, {mode});
+    renderCandidates();
+  }
+  $('#mode-all').addEventListener('click', () => setCandidateMode('all'));
+  $('#mode-major').addEventListener('click', () => setCandidateMode('major'));
   function showResult(text, notes) {
-    candidates = WordCollectorTermExtract.extractCandidates(text);
+    readText = text;
     selected.clear();
     filterInput.value = '';
+    candidates = WordCollectorTermExtract.extractCandidates(text, {mode: 'all'});
     if (!candidates.length) {
       hideCandidates();
       setStatus([...notes, letterCount(text) ?
-        '전공 용어 후보를 찾지 못했어요. 영어 문장이 있는 다른 쪽이나 사진으로 시도해 주세요.' :
+        '단어 후보를 찾지 못했어요. 영어 문장이 있는 다른 쪽이나 사진으로 시도해 주세요.' :
         '영어 글자를 찾지 못했어요. 글자가 선명하게 보이는 사진이나 PDF로 다시 시도해 주세요.'].join('\n'), 'error');
       return;
     }
     setStatus(notes.join('\n'));
-    renderCandidates();
+    setCandidateMode(candidateMode);
     candidateCard.hidden = false;
     actionBar.hidden = false;
     candidateCard.scrollIntoView({block: 'start'});
   }
   function renderCandidates() {
     const query = filterInput.value.trim().toLowerCase();
-    candidateList.replaceChildren(...candidates.map((candidate, index) => {
+    candidateList.replaceChildren(...candidates.map(candidate => {
       if (query && !candidate.term.toLowerCase().includes(query)) return null;
       const item = document.createElement('li');
       const label = document.createElement('label');
       const box = document.createElement('input');
       box.type = 'checkbox';
-      box.value = String(index);
-      box.checked = selected.has(index);
+      box.value = candidate.term;
+      box.checked = selected.has(candidate.term);
       box.addEventListener('change', () => {
-        if (box.checked) selected.add(index); else selected.delete(index);
+        if (box.checked) selected.set(candidate.term, candidate); else selected.delete(candidate.term);
         updateSelection();
       });
       const body = document.createElement('span');
@@ -416,7 +432,10 @@
   }
   filterInput.addEventListener('input', renderCandidates);
   $('#select-visible').addEventListener('click', () => {
-    candidateList.querySelectorAll('input').forEach(box => { box.checked = true; selected.add(Number(box.value)); });
+    candidateList.querySelectorAll('input').forEach(box => {
+      box.checked = true;
+      selected.set(box.value, candidates.find(candidate => candidate.term === box.value));
+    });
     updateSelection();
   });
   $('#clear-selection').addEventListener('click', () => {
@@ -428,9 +447,10 @@
   // The picked words go back to the input page, which keeps 의미 기준 and 단어장 as usual.
   continueButton.addEventListener('click', () => {
     if (!selected.size) return;
-    const words = [...selected].sort((a, b) => a - b).map(index => ({
-      term: candidates[index].term.slice(0, 120),
-      sentence: candidates[index].sentence.slice(0, 600)
+    // In the order they were picked: only each word and its sentence leave this page.
+    const words = [...selected.values()].map(pick => ({
+      term: pick.term.slice(0, 120),
+      sentence: pick.sentence.slice(0, 600)
     }));
     try {
       sessionStorage.setItem(SCAN_SELECTION_KEY, JSON.stringify({id: crypto.randomUUID(), words, createdAt: Date.now()}));

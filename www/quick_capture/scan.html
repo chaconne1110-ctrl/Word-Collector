@@ -34,6 +34,9 @@
   .scan-page-row button { flex: 0 0 auto; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; padding: 0 14px; white-space: nowrap; }
   #scan-progress-bar { width: 100%; height: 10px; accent-color: #00236f; }
   #scan-progress-text { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+  .cand-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 10px; background: #e2e7ff; }
+  .cand-mode button { min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #44464f; white-space: nowrap; }
+  .cand-mode button[aria-pressed=true] { background: #00236f; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
   .cand-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
   .cand-tools input[type=search] { flex: 1 1 auto; min-width: 0; height: 40px; border-radius: 8px; background: #f2f3ff; padding: 0 10px; border: 1px solid rgba(197,197,211,.3); font-size: 14px; }
   .cand-tools button { flex: 0 0 auto; height: 40px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
@@ -103,6 +106,10 @@
 
 <section class="scan-card" id="candidate-card" hidden>
   <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">checklist</span><span id="candidate-title">찾은 단어</span></h2>
+  <div class="cand-mode" role="group" aria-label="후보 기준">
+    <button type="button" id="mode-all" aria-pressed="true">모든 단어</button>
+    <button type="button" id="mode-major" aria-pressed="false">전공용어 위주</button>
+  </div>
   <div class="cand-tools">
     <input type="search" id="candidate-filter" placeholder="후보에서 찾기" aria-label="후보에서 찾기" autocomplete="off">
     <button type="button" class="btn-tonal" id="select-visible">모두 선택</button>
