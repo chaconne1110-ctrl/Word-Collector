@@ -1,5 +1,6 @@
 name: Deploy Word Collector 7 existing apps plus v2.3 three-notebook webapp
 
+# Requested 2026-11-22: the six evaluation apps now call the v3 analysis server (word-collector-api-v3); their screens and words are unchanged. Root and v2.3 variant unchanged.
 # Re-publish requested 2026-11-20: power-engineering evaluation URL; keep all other snapshots unchanged.
 # Requested 2026-11-20: deploy newest v1 as root plus six most recently uploaded evaluation branches.
 # Site root: verified v1 commit (adds word-list scroll restoration). Each evaluation form
@@ -40,37 +41,37 @@ jobs:
       - name: Checkout evaluation app circuit-theory (회로이론_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: '0d6e634c7b30e5b23c398506e02a0dfc7fe64448'
+          ref: '06903b7842ea6cdb1f90664049824ceffc873aaf'
           path: eval-src/circuit-theory
           persist-credentials: false
       - name: Checkout evaluation app electric-machines (전기기기_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: '7c8531e0fd47a33b13dc70e20bf0d21acbe159b0'
+          ref: '59815dedb19e95540c11b25df0928f40daa7c371'
           path: eval-src/electric-machines
           persist-credentials: false
       - name: Checkout evaluation app electrical-safety (전기안전공학_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: 'd4afae90cc386413b42b1190f60dda048f97b637'
+          ref: '7abb723b42e62797fa36419ab1857cbf72b9c06c'
           path: eval-src/electrical-safety
           persist-credentials: false
       - name: Checkout evaluation app electromagnetics (전기자기학_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: '00376d3701fc3b8a54c59ab19ba6f7954af7f607'
+          ref: 'f17b885dd83cfd7f25e3a47794343f34342bf261'
           path: eval-src/electromagnetics
           persist-credentials: false
       - name: Checkout evaluation app power-engineering (전력공학_교수님_평가표)
         uses: actions/checkout@v4
         with:
-          ref: '5511dd5059f46005c9e0fb3188df7e8013dba924'
+          ref: 'c9e918f641b1064cee802ef051eeac227c2a6aeb'
           path: eval-src/power-engineering
           persist-credentials: false
       - name: Checkout evaluation app additional-experts (Word_Collector_추가_전문가_평가표)
         uses: actions/checkout@v4
         with:
-          ref: 'edde7eb6e0aa61b537e342b614b73f405291f11e'
+          ref: '6b8feb2c4a77b1675ea5de29467d7cc6899738cd'
           path: eval-src/additional-experts
           persist-credentials: false
 
@@ -92,22 +93,22 @@ jobs:
           test -s www/sw.js
           grep -q 'id="analysis-action-bar"' www/quick_capture/code.html
           ! grep -q 'id="tester-token"' www/quick_capture/code.html
-          test "$(git -C eval-src/circuit-theory rev-parse HEAD)" = "0d6e634c7b30e5b23c398506e02a0dfc7fe64448"
+          test "$(git -C eval-src/circuit-theory rev-parse HEAD)" = "06903b7842ea6cdb1f90664049824ceffc873aaf"
           grep -q "lexicon-word-collector-v1-eval-circuit-theory" eval-src/circuit-theory/www/app.js
           node --check eval-src/circuit-theory/www/data.js
-          test "$(git -C eval-src/electric-machines rev-parse HEAD)" = "7c8531e0fd47a33b13dc70e20bf0d21acbe159b0"
+          test "$(git -C eval-src/electric-machines rev-parse HEAD)" = "59815dedb19e95540c11b25df0928f40daa7c371"
           grep -q "lexicon-word-collector-v1-eval-electric-machines" eval-src/electric-machines/www/app.js
           node --check eval-src/electric-machines/www/data.js
-          test "$(git -C eval-src/electrical-safety rev-parse HEAD)" = "d4afae90cc386413b42b1190f60dda048f97b637"
+          test "$(git -C eval-src/electrical-safety rev-parse HEAD)" = "7abb723b42e62797fa36419ab1857cbf72b9c06c"
           grep -q "lexicon-word-collector-v1-eval-electrical-safety" eval-src/electrical-safety/www/app.js
           node --check eval-src/electrical-safety/www/data.js
-          test "$(git -C eval-src/electromagnetics rev-parse HEAD)" = "00376d3701fc3b8a54c59ab19ba6f7954af7f607"
+          test "$(git -C eval-src/electromagnetics rev-parse HEAD)" = "f17b885dd83cfd7f25e3a47794343f34342bf261"
           grep -q "lexicon-word-collector-v1-eval-electromagnetics" eval-src/electromagnetics/www/app.js
           node --check eval-src/electromagnetics/www/data.js
-          test "$(git -C eval-src/power-engineering rev-parse HEAD)" = "5511dd5059f46005c9e0fb3188df7e8013dba924"
+          test "$(git -C eval-src/power-engineering rev-parse HEAD)" = "c9e918f641b1064cee802ef051eeac227c2a6aeb"
           grep -q "lexicon-word-collector-v1-eval-power-engineering" eval-src/power-engineering/www/app.js
           node --check eval-src/power-engineering/www/data.js
-          test "$(git -C eval-src/additional-experts rev-parse HEAD)" = "edde7eb6e0aa61b537e342b614b73f405291f11e"
+          test "$(git -C eval-src/additional-experts rev-parse HEAD)" = "6b8feb2c4a77b1675ea5de29467d7cc6899738cd"
           grep -q "lexicon-word-collector-v1-eval-additional-experts" eval-src/additional-experts/www/app.js
           node --check eval-src/additional-experts/www/data.js
           test "$(git -C variant-src/v23-three rev-parse HEAD)" = "64e12a8fd05f0194f5a3ac6928745e0e2fc098a6"
