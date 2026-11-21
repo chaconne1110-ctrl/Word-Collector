@@ -16,9 +16,15 @@ test('Android displays branded launcher icon and launch background', () => {
  const manifest=read('android/app/src/main/AndroidManifest.xml').toString();
  const styles=read('android/app/src/main/res/values/styles.xml').toString();
  const launch=read('android/app/src/main/res/drawable/wordcollector_launch_screen.xml').toString();
- assert.match(manifest,/android:icon="@drawable\/wordcollector_app_icon"/);
+ assert.match(manifest,/android:icon="@mipmap\/ic_launcher"/);
+ assert.match(manifest,/android:roundIcon="@mipmap\/ic_launcher_round"/);
  assert.match(styles,/wordcollector_launch_screen/);
  assert.match(launch,/wordcollector_startup_logo/);
+ assert.match(read('android/app/src/main/res/drawable/splash.xml').toString(), /wordcollector_launch_screen/);
+ const resources=path.join(root,'android/app/src/main/res');
+ for (const folder of fs.readdirSync(resources)) {
+   assert.equal(fs.existsSync(path.join(resources,folder,'splash.png')),false,`template splash remains in ${folder}`);
+ }
 });
 test('Web app uses new app icon and original-text start image', () => {
  const home=read('www/index.html').toString();

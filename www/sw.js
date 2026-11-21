@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261122-v3.2-seed-saved';
+const CACHE_NAME = PREFIX + '20261122-v3.3-new-logo';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -48,6 +48,7 @@ const APP_SHELL = [
   "export.html",
   "flashcard.html",
   "icons/apple-touch-icon.png",
+  "icons/icon-maskable.png",
   "icons/wordcollector-app-icon.webp",
   "assets/images/wordcollector-startup-logo.webp",
   "icons/icon.svg",

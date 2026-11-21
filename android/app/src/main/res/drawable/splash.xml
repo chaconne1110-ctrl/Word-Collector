@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Also brand any fallback that requests Capacitor's default splash name. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/wordcollector_launch_screen"/>
+</layer-list>
