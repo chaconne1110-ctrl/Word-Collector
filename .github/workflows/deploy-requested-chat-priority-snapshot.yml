@@ -1,5 +1,6 @@
 name: Deploy Word Collector existing webapps and isolated v3
 
+# Requested 2026-11-22: /v3/ now serves v3.4 (1e22ce9: new logo, three first-run notebooks, review order, backup fix); same v3-standalone storage keys and cache prefix. Root, six evaluation apps and v2.3 variant unchanged.
 # Requested 2026-11-22: the six evaluation apps now call the v3 analysis server (word-collector-api-v3); their screens and words are unchanged. Root and v2.3 variant unchanged.
 # Re-publish requested 2026-11-20: power-engineering evaluation URL; keep all other snapshots unchanged.
 # Requested 2026-11-20: deploy newest v1 as root plus six most recently uploaded evaluation branches.
@@ -85,7 +86,7 @@ jobs:
       - name: Checkout pinned Word Collector v3 source
         uses: actions/checkout@v4
         with:
-          ref: '4130dddb5680f29caba68eafa4902f2e267e0942'
+          ref: '1e22ce9780a5dedb566c5af6f0925b7d85666464'
           path: variant-src/v3
           persist-credentials: false
 
@@ -124,7 +125,7 @@ jobs:
           node --check variant-src/v23-three/www/app.js
           node --check variant-src/v23-three/www/analysis-api.js
           node --check variant-src/v23-three/android-seeds/three-notebooks-data.js
-          test "$(git -C variant-src/v3 rev-parse HEAD)" = "4130dddb5680f29caba68eafa4902f2e267e0942"
+          test "$(git -C variant-src/v3 rev-parse HEAD)" = "1e22ce9780a5dedb566c5af6f0925b7d85666464"
           test -s variant-src/v3/www/index.html
           node --check variant-src/v3/www/app.js
           node --check variant-src/v3/www/analysis-api.js
