@@ -45,6 +45,18 @@ const {createServer} = require('../server/server.cjs');
     assert.ok((await page.locator('#review-reference-sentence').textContent()).includes(reference));
     assert.equal(await page.locator('[name=exampleKo]').inputValue(),translation);
     assert.equal(await page.locator('[name=referenceTranslation]').isVisible(),false);
+    // On-screen order: 단어|품사, 한국어 뜻, 영어/한국어 정의, 영어/한국어 예문, 관련 단어, 전공, 단어장, then the reference sentence.
+    const order = await page.evaluate(() => {
+      const form = document.getElementById('analysis-review');
+      const all = [...form.querySelectorAll('*')];
+      const at = el => all.indexOf(el);
+      const field = name => at(form.elements[name]);
+      return [field('en'), field('pos'), field('ko'), field('enDef'), field('koDef'), field('exampleEn'), field('exampleKo'),
+        field('related'), field('discipline'), at(document.getElementById('review-course')),
+        at(document.getElementById('review-reference-sentence'))];
+    });
+    assert.ok(order.every(i => i >= 0), JSON.stringify(order));
+    assert.deepEqual(order, [...order].sort((x, y) => x - y), 'review order ' + JSON.stringify(order));
     const corrected = translation+'\n직접 검수한 해석입니다.';
     await page.locator('[name=exampleKo]').fill(corrected);
     await page.locator('#save-action-btn').click();

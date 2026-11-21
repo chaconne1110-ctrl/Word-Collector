@@ -14,9 +14,9 @@ test('definitions and explanation are written for high-school students (both ser
   }
 });
 
-test('review shows 전공, 단어장, 단어, 한국어 뜻, 영어 정의, 한국어 정의, 영어 예문, 한국어 예문 first; no pictures', () => {
+test('review shows 단어, 한국어 뜻, 영어/한국어 정의, 영어/한국어 예문, 관련 단어, then 전공 and 단어장; no pictures', () => {
   const js = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
-  const order = ['discipline', 'en', 'ko', 'enDef', 'koDef', 'exampleEn', 'exampleKo'];
+  const order = ['en', 'ko', 'enDef', 'koDef', 'exampleEn', 'exampleKo', 'pos', 'related', 'discipline'];
   const block = js.slice(js.indexOf('const resultFields = {'), js.indexOf('};', js.indexOf('const resultFields = {')));
   const keys = [...block.matchAll(/^\s+(\w+): '/gm)].map(m => m[1]);
   assert.deepEqual(keys.slice(0, order.length), order);
@@ -29,7 +29,7 @@ test('review shows 전공, 단어장, 단어, 한국어 뜻, 영어 정의, 한�
   const top = html.indexOf('id="review-fields-top"');
   const course = html.indexOf('id="review-course-row"');
   const rest = html.indexOf('id="review-fields"');
-  assert.ok(top > 0 && course > top && rest > course, '전공 -> 단어장 -> 나머지');
+  assert.ok(rest > 0 && top > rest && course > top, '나머지 -> 전공 -> 단어장');
   assert.match(html, /<section id="diagram-review" hidden>/);
   assert.doesNotMatch(html, /photo-review|<img/);
 });

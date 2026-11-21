@@ -88,9 +88,9 @@ newCourseInput.addEventListener('input', () => {
   updateReviewTarget();
 });
 const inputControls = [];
-// Display order of the review (전공 is shown above the 단어장 select).
+// Display order of the review: 단어|품사, 한국어 뜻, 영어/한국어 정의, 영어/한국어 예문,
+// 관련 단어, then 전공 and the 단어장 select, then the reference sentence and its translation.
 const resultFields = {
-  discipline: '전공',
   en: '단어',
   ko: '한국어 뜻',
   enDef: '영어 정의',
@@ -99,6 +99,7 @@ const resultFields = {
   exampleKo: '한국어 예문',
   pos: '품사',
   related: '관련 단어',
+  discipline: '전공',
   referenceTranslation: '참고 문장 해석'
 };
 let draft;
@@ -110,7 +111,7 @@ const referencePreview = document.createElement('p');
 referencePreview.id = 'review-reference-sentence';
 referencePreview.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere';
 referencePreview.hidden = true;
-$('#review-fields').before(referencePreview);
+$('#review-new-course-row').after(referencePreview);
 
 const normalize = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -278,6 +279,8 @@ for (const [title, keys, shortLabels] of [
     group.append(blockOf(key));
   }
 }
+// The reference sentence and its translation come last, after 전공 and 단어장.
+referencePreview.after(reviewForm.elements.referenceTranslation.parentElement);
 reviewForm.elements.en.addEventListener('input', () => {
   if (draft) updateDiagram();
 });
