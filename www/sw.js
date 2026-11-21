@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261122-apple-touch-png';
+const CACHE_NAME = PREFIX + '20261122-scan-words';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
@@ -34,6 +34,7 @@ const APP_SHELL = [
   "assets/styles/words_html.css",
   "backup.html",
   "references.html",
+  "licenses.html",
   "backup.js",
   "bookmarks.html",
   "csv-export.js",
@@ -62,6 +63,9 @@ const APP_SHELL = [
   "quick_capture/code.html",
   "quick_capture/review.html",
   "quick_capture/capture.js",
+  "quick_capture/scan.html",
+  "quick_capture/scan.js",
+  "quick_capture/term-extract.js",
   "request-gate.js",
   "word-export.js",
   "words.html"

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><script src="./screen-scale.js"></script><script src="./native-back.js"></script><title>오픈소스 라이선스 · Word Collector</title>
+<style>
+:root{font-family:system-ui,'Malgun Gothic',sans-serif;color:#131b2e;background:#faf8ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#faf8ff}
+header{position:sticky;top:0;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;background:white;border-bottom:1px solid #e2e7ff;display:flex;align-items:center;gap:12px;z-index:1}
+header a.back{color:#00236f;text-decoration:none;font-size:22px;line-height:1;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+header img{width:32px;height:32px;border-radius:8px}h1{font-size:19px;margin:0}
+main{max-width:640px;margin:auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+.intro{font-size:14px;line-height:1.65;color:#444b5c;margin:0 0 14px}
+.panel{background:white;border:1px solid #e2e7ff;border-radius:14px;padding:16px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 6px;color:#00236f}
+.refs{list-style:none;margin:0;padding:0}.ref{padding:12px 0;border-top:1px solid #eef0f8}.ref:first-child{border-top:0}
+.title{font-weight:650;font-size:14.5px;margin:0 0 4px;line-height:1.45;overflow-wrap:anywhere}
+.meta{font-size:13px;color:#555e70;margin:2px 0;line-height:1.5;overflow-wrap:anywhere}
+a{color:#00497d}
+</style><link rel="apple-touch-icon" sizes="192x192" href="icons/apple-touch-icon.png"></head><body>
+<header><a class="back" href="quick_capture/scan.html" aria-label="뒤로">&larr;</a><img src="icons/wordcollector-app-icon.webp" alt="워드콜렉터 로고"><h1>오픈소스 라이선스</h1></header>
+<main>
+<p class="intro">"PDF·사진에서 단어 찾기"는 아래 오픈소스 부품을 앱 안에 넣어, 파일을 서버로 보내지 않고 이 기기에서 글자를 읽습니다. 각 부품의 저작권은 표시된 저작자에게 있으며, 라이선스 전문은 앱에 함께 들어 있습니다.</p>
+<section class="panel"><h2>PDF·사진 글자 읽기</h2><ul class="refs">
+  <li class="ref">
+    <p class="title">PDF.js (pdfjs-dist 6.5.438, legacy 빌드)</p>
+    <p class="meta">용도: PDF의 글자 층 읽기, 스캔한 쪽을 그림으로 그리기</p>
+    <p class="meta">저작자: Mozilla Foundation · 라이선스: Apache License 2.0 (<a href="vendor/pdfjs/LICENSE.txt">전문</a>)</p>
+    <p class="meta">출처: <a href="https://github.com/mozilla/pdf.js" target="_blank" rel="noopener noreferrer">github.com/mozilla/pdf.js</a></p>
+  </li>
+  <li class="ref">
+    <p class="title">Tesseract.js 7.0.0</p>
+    <p class="meta">용도: 사진과 스캔한 PDF 쪽의 영어 글자 인식 (WebAssembly)</p>
+    <p class="meta">저작자: Project Naptha 외 · 라이선스: Apache License 2.0 (<a href="vendor/tesseract/LICENSE-tesseract.js.txt">전문</a>)</p>
+    <p class="meta">출처: <a href="https://github.com/naptha/tesseract.js" target="_blank" rel="noopener noreferrer">github.com/naptha/tesseract.js</a></p>
+  </li>
+  <li class="ref">
+    <p class="title">tesseract.js-core 7.0.0 (Tesseract OCR 엔진)</p>
+    <p class="meta">용도: 글자 인식 엔진 (LSTM 전용 빌드 2종: SIMD, 일반)</p>
+    <p class="meta">저작자: Tesseract OCR 프로젝트, Project Naptha 외 · 라이선스: Apache License 2.0 (<a href="vendor/tesseract/LICENSE-tesseract.js-core.txt">전문</a>)</p>
+    <p class="meta">출처: <a href="https://github.com/naptha/tesseract.js-core" target="_blank" rel="noopener noreferrer">github.com/naptha/tesseract.js-core</a>, <a href="https://github.com/tesseract-ocr/tesseract" target="_blank" rel="noopener noreferrer">github.com/tesseract-ocr/tesseract</a></p>
+  </li>
+  <li class="ref">
+    <p class="title">영어 인식 데이터 eng.traineddata (tessdata_best, 정수형)</p>
+    <p class="meta">용도: 영어 글자 인식 학습 데이터 (@tesseract.js-data/eng 1.0.0 패키지의 4.0.0_best_int)</p>
+    <p class="meta">저작자: Tesseract OCR 프로젝트 · 라이선스: Apache License 2.0 (<a href="vendor/tesseract/LICENSE-tesseract.js-core.txt">전문</a>)</p>
+    <p class="meta">출처: <a href="https://github.com/tesseract-ocr/tessdata_best" target="_blank" rel="noopener noreferrer">github.com/tesseract-ocr/tessdata_best</a></p>
+  </li>
+</ul></section>
+</main></body></html>

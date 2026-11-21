@@ -85,6 +85,9 @@ Capacitor 8 (`npx cap sync android` → `android/`에서 Gradle 빌드). 앱 ID�
 | `docs/first-run-evidence-sources.md` | 첫 실행 단어 중 "근거 있음" 27개의 실제 출처 |
 | `android/` | Capacitor Android 프로젝트 (iOS 프로젝트는 macOS에서 `npx cap add ios`로 만들고, iOS 빌드 워크플로는 `.github/workflows/build-ios*`·`build-iphone*`) |
 | `assets/branding/`, `scripts/generate-launcher-icons.sh` | 로고 원본과 아이콘 생성 |
+| `www/quick_capture/scan.html`·`scan.js`·`term-extract.js` | PDF·사진에서 단어 찾기 (기기 안에서 읽기 → 후보 단어 → 고른 단어를 하나씩 분석·검토·저장) |
+| `www/vendor/` | 앱에 넣은 오픈소스 부품: PDF.js 6.5.438(legacy, `.mjs`→`.js`), Tesseract.js 7.0.0 + core 7.0.0(LSTM 빌드 2종), 영어 데이터 `eng.traineddata.gz`(tessdata_best int). 라이선스 고지 화면은 `www/licenses.html` |
+| `tests/fixtures/scan/` | 스캔 기능 테스트 파일과 생성 스크립트 `make-fixtures.cjs` |
 
 - 단어집 교정: `glossary/corrections.json`에 추가 → `python glossary/apply_corrections.py server` → `glossary/out/review/fix.sql`을 새 서버 D1(`word-collector-db-v3`)에 `wrangler d1 execute --remote --file`로 반영.
 - 사전 검토: `python glossary/review_dictionaries.py --patent <EK_TRANS_DIC.txt>` (키: `NIKL_KTERM_KEY`, `NIKL_OPENDICT_KEY`, `KRDICT_KEY` 환경 변수). 온용어는 하루 약 1,400건까지만 답한다. 특허 영한 용어사전(EK_TRANS_DIC.txt)은 공공데이터포털에서 받는다.
