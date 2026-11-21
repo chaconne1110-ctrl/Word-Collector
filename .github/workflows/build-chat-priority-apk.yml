@@ -1,4 +1,4 @@
-name: Build chat-priority Android debug APK (no deploy)
+name: Build and publish Word Collector v3 Android debug APK
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android-test-apk:
@@ -27,10 +27,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF_NAME" = "integrate/consolidated-chat-priority-20261113" || "$GITHUB_REF_NAME" =~ ^v[0-9]+(\.[0-9]+)*$ ]]
+          test "$GITHUB_REF_NAME" = "v3"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
           grep -q '"webDir":  *"www"' capacitor.config.json
+          test "$(git rev-parse HEAD:www/analysis-api.js)" = "52a1ab89729703135bf2ecbe26ea3fa959dfba75"
+          grep -Fq "https://word-collector-api-v3.yechan-lim-elec.workers.dev" www/analysis-api.js
+          grep -Fq "https://word-collector-api-v3.yechan-lim-elec.workers.dev" www/anonymous-auth.js
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -80,6 +83,18 @@ jobs:
           grep -q 'id="analysis-action-bar"' android/app/src/main/assets/public/quick_capture/code.html
           ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
 
+      - name: Isolate v3 Android installation and validate bundled v3 API
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' android/app/src/main/assets/public/analysis-api.js
+          grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' android/app/src/main/assets/public/anonymous-auth.js
+          sed -i 's/applicationId "com.yechan.wordcollector"/applicationId "com.yechan.wordcollector.v3"/' android/app/build.gradle
+          sed -i 's/<string name="app_name">Word Collector</<string name="app_name">Word Collector v3</' android/app/src/main/res/values/strings.xml
+          sed -i 's/<string name="title_activity_main">Word Collector</<string name="title_activity_main">Word Collector v3</' android/app/src/main/res/values/strings.xml
+          grep -q 'applicationId "com.yechan.wordcollector.v3"' android/app/build.gradle
+          grep -q 'Word Collector v3' android/app/src/main/res/values/strings.xml
+
       - name: Build Android debug APK
         run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
 
@@ -90,14 +105,19 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           SHORT_SHA="${GITHUB_SHA:0:9}"
-          NAME="WordCollector_chat_priority_${SHORT_SHA}_debug.apk"
+          NAME="WordCollector_v3_${SHORT_SHA}_Debug.apk"
+          TAG="word-collector-v3-debug-${SHORT_SHA}"
           mkdir -p release
           cp "$APK" "release/$NAME"
           (cd release && sha256sum "$NAME" > SHA256.txt)
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=$NAME" >> "$GITHUB_ENV"
           {
             echo "Branch: $GITHUB_REF_NAME"
             echo "Commit: $GITHUB_SHA"
-            echo "Android App ID: com.yechan.wordcollector"
+            echo "Android App ID: com.yechan.wordcollector.v3"
+            echo "Underlying v3 application source: 4130dddb5680f29caba68eafa4902f2e267e0942"
+            echo "Analysis API: word-collector-api-v3.yechan-lim-elec.workers.dev"
             echo "Variant: debug test build, not production signed"
             echo "No Cloudflare Worker or GitHub Pages deployment was performed"
             echo "Do not uninstall an existing app or clear its data to switch signing keys"
@@ -106,10 +126,23 @@ jobs:
       - name: Upload downloadable APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: wordcollector-chat-priority-debug-apk
+          name: wordcollector-v3-debug-apk
           path: |
             release/*.apk
             release/SHA256.txt
             release/BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish public v3 Android APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            "release/$RELEASE_NAME" release/SHA256.txt release/BUILD_INFO.txt \
+            --target "$GITHUB_SHA" \
+            --title "Word Collector v3 Android APK ($RELEASE_TAG)" \
+            --notes "Word Collector v3 snapshot; separate v3 API and D1. Debug test APK, separate Android package com.yechan.wordcollector.v3; existing Word Collector installation stays untouched. On-device installation and live AI calls not verified." \
+            --prerelease
