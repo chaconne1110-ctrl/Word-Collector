@@ -57,7 +57,7 @@ h2{font-size:16px;margin:0 0 6px;color:#00236f}.count{font-size:13px;color:#757c
 .meta{font-size:13px;color:#555e70;margin:2px 0;line-height:1.5;overflow-wrap:anywhere}
 .attr{font-size:12px;color:#757c8f;margin:4px 0 2px;line-height:1.5;overflow-wrap:anywhere}
 a{color:#00497d}
-</style></head><body>
+</style><link rel="apple-touch-icon" sizes="192x192" href="icons/apple-touch-icon.png"></head><body>
 <header><a class="back" href="index.html" aria-label="홈으로">&larr;</a><img src="icons/wordcollector-app-icon.webp" alt="워드콜렉터 로고"><h1>참고 자료</h1></header>
 <main>
 <p class="intro">Word Collector가 전공 단어를 분석할 때 근거로 참고한 교재와 논문입니다(${registered().length}개). 앱의 뜻·정의·예문은 이 자료를 참고해 AI가 새로 작성한 것이며, 자료의 원문을 그대로 옮기지 않았습니다. 각 자료의 저작권은 표시된 저작자와 라이선스를 따릅니다.</p>
