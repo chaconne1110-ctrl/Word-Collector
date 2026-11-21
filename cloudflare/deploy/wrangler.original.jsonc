@@ -1,0 +1,14 @@
+// ORIGINAL analysis server (word-collector-api + D1 word-collector-db).
+// FROZEN at the Friday 2026-11-20 state: do not deploy or write its D1 unless the owner asks.
+// The web root (https://chaconne1110-ctrl.github.io/Word-Collector/) still calls this server.
+// Deploy (only if asked):  npx wrangler@4 deploy -c cloudflare/deploy/wrangler.original.jsonc --keep-vars
+// Secrets live only in Cloudflare: GEMINI_API_KEY, GEMINI_RELAY_SECRET (never commit them).
+{
+  "name": "word-collector-api",
+  "main": "../worker.mjs",
+  "compatibility_date": "2026-11-09",
+  "workers_dev": true,
+  "placement": { "region": "gcp:us-central1" },
+  "vars": { "ENABLE_LIVE_ANALYSIS": "true", "ENABLE_IMAGE_GENERATION": "true", "GEMINI_RELAY_URL": "https://word-collector-gemini-relay-557058448320.us-central1.run.app" },
+  "d1_databases": [{ "binding": "DB", "database_name": "word-collector-db", "database_id": "b1809132-4fb2-4473-8dd9-66a47f79b45b" }]
+}
