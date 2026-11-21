@@ -352,10 +352,12 @@ async function runAnalysis() {
       .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join(', ') : '';
     result.pos = koreanPartOfSpeech(result.pos);
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
-    referencePreview.textContent = context ? '참고 문장: ' + context : '';
-    referencePreview.hidden = !context;
     const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
     const fromReference = Boolean(context) && result.exampleSource === 'reference';
+    // The reference sentence normally fills the 예문 fields (영어 = the sentence, 한국어 = its
+    // translation), so it is not repeated at the end; it is only shown there if it was not used.
+    referencePreview.textContent = context ? '참고 문장: ' + context : '';
+    referencePreview.hidden = !context || fromReference;
     // 일반 의미 with several parts of speech: the server reports missing ones.
     $('#review-pos-warning').textContent = typeof result.posWarning === 'string' ? result.posWarning.slice(0, 200) : '';
     $('#review-pos-warning').hidden = !$('#review-pos-warning').textContent;
