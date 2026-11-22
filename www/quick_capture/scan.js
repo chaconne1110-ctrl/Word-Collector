@@ -849,7 +849,7 @@
     window.WordCollectorScanContext?.rememberField(fieldSelect.value);
     if (readText) setCandidateMode(candidateMode);
   });
-  const CUE_LABELS = {bracket: '괄호 용어', abbreviation: '약어 정의', definition: '정의된 용어', list: '목록', learned: '전에 고름'};
+  const CUE_LABELS = {keywords: '키워드', bracket: '괄호 용어', abbreviation: '약어 정의', definition: '정의된 용어', list: '목록', learned: '전에 고름'};
 
   // "AI로 더 정확하게 고르기": the text read on this device (not the picture or file) is sent
   // to the analysis server, where Gemini picks major terms and multi-word terms; the server

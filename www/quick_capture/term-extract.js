@@ -85,10 +85,17 @@
     zero one two three four five six seven eight nine ten first second third shown table chapter section page
     figure equation example problem solution answer question exercise note cause improve reduce effective
     large plant detail decrease obtain occur consist define describe usually typical typically great small
-    consider assume certain important given apply known again later once twice next equal maximum minimum`.split(/\s+/).filter(Boolean));
+    consider assume certain important given apply known again later once twice next equal maximum minimum
+    inset panel schematic depict observe observable peculiar peculiarity dependence dependent prefactor geometrical
+    nanometer micrometer millimeter picosecond nanosecond smoothen peaky linearize email author authors respectively
+    previously recently remarkably notably fundamentally novel unique demonstrate demonstrated`.split(/\s+/).filter(Boolean));
+  // Units are not terms ("GHz", "nm", "meV").
+  const UNITS = new Set(`hz khz mhz ghz thz nm um mm cm km ev mev kev ma ua na mv kv mw kw uw db dbm ms us ns ps fs
+    pf nf uf mh uh ohm kohm mohm ppm rpm vs`.split(/\s+/).filter(Boolean));
 
-  // A word, keeping hyphenated compounds ("cross-sectional") whole.
-  const WORD = /[A-Za-z]+(?:[-‐‑'’][A-Za-z]+)*/g;
+  // A word, keeping hyphenated compounds ("cross-sectional") whole, and a leading number
+  // when capitals follow ("2DEG"); other leading digits are not part of the word.
+  const WORD = /(?:\d+(?=[A-Z]{2}))?[A-Za-z]+(?:[-‐‑'’][A-Za-z]+)*/g;
 
   // Inflected forms of everyday words ("causes", "reduced", "largest") are everyday too.
   function baseForms(word) {
@@ -149,20 +156,32 @@
   // Field words match with plural / -ed / -ing forms only ("engineer" is not "engine").
   const keepForms = word => [word, word.replace(/s$/, ''), word.replace(/es$/, ''), word.replace(/ies$/, 'y'),
     word.replace(/ed$/, ''), word.replace(/ed$/, 'e'), word.replace(/ing$/, ''), word.replace(/ing$/, 'e')];
-  const inKeep = (word, keep) => keepForms(word).some(form => keep.has(form));
+  // A hyphenated compound is a field word when any part is ("source-drain", "electron-hole").
+  const inKeep = (word, keep) => word.split(/[-‐‑]/).some(part => keepForms(part).some(form => keep.has(form)));
   const isEveryday = (lower, keep = ALL_FIELDS) => lower.split(/[-‐‑]/).every(part => {
     const forms = baseForms(part);
     if (inKeep(part, keep)) return false;
     return forms.some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form));
   });
   // 0.3 very common … 1.6 rare (not in SCOWL size 35): rarer words are likelier terms.
+  // A hyphenated compound counts as the average of its parts ("few-layers" is common,
+  // "nano-ribbons" is rarer); a past form, -ing form or adverb of a general word counts as
+  // half ("depicted", "highlighted": descriptive words, not terms).
   function rarity(lower) {
+    if (/[-‐‑]/.test(lower)) {
+      const parts = lower.split(/[-‐‑]/).filter(Boolean);
+      return parts.reduce((sum, part) => sum + rarity(part), 0) / parts.length;
+    }
     const forms = baseForms(lower);
     if (forms.some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form))) return 0.3;
-    if (forms.some(form => TIER20.has(form))) return 0.6;
-    if (forms.some(form => TIER35.has(form))) return 1.0;
-    return 1.6;
+    const tier = forms.some(form => TIER20.has(form)) ? 0.6 : forms.some(form => TIER35.has(form)) ? 1.0 : 1.6;
+    const inflected = /(?:ed|ing|ly)$/.test(lower) && forms.slice(1).some(form => TIER20.has(form) || TIER35.has(form));
+    return inflected ? tier / 2 : tier;
   }
+  // A short lower-case piece that is no English word: a symbol from a formula ("kop", "cgs",
+  // "vsat", "gext").
+  const isSymbol = lower => lower.length <= 4 && !/[-‐‑]/.test(lower) && !baseForms(lower).some(form =>
+    FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form) || TIER20.has(form) || TIER35.has(form));
   const MAX_SENTENCE = 600;
 
   // Text from a PDF text layer or OCR → clean sentences.
@@ -200,7 +219,10 @@
       .filter(sentence => /[A-Za-z]{2}/.test(sentence));
   }
 
-  const isAcronym = word => /^[A-Z]{2,6}s?$/.test(word);
+  // Acronyms and formulas keep their capitals: "MOSFETs", "2DEG", "GaN", "AlGaN", "III-V".
+  const isAcronym = word => /^[A-Z]{2,6}s?$/.test(word) ||          // MOSFET(s), IEEE
+    /^\d*[A-Z][a-z]?(?:[A-Z][a-z]?){1,4}s?$/.test(word) ||               // 2DEG, GaN, AlGaN, SiO, HEMTs
+    /^[A-Z]{1,4}(?:-[A-Z]{1,4})+$/.test(word);                           // III-V, UTC-PD
   const hasVowel = word => /[aeiouy]/i.test(word);
 
   // The sentence, cut to 600 characters around the term when it is longer.
@@ -223,9 +245,11 @@
   // ("don't"), words shorter than 3 letters and letter runs without a vowel (OCR noise);
   // acronyms ("RLC", "MOSFETs") are kept. 'major' also leaves out everyday English.
   function isCandidate(surface, lower, mode, keep, sure) {
+    if (UNITS.has(lower)) return false;
     if (isAcronym(surface)) return !FUNCTION_WORDS.has(lower);
     if (lower.length < 3 || !hasVowel(lower) || /['’]/.test(lower)) return false;
     if (lower.split(/[-‐‑]/).every(part => FUNCTION_WORDS.has(part))) return false;
+    if (isSymbol(lower) && !sure(lower)) return false;
     // A word the document marks as a term (cue) or the user picked before stays.
     return mode === 'major' && !sure(lower) ? !isEveryday(lower, keep) : true;
   }
@@ -236,7 +260,7 @@
   //   used only once or is made of everyday words.
   // - definition: "is called X", "known as X", "referred to as X", "X is defined as".
   // - list: short lines of 2–4 words (a word list, a table column), when there are 2 or more.
-  const cueWords = phrase => phrase.replace(/['’]s\b/gi, '').split(/\s+/).filter(Boolean);
+  const cueWords = phrase => phrase.replace(/['’]s\b/gi, '').replace(/[–‐‑]/g, '-').split(/\s+/).filter(Boolean);
   const cleanCue = phrase => {
     const parts = cueWords(phrase);
     while (parts.length && FUNCTION_WORDS.has(parts[0].toLowerCase())) parts.shift();
@@ -246,7 +270,21 @@
     if (parts.length === 1 && !isAcronym(parts[0]) && parts[0].length < 3) return '';
     return parts.join(' ');
   };
-  function findCues(text) {
+  // Author keywords: "Keywords: a; b", "Index Terms—a, b", BibTeX "keywords={a;b}" (also on a
+  // cover page that is otherwise left out).
+  function keywordsOf(raw) {
+    const found = [];
+    const lines = String(raw ?? '').split('\n');
+    lines.forEach((line, i) => {
+      const start = line.match(/^\s*(?:key\s*words?|index\s+terms)\s*[:=—–-]+\s*\{?(.*)$/i);
+      if (!start) return;
+      let body = start[1];
+      for (let j = i + 1; j < lines.length && j - i < 6 && !/[}.]\s*,?\s*$/.test(body) && lines[j].trim(); j++) body += ' ' + lines[j].trim();
+      found.push(...body.replace(/[{}]/g, '').replace(/\.\s*$/, '').split(/\s*[;,]\s*/));
+    });
+    return found;
+  }
+  function findCues(text, raw = text) {
     const cues = new Map();   // phrase key → cue type
     const note = (phrase, type) => {
       const clean = cleanCue(phrase);
@@ -254,6 +292,7 @@
       const key = clean.split(' ').map(word => isAcronym(word) ? word.replace(/s$/, '') : word.toLowerCase()).join(' ');
       if (!cues.has(key)) cues.set(key, type);
     };
+    for (const keyword of keywordsOf(raw)) note(keyword.replace(/\s*\([^)]*\)\s*/g, ' ').trim(), 'keywords');
     const flat = normalizeText(text).replace(/\s*\n\s*/g, ' ');
     for (const match of flat.matchAll(/[가-힣ㄱ-ㆎ]\s?\(\s*([A-Za-z][^()가-힣]{0,90}?)\s*\)/g)) {
       for (const part of match[1].split(/\s*[,;/]\s*/)) note(part, 'bracket');
@@ -285,9 +324,16 @@
       const start = lead.map(word => FUNCTION_WORDS.has(word.toLowerCase())).lastIndexOf(true) + 1;
       note(lead.slice(start).join(' '), 'definition');
     }
-    const lines = normalizeText(text).split('\n').map(line => line.replace(/^\s*(?:[-•·*▪◦]|\d+[.)])\s*/, '').trim())
-      .filter(line => /^[A-Za-z][A-Za-z-]*(?: [A-Za-z][A-Za-z-]*){1,3}$/.test(line));
-    if (lines.length >= 2) for (const line of lines) note(line, 'list');
+    // A list: 3 or more short lines in a row (a word list, a table column). Single short lines
+    // in running text (titles, author names, figure labels) are not a list.
+    const shortLine = line => /^[A-Za-z][A-Za-z-]*(?: [A-Za-z][A-Za-z-]*){0,3}$/.test(line);
+    const all = normalizeText(text).split('\n').map(line => line.replace(/^\s*(?:[-•·*▪◦]|\d+[.)])\s*/, '').trim());
+    for (let i = 0; i < all.length;) {
+      let j = i;
+      while (j < all.length && shortLine(all[j])) j++;
+      if (j - i >= 3) for (const line of all.slice(i, j)) if (line.includes(' ')) note(line, 'list');
+      i = Math.max(j, i + 1);
+    }
     return cues;
   }
 
@@ -302,23 +348,57 @@
   // - Everything after a "References" / "Bibliography" / "참고문헌" heading line is left out.
   // - A line with 2 or more reference signs is left out: a year in brackets "(2014)", a page
   //   range "780–793", "doi", "et al.", or 2 or more initials ("F. H. L. Koppens").
+  // Real papers (tested on arXiv PDFs) also have:
+  // - a title / author / affiliation block before "Abstract": names ("Fengnian Xia"), places;
+  // - a publisher cover page: copyright notice, "Cite as", BibTeX, URL, doi;
+  // - a reference list with no heading ("[1] T. Palacios et al., IEEE Elec. Dev. Lett., …");
+  // - acknowledgments inside the text ("The authors acknowledge discussions with …").
+  const REFERENCE_SIGNS = [/\((?:19|20)\d\d[a-z]?\)/, /\b\d{1,5}\s*[–-]\s*\d{1,5}\b/, /\bdoi\b|10\.\d{4,}\//i, /\bet al\./,
+    /(?:\b[A-Z]\.\s?){2,}|(?:\b[A-Z]\.\s?[A-Z][a-z]+,.*){2,}|(?:\b[A-Z]\.\s?[A-Z][a-z]+\b.*){2,}/,
+    /\b(?:Phys|Rev|Lett|Appl|Nat|Proc|Trans|Dev|Elec|Electron|Commun|Mater|Chem|Sci|Soc|Conf|Symp|Int|Vol|vol|pp)\.(?:\s|$)/, /\bIEEE\b|\bACS\b|\bAIP\b/];
+  const referenceSigns = line => REFERENCE_SIGNS.filter(pattern => pattern.test(line)).length;
+  const startsReference = line => /^\s*(?:\[\d+\]|\d{1,3}\.)\s+(?:[A-Z][a-z]?\.\s?)+[A-Z]/.test(line) ||
+    /^\s*\[\d+\]\s+[A-Z]/.test(line) && referenceSigns(line) >= 1;
+  // Lines that are not content: affiliations ("Electrical Engineering, University of Notre Dame,
+  // IN, 46556, USA"), e-mail lines, copyright, citation and BibTeX lines, arXiv stamps, PACS,
+  // acknowledgments and funding.
+  const AFFILIATION = /\b(?:university|institute|department|laboratory|laboratories|centre|center|college|school of|faculty of)\b.*,.*\b(?:[A-Z]{2,}|\d{4,6}|korea|china|japan|germany|france|italy|india|usa|uk)\b/i;
+  const NOT_CONTENT = /e-?mail\s*:|©|\bcopyright\b|all rights reserved|personal use of this material|permission from|cite as:?$|^\s*(?:bibtex|plain text|url:|doi:)|^\s*@\w+\{|^\s*\w+\s*=\s*\{|^\s*[}]|arxiv:\d{4}\.\d{4,5}|\bpacs\b|\backnowledg|financial support|supported by|funded by|\bgrant\b/i;
   function withoutReferences(text) {
-    const lines = String(text ?? '').split('\n');
+    let lines = String(text ?? '').split('\n');
+    // Title, authors and affiliations before the abstract.
+    const abstract = lines.findIndex(line => /^\s*(?:abstract|summary)\s*(?:[.:—–-]|$)/i.test(line));
+    if (abstract >= 0 && abstract < lines.length * 0.6) {
+      lines = lines.slice(abstract);
+      lines[0] = lines[0].replace(/^\s*(?:abstract|summary)\s*[.:—–-]*\s*/i, '');   // the heading word itself
+    }
     const heading = lines.findIndex((line, i) => i > 0 &&
       /^\s*(?:\d+\.?\s*)?(?:references|bibliography|works cited|literature cited|acknowledge?ments?|funding|author contributions|conflicts? of interest|declaration of competing interest|data availability|참고\s*문헌|감사의\s*글|사사)\s*:?\s*$/i.test(line));
-    const kept = heading > 0 ? lines.slice(0, heading) : lines;
-    const signs = line => [/\((?:19|20)\d\d[a-z]?\)/, /\b\d{1,5}\s*[–-]\s*\d{1,5}\b/, /\bdoi\b|10\.\d{4,}\//i, /\bet al\./,
-      /(?:\b[A-Z]\.\s?){2,}|(?:\b[A-Z]\.\s?[A-Z][a-z]+,.*){2,}/].filter(pattern => pattern.test(line)).length;
-    return kept.filter(line => signs(line) < 2).join('\n');
+    if (heading > 0) lines = lines.slice(0, heading);
+    // A reference list without a heading: from its first entry, when the rest looks like references.
+    const first = lines.findIndex((line, i) => startsReference(line) && (() => {
+      const rest = lines.slice(i).filter(other => other.trim());
+      return rest.filter(other => referenceSigns(other) >= 1 || startsReference(other)).length >= rest.length * 0.5;
+    })());
+    if (first >= 0) lines = lines.slice(0, first);
+    // A publisher's copyright paragraph runs over several lines ("© 2018 IEEE. Personal use …
+    // promotional purposes, … reuse of any copyrighted component …"): left out up to "Cite as".
+    for (let i = 0; i < lines.length; i++) {
+      if (!/©|personal use of this material|all rights reserved/i.test(lines[i])) continue;
+      for (let j = i; j < lines.length && j - i < 8 && lines[j].trim() && !/cite as|abstract/i.test(lines[j]); j++) lines[j] = '';
+    }
+    return lines.filter(line => referenceSigns(line) < 2 && !NOT_CONTENT.test(line) &&
+      !(AFFILIATION.test(line) && line.split(/\s+/).length <= 16)).join('\n');
   }
 
   // Options: mode 'all' | 'major'; field (a FIELD_KEEP key, or none = all fields);
   // saved: words already in the user's notebooks (marked, shown a little lower);
   // learned: words the user picked from scans before (never left out, shown higher).
   function extractCandidates(text, {mode = 'all', field = '', saved = new Set(), learned = new Set()} = {}) {
+    const raw = text;
     text = withoutReferences(text);
     const keep = keepOf(field);
-    const cues = findCues(text);
+    const cues = findCues(text, raw);
     const sure = lower => cues.has(lower) || learned.has(lower);
     const found = new Map();   // key → {forms, count, sentence, size, lowerSeen, midCapital}
     const add = (key, surface, sentence, size, first) => {
@@ -346,7 +426,10 @@
         for (let size = 2; size <= 5; size++) {
           const words = tokens.slice(i, i + size);
           if (words.length < size) break;
-          if (words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2 || /['’]/.test(word.lower))) break;
+          if (words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2 || /['’]/.test(word.lower) ||
+            (!isAcronym(word.surface) && isSymbol(word.lower)) || UNITS.has(word.lower))) break;
+          // An adverb never starts a term ("strongly dependent", "normally recombine").
+          if (/ly$/.test(words[0].lower) && !isAcronym(words[0].surface)) break;
           if (words.slice(1).some((word, k) => !joined(words[k], word))) break;
           // Kept in both modes: a repeated phrase of everyday words can still be a term
           // ("power factor", "dark current"). 4–5 word runs only count as a document cue.
@@ -355,6 +438,14 @@
           add(key, words.map(word => word.surface).join(' '), sentence, size, i === 0);
         }
       });
+    }
+    // Author keywords that do not appear in the remaining text (e.g. only on a cover page)
+    // are still offered, with the keyword list as their sentence.
+    const keywordLine = 'Keywords: ' + [...cues].filter(([, type]) => type === 'keywords').map(([key]) => key).join('; ');
+    for (const [key, type] of cues) {
+      if (type !== 'keywords' || found.has(key)) continue;
+      found.set(key, {key, forms: new Map([[key, 1]]), count: 1, sentence: keywordLine.slice(0, MAX_SENTENCE),
+        size: key.split(' ').length, lowerSeen: true, midCapital: false});
     }
     // Merge plural forms into the singular form when both appear.
     const keys = new Set(found.keys());
@@ -376,8 +467,12 @@
     const nounLike = word => !/(?:ly|ed|ing|al|ive|ous|ic|ful|less|able|ible|ant|ent|ary)$/.test(word) || keep.has(word);
     const once = entry => mode === 'major' && entry.size === 2 && entry.count === 1 && (() => {
       const [first, last] = entry.key.toLowerCase().split(' ');
-      // Not a verb + noun ("optimize detectivity") or "given wavelength".
+      // Not a verb + noun ("optimize detectivity"), "given wavelength", an everyday or descriptive
+      // first word ("high fermi", "complete depletion", "normally recombine", "generated pairs").
       if (/(?:ize|ise|ify|ate)$/.test(first) || /^(?:given|using|based|used|shown|known|other|each|several)$/.test(first)) return false;
+      if (/(?:ly|ed)$/.test(first) && !inKeep(first, keep)) return false;
+      if (rarity(first) < 0.6 && !inKeep(first, keep)) return false;
+      if (isSymbol(first) || isSymbol(last)) return false;
       if (!nounLike(last) || isEveryday(first, new Set()) && isEveryday(last, new Set()) && !inKeep(last, keep)) return false;
       return [first, last].some(part => rarity(part) >= 1.0 || inKeep(part, keep)) && [first, last].some(part => rarity(part) >= 0.6);
     })();

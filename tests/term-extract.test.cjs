@@ -281,3 +281,35 @@ test('전공용어 위주 offers once-used technical two-word terms, ranked belo
   assert.ok(names.indexOf('graphene layer') < names.indexOf('flicker noise'), 'a repeated phrase ranks higher');
   assert.ok(!terms(text).includes('flicker noise'), '모든 단어 keeps the repeat rule');
 });
+
+test('real-paper layout: title block, affiliations, cover page, references without a heading', () => {
+  const text = [
+    'Optical phonon limited transport',
+    'Siddharth Rajan and Debdeep Jena',
+    'Electrical Engineering, University of Notre Dame, IN, 46556, USA',
+    'Email: someone@example.edu',
+    '© 2018 IEEE. Personal use of this material is permitted. Permission from IEEE must be obtained',
+    'for all other uses, including reprinting for advertising or promotional purposes.',
+    'Cite as:',
+    'Index Terms—DC–AC power converters, model predictive control (MPC), invertors.',
+    'Abstract',
+    'The transconductance of a GaN HEMT drops when the 2DEG density rises.',
+    'The transconductance depends on optical phonon scattering at 92 GHz.',
+    'The authors acknowledge financial support from DARPA.',
+    '[1] T. Palacios, A. Chakraborty, IEEE Elec. Dev. Lett. 26, 781 (2005).',
+    '[2] R. Smith et al., Appl. Phys. Lett. 90, 1 (2007).'].join('\n');
+  const list = extractCandidates(text, {mode: 'major'});
+  const names = list.map(c => c.term.toLowerCase());
+  for (const term of ['transconductance', '2deg', 'gan', 'optical phonon', 'model predictive control'])
+    assert.ok(names.includes(term), term + ' in ' + names);
+  for (const term of ['siddharth', 'notre', 'dame', 'usa', 'personal', 'promotional', 'palacios', 'darpa', 'ghz', 'elec', 'appl', 'abstract'])
+    assert.ok(!names.some(name => name.split(/[\s-]/).includes(term)), term + ' left out: ' + names);
+  assert.equal(list.find(c => c.term.toLowerCase() === 'model predictive control').cue, 'keywords');
+});
+
+test('formula symbols and adverb starts are not terms', () => {
+  const names = extractCandidates('The kop and vsat values set the transconductance. It is strongly dependent on the bias.', {mode: 'all'})
+    .map(c => c.term.toLowerCase());
+  assert.ok(names.includes('transconductance'));
+  for (const term of ['kop', 'vsat', 'strongly dependent']) assert.ok(!names.includes(term), term);
+});
