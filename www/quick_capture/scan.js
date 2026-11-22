@@ -245,6 +245,7 @@
     // Tests replace recognition with a fast stand-in.
     const override = window.WordCollectorScanOverrides?.recognize;
     if (typeof override === 'function') return override(canvas, onProgress, {retries});
+    void englishWords();   // loads while the picture is read
     const worker = await getOcr();
     // A tilted photo (more than about 1°) is straightened first: at 12° no word was read.
     const layout = textLayout(canvas);
@@ -295,7 +296,16 @@
       if (result.sure > best.sure) best = result;
     }
     if (picture !== canvas) picture.width = picture.height = 0;
-    return best.text;
+    // Words the OCR cut off are repaired with the English dictionary (term-extract.js).
+    const dictionary = await englishWords();
+    return WordCollectorTermExtract.repairOcrText(best.text, dictionary);
+  }
+  // The ~1 MB dictionary (english-words.js) is loaded the first time OCR runs, not with the page.
+  let dictionaryLoad = null;
+  function englishWords() {
+    dictionaryLoad ||= (window.WordCollectorEnglishWords ? Promise.resolve() :
+      loadScript(new URL('english-words.js', location.href).href)).then(() => window.WordCollectorEnglishWords || [], () => []);
+    return dictionaryLoad;
   }
   function wordsSeen(data) {
     let count = 0;

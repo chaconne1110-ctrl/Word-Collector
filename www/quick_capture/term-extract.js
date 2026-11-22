@@ -241,7 +241,70 @@
       a.term.localeCompare(b.term));
   }
 
-  const api = {extractCandidates, splitSentences, normalizeText, FUNCTION_WORDS, COMMON_WORDS};
+  // ---- Repairing words cut by the character recognition (OCR text only) ----------------
+  // OCR sometimes drops the first or last letters of a word ("apacitance", "emical",
+  // "oltage", "electr") or reads a stray short piece ("ent", "ina"). With an English
+  // dictionary (english-words.js, ~120,000 words in all spellings):
+  // - a word in the dictionary, a word with capitals inside ("MOSFET", "ZnO") and a longer
+  //   unknown word that is not part of any dictionary word ("plasmonic", "graphene") stay;
+  // - an unknown word that is the start or end of dictionary words (1–3 letters longer)
+  //   is a cut-off piece: repaired when one word fits best (the one also found elsewhere in
+  //   the text, else the only shortest one), dropped when several fit equally;
+  // - an unknown word one letter away from a word found elsewhere in the same text is
+  //   fixed to it ("hoise" next to "noise");
+  // - an unknown word of 3 letters or fewer is dropped.
+  let dictionaryCache = null;
+  function dictionaryOf(words) {
+    if (dictionaryCache?.words !== words) dictionaryCache = {words, set: new Set(words)};
+    return dictionaryCache.set;
+  }
+  const known = (lower, set) => set.has(lower) || [lower.replace(/s$/, ''), lower.replace(/es$/, ''), lower.replace(/ies$/, 'y'),
+    lower.replace(/ed$/, ''), lower.replace(/ed$/, 'e'), lower.replace(/ing$/, ''), lower.replace(/ing$/, 'e')]
+    .some(form => form.length >= 2 && set.has(form));
+  function repairOcrText(text, words) {
+    if (!Array.isArray(words) || !words.length) return String(text ?? '');
+    const set = dictionaryOf(words);
+    const source = String(text ?? '');
+    const inText = new Set((source.match(/[A-Za-z]+/g) || []).map(word => word.toLowerCase()).filter(word => set.has(word)));
+    const fixes = new Map();
+    const repair = token => {
+      if (/[A-Z]/.test(token.slice(1))) return token;            // MOSFET, ZnO, GaN
+      const lower = token.toLowerCase();
+      if (known(lower, set)) return token;
+      if (lower.length <= 3) return '';
+      if (!fixes.has(lower)) {
+        const fits = [];
+        for (const word of words) {
+          const extra = word.length - lower.length;
+          if (extra >= 1 && extra <= 3 && (word.endsWith(lower) || word.startsWith(lower))) fits.push(word);
+        }
+        let fix = lower;                                          // not a piece of a known word: keep
+        // One letter misread ("hoise", "eross", "deviees"): fixed only to a word that is
+        // also in this text and differs in exactly one letter, so nothing is guessed.
+        const oneOff = [...inText].filter(word => word.length === lower.length &&
+          [...word].filter((ch, i) => ch !== lower[i]).length === 1);
+        if (oneOff.length === 1) fix = oneOff[0];
+        else if (fits.length) {
+          const seen = fits.filter(word => inText.has(word));
+          const pool = seen.length ? seen : fits;
+          const shortest = Math.min(...pool.map(word => word.length));
+          const best = pool.filter(word => word.length === shortest);
+          fix = best.length === 1 ? best[0] : '';
+        }
+        fixes.set(lower, fix);
+      }
+      const fix = fixes.get(lower);
+      if (!fix) return '';
+      return /^[A-Z]/.test(token) ? fix[0].toUpperCase() + fix.slice(1) : fix;
+    };
+    return source.replace(/[A-Za-z]+/g, (token, offset) => {
+      // Parts of hyphenated or apostrophe words are left as they are ("cross-sectional").
+      if (/[-'’]$/.test(source.slice(Math.max(0, offset - 1), offset)) || /^[-'’][A-Za-z]/.test(source.slice(offset + token.length, offset + token.length + 2))) return token;
+      return repair(token);
+    }).replace(/[ \t]{2,}/g, ' ');
+  }
+
+  const api = {extractCandidates, splitSentences, normalizeText, repairOcrText, FUNCTION_WORDS, COMMON_WORDS};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.WordCollectorTermExtract = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -182,3 +182,23 @@ test('bundled libraries have their licence files and are listed on the licence p
     assert.ok(fs.existsSync('www/vendor/' + file), file);
   }
 });
+
+test('OCR repair: cut-off words are restored, stray short pieces dropped, real terms kept', () => {
+  const {repairOcrText} = require('../www/quick_capture/term-extract.js');
+  const dictionary = require('../www/quick_capture/english-words.js');
+  const fix = text => repairOcrText(text, dictionary);
+  // Letters cut at the start or end of a dictionary word.
+  assert.equal(fix('The apacitance of the emical vapor deposition.'), 'The capacitance of the chemical vapor deposition.');
+  assert.equal(fix('High oltage here.'), 'High voltage here.');
+  // A piece that fits several words equally is dropped; unknown 3-letter pieces too.
+  assert.doesNotMatch(fix('the ent ina side'), /\bent\b|\bina\b/);
+  // One letter misread: fixed only to a word found elsewhere in the same text.
+  assert.equal(fix('Thermal noise and shot hoise.'), 'Thermal noise and shot noise.');
+  assert.equal(fix('A hoise here.'), 'A hoise here.', 'no guess without the word in the text');
+  // Real terms missing from the dictionary, acronyms, mixed case and short words stay.
+  const terms = 'The plasmonic effect in graphene, the Schottky barrier, MOSFET, ZnO, photodiode, bandgap, snubber, dopant and a big I.';
+  assert.equal(fix(terms), terms);
+  assert.equal(fix('cross-sectional area'), 'cross-sectional area');
+  // Without a dictionary the text is unchanged.
+  assert.equal(repairOcrText('apacitance', []), 'apacitance');
+});
