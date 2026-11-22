@@ -24,6 +24,7 @@
     {"field": "전기공학", "en": "formula", "ko": "공식, 수식"},
     {"field": "전기공학", "en": "spatial power density", "ko": "공간 전력 밀도"},
     {"field": "전기공학", "en": "gated s r latch", "ko": "게이트형 S-R 래치"},
+    {"field": "전기공학", "en": "generator", "ko": "발전기"},
     {"field": "전기공학", "en": "karnaugh map", "ko": "카르노 맵, 카르노 도표", "dropKeys": ["전기공학|카르노 도"]}
   ]
 }
