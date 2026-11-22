@@ -199,10 +199,31 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.ok(tableFound.includes('filtering') || tableFound.includes('suppresses'), 'shaded lower rows are read: ' + terms);
     assert.deepEqual(terms.filter(term => !TABLE_WORDS.includes(term)), [], 'no made-up words: ' + terms);
 
+    // 4d. Out-of-focus and 12° tilted photos of a textbook page (real OCR). Before the
+    // sharpen retry and the tilt straightening both gave 0 of 50 words.
+    const PAGE_WORDS = new Set(require('../www/quick_capture/term-extract.js').extractCandidates(
+      'Semiconductor devices control the flow of electric current through a crystal lattice. When a forward bias voltage ' +
+      'is applied to a diode, electrons cross the junction and the current rises quickly. In a photodiode, incoming light ' +
+      'generates electron and hole pairs, which produce a photocurrent proportional to the illumination. Engineers reduce ' +
+      'the dark current by cooling the detector and by using a wider bandgap material. The capacitance of the depletion ' +
+      'region decreases as the reverse bias increases. Thermal noise and shot noise limit the sensitivity of every optical receiver.')
+      .filter(candidate => candidate.kind === 'word').map(candidate => candidate.term));
+    for (const [file, label] of [['blurry-photo.jpg', 'out of focus'], ['tilted-photo.jpg', 'tilted 12°']]) {
+      await page.evaluate(() => { const canvas = document.getElementById('photo-canvas'); canvas.width = canvas.height = 1; });
+      await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, file));
+      await page.waitForFunction(() => document.getElementById('photo-canvas').width > 1);
+      await page.locator('#read-photo').click();
+      await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 180000});
+      const read = (await candidateTerms()).map(term => term.toLowerCase());
+      const found = [...PAGE_WORDS].filter(word => read.includes(word));
+      assert.ok(found.length >= 40, `${label}: ${found.length}/${PAGE_WORDS.size} found: ${read}`);
+    }
+
     // 5. Photo: preview, rotate, read with OCR.
     await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'photo.jpg'));
     await page.locator('#photo-card').waitFor({state: 'visible'});
-    assert.equal(await page.locator('#candidate-card').isVisible(), false);
+    // Opening a new photo clears the previous candidates.
+    await page.locator('#candidate-card').waitFor({state: 'hidden'});
     assert.equal(await page.locator('#pdf-page-card').isVisible(), false);
     const size = () => page.evaluate(() => [document.getElementById('photo-canvas').width, document.getElementById('photo-canvas').height]);
     const [w, h] = await size();

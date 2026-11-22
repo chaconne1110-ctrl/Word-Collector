@@ -111,30 +111,196 @@
     ocrWorker = null;
     if (worker) { try { await worker.terminate(); } catch {} }
   }
-  async function recognizeCanvas(canvas, onProgress) {
+  // ---- 사진 준비 (기울기 바로잡기, 다시 읽기용 보정) ----------------------------------------
+  function canvasCopy(source, scale = 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(source.width * scale));
+    canvas.height = Math.max(1, Math.round(source.height * scale));
+    const context = canvas.getContext('2d');
+    context.imageSmoothingQuality = 'high';
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+  function blurred(source, radius) {
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = canvas.getContext('2d');
+    context.filter = `blur(${radius}px)`;
+    context.drawImage(source, 0, 0);
+    return canvas;
+  }
+  function toGray(canvas) {
+    const context = canvas.getContext('2d');
+    const image = context.getImageData(0, 0, canvas.width, canvas.height), a = image.data;
+    for (let i = 0; i < a.length; i += 4) a[i] = a[i + 1] = a[i + 2] = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
+    context.putImageData(image, 0, 0);
+    return canvas;
+  }
+  // Brightness spread to full black..white (ignoring the darkest/brightest 1%).
+  function normalized(canvas) {
+    const context = canvas.getContext('2d');
+    const image = context.getImageData(0, 0, canvas.width, canvas.height), a = image.data, n = a.length / 4;
+    const histogram = new Array(256).fill(0);
+    for (let i = 0; i < a.length; i += 4) histogram[a[i] | 0]++;
+    let low = 0, high = 255, sum = 0;
+    for (; low < 255 && (sum += histogram[low]) < n * 0.01; low++);
+    sum = 0;
+    for (; high > 0 && (sum += histogram[high]) < n * 0.01; high--);
+    for (let i = 0; i < a.length; i += 4) {
+      a[i] = a[i + 1] = a[i + 2] = Math.max(0, Math.min(255, (a[i] - low) * 255 / Math.max(1, high - low)));
+    }
+    context.putImageData(image, 0, 0);
+    return canvas;
+  }
+  // Unsharp mask: edges of slightly out-of-focus letters become crisp again.
+  function sharpened(canvas, radius, amount) {
+    const soft = blurred(canvas, radius).getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const context = canvas.getContext('2d');
+    const image = context.getImageData(0, 0, canvas.width, canvas.height), a = image.data;
+    for (let i = 0; i < a.length; i += 4) {
+      for (let k = 0; k < 3; k++) a[i + k] = Math.max(0, Math.min(255, a[i + k] + amount * (a[i + k] - soft[i + k])));
+    }
+    context.putImageData(image, 0, 0);
+    return canvas;
+  }
+  // Page layout from ink: the tilt of the text lines (-19..19°) and how many lines there are.
+  // Ink = pixels clearly darker than their surroundings, so a dark desk around the page
+  // does not count. Lines show as peaks when the ink is projected along the right angle.
+  function textLayout(canvas) {
+    const small = toGray(canvasCopy(canvas, Math.min(1, 700 / Math.max(canvas.width, canvas.height))));
+    const pixels = small.getContext('2d').getImageData(0, 0, small.width, small.height).data;
+    const local = blurred(small, 6).getContext('2d').getImageData(0, 0, small.width, small.height).data;
+    const ink = [];
+    for (let y = 0; y < small.height; y++) {
+      for (let x = 0; x < small.width; x++) {
+        const i = (y * small.width + x) * 4;
+        if (pixels[i] < local[i] * 0.75 && local[i] > 90) ink.push(x, y);
+      }
+    }
+    let total = 0;
+    for (let i = 0; i < pixels.length; i += 4) total += pixels[i];
+    const brightness = total / (pixels.length / 4);
+    if (ink.length < 200) return {angle: 0, lines: 0, brightness};
+    let best = {angle: 0, score: -1, bins: null};
+    for (let degrees = -20; degrees <= 20; degrees += 0.5) {
+      const r = degrees * Math.PI / 180, sin = Math.sin(r), cos = Math.cos(r);
+      const bins = new Map();
+      for (let k = 0; k < ink.length; k += 2) {
+        const row = Math.round(ink[k + 1] * cos - ink[k] * sin);
+        bins.set(row, (bins.get(row) || 0) + 1);
+      }
+      let score = 0;
+      for (const count of bins.values()) score += count * count;
+      if (score > best.score) best = {angle: degrees, score, bins};
+    }
+    const rows = [...best.bins.keys()].sort((a, b) => a - b);
+    const peak = Math.max(...best.bins.values());
+    let lines = 0, inLine = false;
+    for (let row = rows[0]; row <= rows[rows.length - 1]; row++) {
+      const full = (best.bins.get(row) || 0) > peak * 0.12;
+      if (full && !inLine) lines++;
+      inLine = full;
+    }
+    // An angle at the edge of the search is not a real measurement.
+    return {angle: Math.abs(best.angle) >= 19.5 ? 0 : best.angle, lines, brightness};
+  }
+  function rotated(canvas, degrees) {
+    const r = degrees * Math.PI / 180;
+    const width = Math.ceil(Math.abs(canvas.width * Math.cos(r)) + Math.abs(canvas.height * Math.sin(r)));
+    const height = Math.ceil(Math.abs(canvas.width * Math.sin(r)) + Math.abs(canvas.height * Math.cos(r)));
+    const out = document.createElement('canvas');
+    out.width = width;
+    out.height = height;
+    const context = out.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, width, height);
+    context.translate(width / 2, height / 2);
+    context.rotate(-r);
+    context.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+    return out;
+  }
+  // Other ways to prepare a picture that read poorly (sweep of 22 photo conditions):
+  // out of focus → sharpen (0 → 49 of 50 words); dark and grainy → smooth + spread
+  // brightness (0 → 19); shaky → spread brightness (2 → 17); far away (small letters) →
+  // enlarge + sharpen (29 → 41, at most ~12 million pixels).
+  const SHARPEN = ['흐려서 선명하게 다시 읽는 중', canvas => sharpened(canvasCopy(canvas), 2, 1.5)];
+  const DARK = ['어두워서 밝기를 맞춰 다시 읽는 중', canvas => normalized(toGray(blurred(canvasCopy(canvas), 1)))];
+  const CONTRAST = ['대비를 높여 다시 읽는 중', canvas => normalized(toGray(canvasCopy(canvas)))];
+  const ENLARGE = ['글자가 작아 크게 키워 다시 읽는 중', canvas => {
+    const scale = Math.min(2, Math.sqrt(12e6 / (canvas.width * canvas.height)));
+    return scale > 1.2 ? sharpened(canvasCopy(canvas, scale), 3, 1.5) : null;
+  }];
+  // A dark photo (average brightness under 110 of 255) tries the dark fix first, so it
+  // still runs within the time limit; sharpening a dark, grainy photo makes it worse.
+  const retriesFor = layout => layout.brightness < 110 ?
+    [DARK, CONTRAST, SHARPEN, ENLARGE] : [SHARPEN, CONTRAST, DARK, ENLARGE];
+  const RETRY_COUNT = 4;
+
+  const RETRY_BUDGET_MS = 20000;
+  async function recognizeCanvas(canvas, onProgress, isCancelled = () => false) {
     // Tests replace recognition with a fast stand-in.
     const override = window.WordCollectorScanOverrides?.recognize;
     if (typeof override === 'function') return override(canvas, onProgress);
     const worker = await getOcr();
-    // Two reads of the same picture, keeping the one with more sure words:
-    // - one black/white cut-off for the whole picture (Otsu): best for even, grainy pictures
+    // A tilted photo (more than about 1°) is straightened first: at 12° no word was read.
+    const layout = textLayout(canvas);
+    const picture = Math.abs(layout.angle) >= 1 ? rotated(canvas, layout.angle) : canvas;
+    // Each read tries two black/white cut-offs and keeps the one with more sure words:
+    // - one cut-off for the whole picture (Otsu): best for even, grainy pictures
     // - a local cut-off around each spot (Sauvola): best when the light is uneven, e.g. the
-    //   lower part of a page photographed under a lamp, which the single cut-off turns into
-    //   a dark blur (a table photo went from 25 to 37 of 39 words).
-    // Layout: automatic page segmentation (PSM 3) finds the separate columns and lines of
-    // tables; the library default (one uniform block) read only 3 words of that table.
-    let best = {text: '', sure: -1};
-    for (const [index, method] of ['0', '2'].entries()) {
-      ocrProgress = message => {
-        if (message?.status === 'recognizing text') onProgress((index + message.progress) / 2);
-      };
-      await worker.setParameters({tessedit_pageseg_mode: '3', thresholding_method: method});
-      const {data} = await worker.recognize(canvas, {}, {blocks: true, text: true});
-      const text = confidentText(data);
-      const sure = (text.match(/[A-Za-z]{2,}/g) || []).length;
-      if (sure > best.sure) best = {text, sure};
+    //   lower part of a page photographed under a lamp (a table photo: 25 → 37 of 39 words).
+    // Layout: automatic page segmentation (PSM 3) finds the columns and lines of tables;
+    // the library default (one uniform block) read only 3 words of that table.
+    const steps = 1 + RETRY_COUNT;
+    const read = async (input, step, note) => {
+      let best = {text: '', sure: 0, seen: 0};
+      for (const [index, method] of ['0', '2'].entries()) {
+        if (isCancelled()) break;
+        ocrProgress = message => {
+          if (message?.status === 'recognizing text') onProgress((step + (index + message.progress) / 2) / steps, note);
+        };
+        await worker.setParameters({tessedit_pageseg_mode: '3', thresholding_method: method});
+        const {data} = await worker.recognize(input, {}, {blocks: true, text: true});
+        const text = confidentText(data);
+        const sure = (text.match(/[A-Za-z]{2,}/g) || []).length;
+        const seen = wordsSeen(data);
+        if (sure > best.sure || (sure === best.sure && !best.text)) best = {text, sure, seen};
+      }
+      return best;
+    };
+    // Good enough: most words read are sure, and about as many as the text lines suggest
+    // (a printed line holds several words; a photo of one label line needs only one).
+    const goodEnough = result => result.seen > 0 && result.sure >= result.seen * 0.85 &&
+      result.sure >= Math.min(15, Math.max(1, layout.lines * 2));
+    const firstStarted = performance.now();
+    let best = await read(picture, 0, '');
+    const firstMs = performance.now() - firstStarted;
+    // Retries stop after about 20 s (a very dark, grainy photo took 50 s for all of them);
+    // the best read so far is used.
+    const retryUntil = performance.now() + RETRY_BUDGET_MS;
+    for (const [index, [note, prepare]] of retriesFor(layout).entries()) {
+      if (goodEnough(best) || isCancelled() || performance.now() > retryUntil) break;
+      const prepared = prepare(picture);
+      if (!prepared) continue;
+      // Skip a retry that would not finish in time: reading time grows with the number of
+      // pixels (an enlarged dark, grainy photo took 28 s on its own).
+      const expectedMs = firstMs * (prepared.width * prepared.height) / (picture.width * picture.height) * 1.5;
+      if (performance.now() + expectedMs > retryUntil) { prepared.width = prepared.height = 0; continue; }
+      const result = await read(prepared, index + 1, `${note}… (${index + 1}/${RETRY_COUNT})`);
+      prepared.width = prepared.height = 0;
+      if (result.sure > best.sure) best = result;
     }
+    if (picture !== canvas) picture.width = picture.height = 0;
     return best.text;
+  }
+  function wordsSeen(data) {
+    let count = 0;
+    for (const block of data?.blocks || []) for (const paragraph of block.paragraphs || [])
+      for (const line of paragraph.lines || []) for (const word of line.words || []) if (/[A-Za-z]{2}/.test(word.text || '')) count++;
+    return count;
   }
   // Keep only words the engine is sure of. English text reads at 90+; Korean letters,
   // symbols, reflections and smudges forced into the English model come out as
@@ -219,7 +385,8 @@
       await page.render({canvasContext: context, canvas, viewport}).promise;
       check(current);
       progress(current, `${number}쪽 글자 인식 중… (스캔한 쪽)`, 0);
-      text = await recognizeCanvas(canvas, value => progress(current, `${number}쪽 글자 인식 중… (스캔한 쪽)`, value));
+      text = await recognizeCanvas(canvas, (value, note) =>
+        progress(current, note ? `${number}쪽: ${note}` : `${number}쪽 글자 인식 중… (스캔한 쪽)`, value), () => current.cancelled);
       canvas.width = canvas.height = 0;
     }
     page.cleanup();
@@ -289,7 +456,8 @@
       progress(current, '글자 인식 준비 중… (처음 한 번은 조금 걸려요)');
       const canvas = document.createElement('canvas');
       drawPhoto(canvas, MAX_IMAGE_SIDE);
-      const text = await recognizeCanvas(canvas, value => progress(current, '사진의 글자를 읽는 중…', value));
+      const text = await recognizeCanvas(canvas, (value, note) => progress(current, note || '사진의 글자를 읽는 중…', value),
+        () => current.cancelled);
       canvas.width = canvas.height = 0;
       check(current);
       showResult(text, []);
