@@ -1,5 +1,5 @@
 const PREFIX = 'wordcollector-public-static-';
-const CACHE_NAME = PREFIX + '20261122-scan-words';
+const CACHE_NAME = PREFIX + '20261123-scan-words';
 const APP_SHELL = [
   "_1/code.html",
   "_2/code.html",
