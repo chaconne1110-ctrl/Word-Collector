@@ -179,6 +179,26 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.ok(terms.includes('skin') && terms.includes('conductor'), 'OCR of scanned page: ' + terms);
     assert.match(await page.locator('#scan-status').textContent(), /1쪽을 읽었어요\. \(스캔한 쪽이라 글자 인식/);
 
+    // 4a. A PDF that shows normal English but stores broken character codes (copied text is
+    // nonsense): noticed and read from the page's picture (real OCR).
+    await openPdf('garbled.pdf');
+    await readPage(1);
+    await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
+    terms = await candidateTerms();
+    for (const term of ['transformer', 'hysteresis', 'laminated', 'winding', 'flux']) assert.ok(terms.includes(term), `${term} in ${terms}`);
+    assert.match(await page.locator('#scan-status').textContent(), /글자 정보가 깨진 쪽이라 그림으로 읽었어요/);
+    assert.ok(terms.every(term => /^[A-Za-z][A-Za-z'-]*( [A-Za-z][A-Za-z'-]*)*$/.test(term)), 'no broken characters: ' + terms);
+
+    // 4a'. A normal text page with a picture: words that are only in the picture are read
+    // too (real OCR on the picture), the text layer stays exact.
+    await openPdf('figure.pdf');
+    await readPage(1);
+    await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 120000});
+    terms = await candidateTerms();
+    for (const term of ['armature', 'measurement', 'bench']) assert.ok(terms.includes(term), `text layer: ${term} in ${terms}`);
+    for (const term of ['skin', 'resistance', 'capacitors']) assert.ok(terms.includes(term), `picture: ${term} in ${terms}`);
+    assert.match(await page.locator('#scan-status').textContent(), /그림 1개 속 글자도 읽었어요/);
+
     // 4b. Phone-like photo of a Korean textbook page with English sentences (real OCR):
     // Korean lines read by the English model must not become made-up candidates.
     const ENGLISH_ON_PAGE = ('The impedance of an RLC circuit depends on the frequency. At resonance, the inductive ' +

@@ -240,10 +240,11 @@
   const RETRY_COUNT = 4;
 
   const RETRY_BUDGET_MS = 20000;
-  async function recognizeCanvas(canvas, onProgress, isCancelled = () => false) {
+  // retries: false reads once (a figure inside a PDF page: short labels, read quickly).
+  async function recognizeCanvas(canvas, onProgress, isCancelled = () => false, {retries = true} = {}) {
     // Tests replace recognition with a fast stand-in.
     const override = window.WordCollectorScanOverrides?.recognize;
-    if (typeof override === 'function') return override(canvas, onProgress);
+    if (typeof override === 'function') return override(canvas, onProgress, {retries});
     const worker = await getOcr();
     // A tilted photo (more than about 1°) is straightened first: at 12° no word was read.
     const layout = textLayout(canvas);
@@ -282,7 +283,7 @@
     // the best read so far is used.
     const retryUntil = performance.now() + RETRY_BUDGET_MS;
     for (const [index, [note, prepare]] of retriesFor(layout).entries()) {
-      if (goodEnough(best) || isCancelled() || performance.now() > retryUntil) break;
+      if (!retries || goodEnough(best) || isCancelled() || performance.now() > retryUntil) break;
       const prepared = prepare(picture);
       if (!prepared) continue;
       // Skip a retry that would not finish in time: reading time grows with the number of
@@ -371,34 +372,146 @@
     openPdfDoc = {pdf, task, name: file.name};
     return pdf;
   }
+  function pageViewport(page) {
+    return page.getViewport({scale: Math.min(3, PDF_RENDER_WIDTH / page.getViewport({scale: 1}).width)});
+  }
+  async function renderPage(page) {
+    const viewport = pageViewport(page);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({canvasContext: context, canvas, viewport}).promise;
+    return canvas;
+  }
+
+  // A text layer that is not real text: some PDFs (old HWP exports, special fonts) show the
+  // right letters on screen but store wrong codes, so the copied text is symbols or nonsense.
+  // Such a page is read from its picture instead.
+  function looksGarbled(text) {
+    const chars = [...text.replace(/\s+/g, '')];
+    if (chars.length < 40) return false;
+    const plain = chars.filter(ch => /[A-Za-z0-9가-힣ㄱ-ㆎ぀-ヿ一-鿿.,;:!?'"‘’“”()\[\]{}<>\-–—_%/\\·…=+*&#@|~^°±×÷]/.test(ch)).length;
+    if (plain / chars.length < 0.6) return true;
+    const words = text.match(/[A-Za-z]{3,}/g) || [];
+    if (words.length < 15) return false;
+    const odd = words.filter(word => !/[aeiouy]/i.test(word) || /[bcdfghjklmnpqrstvwxz]{5}/i.test(word)).length;
+    return odd / words.length > 0.4;
+  }
+
+  // Pictures drawn on a page (figures, diagrams, photos of text), in canvas pixels. Found
+  // from PDF.js's drawing commands: the current transform maps the unit square of each
+  // image onto the page. Tiny icons and pictures covering most of the page (a scan that
+  // already has a text layer) are skipped; at most 6, largest first.
+  async function imageRegions(page, viewport) {
+    const OPS = pdfjsLib.OPS;
+    const list = await page.getOperatorList();
+    const times = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3],
+      m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+    const paints = new Set([OPS.paintImageXObject, OPS.paintInlineImageXObject, OPS.paintImageXObjectRepeat,
+      OPS.paintJpegXObject].filter(Number.isInteger));
+    let matrix = [1, 0, 0, 1, 0, 0];
+    const stack = [];
+    const found = [];
+    list.fnArray.forEach((fn, i) => {
+      const args = list.argsArray[i];
+      if (fn === OPS.save) stack.push(matrix);
+      else if (fn === OPS.restore) matrix = stack.pop() || matrix;
+      else if (fn === OPS.transform && args?.length === 6) matrix = times(matrix, [...args]);
+      else if (fn === OPS.paintFormXObjectBegin) {
+        stack.push(matrix);
+        if (args?.[0]?.length === 6) matrix = times(matrix, [...args[0]]);
+      } else if (fn === OPS.paintFormXObjectEnd) matrix = stack.pop() || matrix;
+      else if (paints.has(fn)) {
+        const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) =>
+          viewport.convertToViewportPoint(matrix[0] * x + matrix[2] * y + matrix[4], matrix[1] * x + matrix[3] * y + matrix[5]));
+        const xs = corners.map(point => point[0]), ys = corners.map(point => point[1]);
+        const x = Math.max(0, Math.min(...xs)), y = Math.max(0, Math.min(...ys));
+        found.push({x, y, w: Math.min(viewport.width, Math.max(...xs)) - x, h: Math.min(viewport.height, Math.max(...ys)) - y});
+      }
+    });
+    const pageArea = viewport.width * viewport.height;
+    const kept = [];
+    for (const region of found.sort((a, b) => b.w * b.h - a.w * a.h)) {
+      const area = region.w * region.h;
+      if (region.w < 80 || region.h < 40 || area < pageArea * 0.02 || area > pageArea * 0.7) continue;
+      const overlaps = kept.some(other => {
+        const w = Math.min(other.x + other.w, region.x + region.w) - Math.max(other.x, region.x);
+        const h = Math.min(other.y + other.h, region.y + region.h) - Math.max(other.y, region.y);
+        return w > 0 && h > 0 && w * h > area * 0.8;
+      });
+      if (!overlaps) kept.push(region);
+      if (kept.length >= 6) break;
+    }
+    return kept;
+  }
+  function cropRegion(canvas, region) {
+    const pad = 8;
+    const x = Math.max(0, Math.floor(region.x - pad)), y = Math.max(0, Math.floor(region.y - pad));
+    const w = Math.min(canvas.width - x, Math.ceil(region.w + pad * 2)), h = Math.min(canvas.height - y, Math.ceil(region.h + pad * 2));
+    const crop = document.createElement('canvas');
+    crop.width = w;
+    crop.height = h;
+    const context = crop.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, w, h);
+    context.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+    // Small labels read better a little larger (up to 2×, at most 2,000 px wide).
+    const scale = Math.min(2, 2000 / w);
+    return scale > 1.2 ? canvasCopy(crop, scale) : crop;
+  }
+
   async function readPdfPage(pdf, number, current) {
     progress(current, `${number}쪽 읽는 중…`);
     const page = await pdf.getPage(number);
     check(current);
     const content = await page.getTextContent();
     let text = content.items.map(item => (item.str || '') + (item.hasEOL ? '\n' : '')).join('');
-    let scanned = false;
-    if (letterCount(text) < MIN_TEXT_LETTERS) {
-      // No text layer (scanned page): draw the page and read it with OCR.
-      scanned = true;
-      const base = page.getViewport({scale: 1});
-      const viewport = page.getViewport({scale: Math.min(3, PDF_RENDER_WIDTH / base.width)});
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({canvasContext: context, canvas, viewport}).promise;
+    // Broken codes can also hide the letters entirely (private-use characters), so this is
+    // checked on all characters, not only on English letters.
+    const garbled = looksGarbled(text);
+    let how = '';
+    if (letterCount(text) < MIN_TEXT_LETTERS || garbled) {
+      // No usable text layer (a scan, or broken character codes): read the page's picture.
+      how = garbled ? ' (글자 정보가 깨진 쪽이라 그림으로 읽었어요)' : ' (스캔한 쪽이라 글자 인식으로 읽었어요)';
+      const canvas = await renderPage(page);
       check(current);
-      progress(current, `${number}쪽 글자 인식 중… (스캔한 쪽)`, 0);
+      const label = garbled ? '글자 정보가 깨져 그림으로 읽는 중…' : '글자 인식 중… (스캔한 쪽)';
+      progress(current, `${number}쪽 ${label}`, 0);
       text = await recognizeCanvas(canvas, (value, note) =>
-        progress(current, note ? `${number}쪽: ${note}` : `${number}쪽 글자 인식 중… (스캔한 쪽)`, value), () => current.cancelled);
+        progress(current, `${number}쪽 ${note || label}`, value), () => current.cancelled);
       canvas.width = canvas.height = 0;
+    } else {
+      // A normal text page: the text layer is exact. Pictures on it (figures, diagrams) are
+      // not part of it, so each sizeable picture is read once with OCR and added.
+      let regions = [];
+      try { regions = await imageRegions(page, pageViewport(page)); } catch { regions = []; }
+      check(current);
+      if (regions.length) {
+        const canvas = await renderPage(page);
+        const pictureTexts = [];
+        for (const [index, region] of regions.entries()) {
+          check(current);
+          const note = `${number}쪽 그림 속 글자 읽는 중… (${index + 1}/${regions.length})`;
+          progress(current, note, index / regions.length);
+          const crop = cropRegion(canvas, region);
+          const read = await recognizeCanvas(crop, value => progress(current, note, (index + value) / regions.length),
+            () => current.cancelled, {retries: false});
+          crop.width = crop.height = 0;
+          if (/[A-Za-z]{2}/.test(read)) pictureTexts.push(read);
+        }
+        canvas.width = canvas.height = 0;
+        if (pictureTexts.length) {
+          text += '\n\n' + pictureTexts.join('\n\n');
+          how = ` (그림 ${pictureTexts.length}개 속 글자도 읽었어요)`;
+        }
+      }
     }
     page.cleanup();
     progress(current, '단어를 찾는 중…', 1);
-    return {text, notes: [`${number}쪽을 읽었어요.` + (scanned ? ' (스캔한 쪽이라 글자 인식으로 읽었어요)' : '')]};
+    return {text, notes: [`${number}쪽을 읽었어요.${how}`]};
   }
 
   // ---- 사진 --------------------------------------------------------------------

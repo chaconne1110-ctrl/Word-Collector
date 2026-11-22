@@ -5,6 +5,8 @@
 //   pages.pdf    – 3 pages with different text (only the chosen page is read)
 //   mixed-photo.jpg – phone-like photo of a Korean page with English sentences
 //   korean-cid.pdf  – Korean text in a font that is not embedded (needs PDF.js CMaps)
+//   garbled.pdf     – normal-looking English whose character codes are broken (read from the picture)
+//   figure.pdf      – text page with a picture whose words are not in the text layer
 // Run: CHROMIUM_PATH=<chromium or msedge> node tests/fixtures/scan/make-fixtures.cjs
 const fs = require('node:fs');
 const path = require('node:path');
@@ -93,6 +95,43 @@ function koreanCidPdf() {
   ]);
 }
 
+// Broken character codes: the page shows normal English (Helvetica), but the ToUnicode map
+// sends every letter to the private use area, so copied text is nonsense (like some HWP
+// exports). The app must notice and read the page's picture instead.
+const GARBLED_LINES = ['The transformer core uses laminated silicon steel.', 'Hysteresis loss and eddy current loss heat the core.',
+  'The primary winding and secondary winding share the flux.'];
+function garbledPdf() {
+  const toUnicode = Buffer.from(['/CIDInit /ProcSet findresource begin', '12 dict begin', 'begincmap',
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def', '/CMapName /Garbled def', '/CMapType 2 def',
+    '1 begincodespacerange', '<00> <FF>', 'endcodespacerange', '1 beginbfrange', '<20> <7E> <E020>', 'endbfrange',
+    'endcmap', 'CMapName currentdict /CMap defineresource pop', 'end', 'end'].join('\n'));
+  const content = GARBLED_LINES.map((line, k) => `BT /F1 16 Tf 50 ${740 - k * 26} Td (${line}) Tj ET`).join('\n');
+  return pdf([
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    stream('', Buffer.from(content)),
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /ToUnicode 6 0 R >>',
+    stream('', toUnicode)
+  ]);
+}
+
+// A normal text page with a picture (photo.jpg: "The skin effect increases the resistance…")
+// that holds words found nowhere in the text layer.
+const FIGURE_TEXT = ['Figure 3 shows a measurement of the armature winding.', 'The armature current was recorded at the test bench.'];
+function figurePdf(jpeg, width, height) {
+  const w = 460, h = Math.round(460 * height / width);
+  const text = FIGURE_TEXT.map((line, k) => `BT /F1 13 Tf 60 ${740 - k * 22} Td (${line}) Tj ET`).join('\n');
+  return pdf([
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 4 0 R >>',
+    stream('', Buffer.from(text + `\nq ${w} 0 0 ${h} 76 430 cm /Im1 Do Q`)),
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    stream(`/Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`, jpeg)
+  ]);
+}
+
 function scannedPdf(jpeg, width, height) {
   const w = 612, h = Math.round(612 * height / width);
   return pdf([
@@ -116,6 +155,8 @@ function scannedPdf(jpeg, width, height) {
     fs.writeFileSync(path.join(out, 'text.pdf'), textPdf());
     fs.writeFileSync(path.join(out, 'pages.pdf'), pagesPdf());
     fs.writeFileSync(path.join(out, 'korean-cid.pdf'), koreanCidPdf());
+    fs.writeFileSync(path.join(out, 'garbled.pdf'), garbledPdf());
+    fs.writeFileSync(path.join(out, 'figure.pdf'), figurePdf(jpeg, 1100, 260));
     // A phone-like photo of a Korean textbook page with English sentences: tilted,
     // shaded paper on a dark desk, slightly blurred. The English OCR model turns the
     // Korean lines into made-up words; only the English words may become candidates.
@@ -128,7 +169,7 @@ function scannedPdf(jpeg, width, height) {
 <p>${MIXED_ENGLISH[1]}</p>
 <p style="font-size:22px;color:#555">그림 3-4 직렬 RLC 회로의 페이저도 · 32쪽</p></div></body>`);
     fs.writeFileSync(path.join(out, 'mixed-photo.jpg'), await desk.screenshot({type: 'jpeg', quality: 80}));
-    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf', 'mixed-photo.jpg', 'korean-cid.pdf']) {
+    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf', 'mixed-photo.jpg', 'korean-cid.pdf', 'garbled.pdf', 'figure.pdf']) {
       console.log(name, fs.statSync(path.join(out, name)).size, 'bytes');
     }
   } finally { await browser.close(); }
