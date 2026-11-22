@@ -403,6 +403,55 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.locator('#scan-selection-clear').click();
     await page.unroute('**/api/scan-terms');
 
+    // "손글씨·흐린 사진은 AI로 읽기" (mock server: no paid call). The photo is sent only after a confirm.
+    await page.goto(base + '/quick_capture/scan.html');
+    await page.evaluate(() => {
+      WordCollectorAI.setLocalServer(true);
+      window.WordCollectorScanOverrides = {recognize: async () => 'Cell'};   // the device reads almost nothing
+    });
+    const photoBodies = [];
+    let photoReply = {status: 503, body: {error: '사진 AI 읽기 기능이 아직 활성화되지 않았습니다.'}};
+    await page.route('**/api/scan-image', async route => {
+      photoBodies.push(JSON.parse(route.request().postData()));
+      await route.fulfill({status: photoReply.status, contentType: 'application/json', body: JSON.stringify(photoReply.body)});
+    });
+    const answerPhotoConfirm = accept => page.once('dialog', dialog => {
+      assert.match(dialog.message(), /Google\(Gemini\)로 보내[\s\S]*개인정보[\s\S]*저장하지 않아요[\s\S]*1회/);
+      return accept ? dialog.accept() : dialog.dismiss();
+    });
+    await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'photo.jpg'));
+    await page.waitForFunction(() => document.getElementById('photo-canvas').width > 1);
+    await page.locator('#read-photo').click();
+    await page.waitForFunction(() => /손글씨·흐린 사진은 AI로 읽기/.test(document.getElementById('scan-status').textContent));
+    // Cancelled: nothing is sent.
+    answerPhotoConfirm(false);
+    await page.locator('#read-photo-ai').click();
+    assert.equal(photoBodies.length, 0);
+    // Server not ready yet.
+    answerPhotoConfirm(true);
+    await page.locator('#read-photo-ai').click();
+    await page.waitForFunction(() => /사진 AI 읽기는 아직 사용할 수 없어요/.test(document.getElementById('scan-status').textContent));
+    // Ready: the text Gemini read fills the lists; its terms are the "AI 추천" tab.
+    photoReply = {status: 200, body: {model: 'gemini-4-hydrogen', text: 'Cloudflare Worker server\nCloud Run\nGemini file search API',
+      terms: [{term: 'cloud run', count: 1, sentence: 'Cloud Run'}, {term: 'gemini file search API', count: 1, sentence: 'Gemini file search API'}]}};
+    answerPhotoConfirm(true);
+    await page.locator('#read-photo-ai').click();
+    await page.locator('#mode-ai').waitFor({state: 'visible'});
+    assert.deepEqual(await candidateTerms(), ['cloud run', 'gemini file search API']);
+    assert.equal(photoBodies.length, 2);
+    assert.deepEqual(Object.keys(photoBodies[1]).sort(), ['image', 'mimeType', 'mode']);
+    assert.equal(photoBodies[1].mimeType, 'image/jpeg');
+    assert.match(photoBodies[1].image, /^\/9j\//, 'a JPEG');
+    assert.ok(photoBodies[1].image.length * 3 / 4 <= 1.4 * 1024 * 1024);
+    await page.locator('#mode-all').click();
+    terms = await candidateTerms();
+    for (const term of ['cloudflare', 'worker', 'server', 'cloud', 'run', 'gemini']) assert.ok(terms.includes(term), term + ' in ' + terms);
+    assert.equal(await row('cloudflare').locator('.cand-sentence').textContent(), 'Cloudflare Worker server', 'one line = one sentence');
+    await noSideScroll('photo AI 390');
+    if (SHOTS) await page.screenshot({path: path.join(SHOTS, 'photo-ai-390.png')});
+    await page.unroute('**/api/scan-image');
+    await page.evaluate(() => { delete window.WordCollectorScanOverrides; });
+
     // 320px: no overlap or horizontal scroll on the scan and input pages.
     await page.setViewportSize({width: 320, height: 640});
     await page.goto(base + '/quick_capture/scan.html');

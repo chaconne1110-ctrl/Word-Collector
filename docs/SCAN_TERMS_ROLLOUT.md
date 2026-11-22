@@ -46,3 +46,30 @@ npx wrangler@4 deploy -c cloudflare/deploy/wrangler.v3.jsonc --keep-vars
 - 출력: 용어 목록 최대 80개 ≈ 수백~1,000토큰 + 생각(thinking) 토큰
 - 한 장짜리 사진은 보통 글이 1,000~3,000자라 입력 1,000토큰 안팎입니다.
 - 하루 최대 사용량은 기존 단어 분석 한도(기기당 200회, 전체 1,500회)에 함께 묶입니다.
+
+---
+
+# "손글씨·흐린 사진은 AI로 읽기" (사진째 AI로 읽기)
+
+기기 안 글자 인식(Tesseract)은 인쇄된 글자용이라 **손글씨·칠판·화이트보드, 아주 흐리거나 어두운 사진**은 거의 읽지 못합니다(화이트보드 사진: 영어 용어 약 15개 중 1개). 이런 사진을 위해 **사진 자체를 Gemini로 보내** 영어 글을 받아 적고 용어를 고르는 기능입니다. 사진 확인 화면의 버튼으로만 실행되고, 기본 동작(기기 안 인식)은 그대로입니다.
+
+| 항목 | 내용 |
+|---|---|
+| 요청 | `POST /api/scan-image` · 본문 `{image: base64, mimeType: "image/jpeg"\|"image/png"\|"image/webp", mode, field?}` |
+| 보내는 것 | **사진 원본**(앱에서 긴 변 1,600px JPEG로 줄여 최대 약 1.4MB, 서버 한도 1.5MB) |
+| 사용자 동의 | 누를 때마다 "사진이 분석 서버와 Google(Gemini)로 전송, 얼굴·개인정보 확인, 저장하지 않음, 하루 분석 1회" 확인 창 |
+| 응답 | `{text: 사진에서 읽은 영어 글(줄마다 한 문장), terms: [{term, count, sentence}], model}` |
+| 지어낸 단어 막기 | 용어는 Gemini가 **받아 적은 글에 실제로 있는 것만** 통과. (원본 사진과 대조는 불가능하므로 사용자가 고르고 검토하는 단계는 그대로) |
+| 하루 횟수 | 요청 1번 = 단어 분석 1회. 실패하면 개인 횟수는 돌려줌 |
+| 저장 | 서버는 사진을 저장하지 않음(요청 처리 중 메모리에서만 사용) |
+| 켜고 끄기 | `ENABLE_SCAN_IMAGE=true`일 때만 동작 (없으면 503, 횟수·Gemini 사용 없음). `ENABLE_SCAN_TERMS`와 따로 켬 |
+
+## 켜기 전에 소유자가 확인할 것
+
+1. **사진 원본 전송 허용 여부**: 처음 지침서의 "원본 파일은 서버로 보내지 않는다" 원칙의 예외입니다. 앱의 개인정보 안내도 함께 고쳐야 합니다.
+2. **Gemini API 키의 결제 등급**: 무료 등급은 보낸 내용이 Google의 서비스 개선에 쓰일 수 있습니다. 유료(결제 연결) 등급인지 확인하세요.
+3. **비용**: 사진 1장 = Gemini 호출 1번. 사진 입력 토큰(해상도에 따라 수백~2천 토큰 수준) + 출력(받아 적은 글 + 용어 목록) + 생각 토큰. Google 가격표의 gemini-4-hydrogen 단가로 계산하세요. 필요하면 사진 읽기만 따로 하루 횟수를 두는 것을 권합니다(현재는 단어 분석 횟수와 공유).
+
+## 배포
+
+위와 같은 배포 명령 후, 대시보드 Variables에 `ENABLE_SCAN_IMAGE` = `true`를 추가하면 켜집니다(끄려면 지우기). 바뀐 파일: `cloudflare/scan-terms.mjs`(입력 검사·지시문·확인), `cloudflare/worker.mjs`(`/api/scan-image`, `pickScanImage`, 공통 `geminiJson`), `www/analysis-api.js`(`WordCollectorAI.scanImage`), `www/quick_capture/scan.html`·`scan.js`(버튼).

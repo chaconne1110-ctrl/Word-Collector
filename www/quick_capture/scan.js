@@ -467,9 +467,52 @@
         () => current.cancelled);
       canvas.width = canvas.height = 0;
       check(current);
-      showResult(text, []);
+      // Few words found: the photo may be handwriting or too blurred for the device.
+      const few = WordCollectorTermExtract.extractCandidates(text).length < 5;
+      showResult(text, few ? ['글자가 거의 읽히지 않았어요. 손글씨나 흐린 사진이면 "손글씨·흐린 사진은 AI로 읽기"를 눌러 보세요.'] : []);
     } catch (error) {
       if (!current.cancelled) handleError(error);
+    } finally { endRun(current); }
+  });
+
+  // "사진째 AI로 읽기" (손글씨·흐린 사진): the photo, made smaller (long side 1,600 px, JPEG,
+  // at most ~1.4 MB), is sent once to the analysis server, which asks Gemini to write down
+  // the English text it sees and pick terms from it. Only after a confirm that says the photo
+  // leaves the device; the server does not keep it.
+  function photoForAi() {
+    for (const [side, quality] of [[1600, 0.82], [1300, 0.75], [1000, 0.7]]) {
+      const canvas = document.createElement('canvas');
+      drawPhoto(canvas, side);
+      const data = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+      canvas.width = canvas.height = 0;
+      if (data.length * 3 / 4 <= 1.4 * 1024 * 1024) return data;
+    }
+    throw new Error('사진이 너무 커서 AI로 보낼 수 없어요.');
+  }
+  $('#read-photo-ai').addEventListener('click', async () => {
+    if (!photo || run) return;
+    if (!confirm('사진을 분석 서버와 Google(Gemini)로 보내 글자를 읽을까요?\n' +
+      '· 얼굴이나 개인정보가 찍혀 있지 않은지 확인해 주세요.\n· 사진은 저장하지 않아요.\n· 하루 분석 횟수 1회가 쓰여요.')) return;
+    const current = startRun();
+    const controller = new AbortController();
+    current.cleanups.push(() => controller.abort());
+    try {
+      progress(current, 'AI가 사진의 글자를 읽는 중… (10초 정도 걸려요)');
+      const image = photoForAi();
+      const result = await window.WordCollectorAI.scanImage(
+        {image, mimeType: 'image/jpeg', mode: candidateMode === 'all' ? 'all' : 'major'}, {signal: controller.signal});
+      check(current);
+      if (!result.text) {
+        hideCandidates();
+        setStatus('AI도 사진에서 영어 글자를 찾지 못했어요. 영어가 잘 보이게 다시 찍어 주세요.', 'error');
+        return;
+      }
+      // Each line Gemini wrote down is its own sentence (blank line between lines).
+      const lines = result.text.split('\n').map(line => line.trim()).filter(Boolean).join('\n\n');
+      showResult(lines, ['AI가 사진에서 읽은 글로 단어를 찾았어요.']);
+      if (result.terms.length) showAiTerms(result.terms);
+    } catch (error) {
+      if (!current.cancelled) setStatus(aiErrorMessage(error, '사진 AI 읽기'), 'error');
     } finally { endRun(current); }
   });
 
@@ -692,27 +735,33 @@
         button.disabled = false;
         return;
       }
-      aiCandidates = terms.map(term => ({...term, kind: /\s/.test(term.term) ? 'phrase' : 'word'}));
-      $('#mode-ai').hidden = false;
-      $('#ai-pick').hidden = true;
-      setStatus(`AI가 단어 ${terms.length}개를 골랐어요. 고른 단어는 다른 목록으로 바꿔도 그대로 남아요.`);
-      setCandidateMode('ai');
+      showAiTerms(terms);
     } catch (error) {
       if (aiRequest !== controller) return;
       button.disabled = false;
-      const status = error?.status;
-      setStatus(status === 404 || status === 503 ?
-        'AI 단어 고르기는 아직 사용할 수 없어요. (서버 준비 중) 지금 목록에서 골라 주세요.' :
-        status === 429 ? '오늘의 분석 횟수를 모두 썼어요. 내일 다시 시도하거나 지금 목록에서 골라 주세요.' :
-        error instanceof TypeError || ['TimeoutError', 'AbortError'].includes(error?.name) ?
-          'AI 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.' :
-        (typeof error?.message === 'string' && /[가-힣]/.test(error.message) ? error.message : 'AI 단어 고르기에 실패했어요.'),
-        'error');
+      setStatus(aiErrorMessage(error, 'AI 단어 고르기'), 'error');
     } finally {
       if (aiRequest === controller) aiRequest = null;
     }
   });
   window.addEventListener('pagehide', () => { aiRequest?.abort(); });
+  // AI terms (from the read text or from the photo) as the "AI 추천" list.
+  function showAiTerms(terms) {
+    aiCandidates = terms.map(term => ({...term, kind: /\s/.test(term.term) ? 'phrase' : 'word'}));
+    $('#mode-ai').hidden = false;
+    $('#ai-pick').hidden = true;
+    setStatus(`AI가 단어 ${terms.length}개를 골랐어요. 고른 단어는 다른 목록으로 바꿔도 그대로 남아요.`);
+    setCandidateMode('ai');
+  }
+  function aiErrorMessage(error, feature) {
+    const status = error?.status;
+    if (status === 404 || status === 503) return `${feature}는 아직 사용할 수 없어요. (서버 준비 중)`;
+    if (status === 429) return '오늘의 분석 횟수를 모두 썼어요. 내일 다시 시도해 주세요.';
+    if (error instanceof TypeError || ['TimeoutError', 'AbortError'].includes(error?.name)) {
+      return 'AI 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.';
+    }
+    return typeof error?.message === 'string' && /[가-힣]/.test(error.message) ? error.message : `${feature}에 실패했어요.`;
+  }
 
   function showResult(text, notes) {
     readText = text;

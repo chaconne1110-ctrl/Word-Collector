@@ -178,6 +178,40 @@
         throw new Error('사진 생성 결과가 올바르지 않습니다.');
       }
       return result;
+    }, async requestScanImage(payload, {signal} = {}) {
+      // "사진째 AI로 읽기" (손글씨·흐린 사진): the photo itself (payload.image, base64 JPEG) is
+      // sent once to the analysis server; the answer is the English text read from it and the
+      // terms picked from that text.
+      const result = await this.postScan('/api/scan-image', payload, signal, 50000);
+      if (typeof result?.text !== 'string' || !Array.isArray(result?.terms)) throw new Error('AI가 사진에서 읽은 글을 받지 못했습니다. 다시 시도해 주세요.');
+      return {text: result.text.slice(0, 12000), terms: cleanTerms(result.terms)};
+    }, async postScan(route, payload, signal, timeoutMs) {
+      let status, result;
+      if (native) {
+        if (typeof nativeHttp?.request !== 'function') throw new Error('AI 연결 기능이 포함된 최신 APK로 업데이트해 주세요.');
+        let response;
+        try {
+          response = await nativeHttp.request({url:(baseUrl || 'http://127.0.0.1:8787') + route, method:'POST', headers, data:payload,
+            connectTimeout:10000, readTimeout:timeoutMs, disableRedirects:true});
+        } catch {
+          throw new Error('분석 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
+        }
+        status = response.status;
+        try { result = typeof response.data === 'string' ? JSON.parse(response.data) : response.data; } catch { result = null; }
+      } else {
+        const response = await fetchImpl(baseUrl + route, {
+          method:'POST', headers, body:JSON.stringify(payload),
+          signal: signal && typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : signal || AbortSignal.timeout(timeoutMs),
+          redirect:'error'
+        });
+        status = response.status;
+        try { result = await response.json(); } catch { result = null; }
+      }
+      if (!(status >= 200 && status < 300)) {
+        throw Object.assign(new Error(result?.error || 'AI 요청이 실패했습니다.'), {status});
+      }
+      return result;
     }, async requestScanTerms(payload, {signal} = {}) {
       // PDF·사진에서 단어 찾기 → "AI로 더 정확하게 고르기": only the text read on the
       // device is sent (payload.text), never the picture or the file.
@@ -210,10 +244,13 @@
         throw Object.assign(new Error(result?.error || 'AI 단어 고르기 요청이 실패했습니다.'), {status});
       }
       if (!Array.isArray(result?.terms)) throw new Error('AI 단어 목록을 받지 못했습니다. 다시 시도해 주세요.');
-      return result.terms.filter(item => typeof item?.term === 'string' && item.term.trim() && item.term.length <= 120)
-        .map(item => ({term:item.term.trim(), count:Number.isInteger(item.count) && item.count > 0 ? item.count : 1,
-          sentence:typeof item.sentence === 'string' ? item.sentence.slice(0, 600) : ''}));
+      return cleanTerms(result.terms);
     }};
+  }
+  function cleanTerms(terms) {
+    return terms.filter(item => typeof item?.term === 'string' && item.term.trim() && item.term.length <= 120)
+      .map(item => ({term:item.term.trim(), count:Number.isInteger(item.count) && item.count > 0 ? item.count : 1,
+        sentence:typeof item.sentence === 'string' ? item.sentence.slice(0, 600) : ''}));
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
   else {
@@ -355,6 +392,14 @@
           baseUrl:CLOUD_URL, token, deviceId:getDeviceId(), native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
         }).requestImage(payload, options));
+      },
+      async scanImage(payload, options = {}) {
+        if (!local && !token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);
+        return withoutRejectedToken(() => createClient({
+          baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
+          token, deviceId: local ? '' : getDeviceId(), native: isNative(),
+          nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
+        }).requestScanImage(payload, options));
       },
       async scanTerms(payload, options = {}) {
         if (!local && !token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);

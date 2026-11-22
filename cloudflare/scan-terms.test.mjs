@@ -122,3 +122,88 @@ test('a failed Gemini call is refunded to the personal quota', async () => {
     assert.equal(state.refunds, 2);
   });
 });
+
+// ---- "사진째 AI로 읽기" (POST /api/scan-image) ----
+import {validateScanImageInput, verifyScanImage, SCAN_IMAGE_BYTES_LIMIT} from './scan-terms.mjs';
+const PHOTO = Buffer.alloc(3000, 7).toString('base64');
+const sendImage = (env, body) => worker.fetch(new Request(baseUrl + '/api/scan-image', {
+  method: 'POST', headers: {'Content-Type': 'application/json', 'X-WC-Device': 'wd_' + '4'.repeat(64)},
+  body: JSON.stringify(body)
+}), env);
+const geminiImageJson = (text, terms) => new Response(JSON.stringify({candidates: [{finishReason: 'STOP',
+  content: {parts: [{text: JSON.stringify({text, terms})}]}}]}));
+const imageEnv = (enabled = true) => {
+  const made = mockEnv();
+  if (enabled) made.env.ENABLE_SCAN_IMAGE = 'true';
+  return made;
+};
+
+test('photo input: JPEG/PNG/WebP base64 only, at most 1.5 MB, mode/field as for text', () => {
+  assert.deepEqual(validateScanImageInput({image: 'data:image/jpeg;base64,' + PHOTO, mimeType: 'image/jpeg'}),
+    {image: PHOTO, mimeType: 'image/jpeg', mode: 'major'});
+  assert.equal(validateScanImageInput({image: PHOTO, mimeType: 'image/png', mode: 'all', field: '전기'}).field, '전기');
+  const big = Buffer.alloc(SCAN_IMAGE_BYTES_LIMIT + 10).toString('base64');
+  for (const bad of [{image: PHOTO, mimeType: 'image/gif'}, {image: PHOTO}, {mimeType: 'image/jpeg'},
+    {image: 'not base64!', mimeType: 'image/jpeg'}, {image: 'AAAA', mimeType: 'image/jpeg'},
+    {image: big, mimeType: 'image/jpeg'}, {image: PHOTO, mimeType: 'image/jpeg', mode: 'x'}]) {
+    assert.throws(() => validateScanImageInput(bad), ScanInputError);
+  }
+});
+
+test('photo result: only terms in the written-down text; no English text gives nothing', () => {
+  const result = verifyScanImage({text: 'Cloudflare Worker server\nCloud Run\nGemini file search API\n중계 서버',
+    terms: ['Cloud Run', 'Gemini file search API', 'Kubernetes', 'Cloudflare Worker']});
+  assert.deepEqual(result.terms.map(term => term.term), ['cloud run', 'gemini file search API', 'cloudflare worker']);
+  assert.match(result.text, /Cloud Run/);
+  // Each written-down line is its own sentence.
+  assert.equal(result.terms.find(term => term.term === 'cloud run').sentence, 'Cloud Run');
+  assert.deepEqual(verifyScanImage({text: '발표 포스터', terms: ['poster']}), {text: '', terms: []});
+  assert.throws(() => verifyScanImage({terms: []}));
+});
+
+test('photo reading is off until ENABLE_SCAN_IMAGE=true: no quota, no Gemini', async () => {
+  const {env, state} = imageEnv(false);
+  await withGemini(() => geminiImageJson('', []), async calls => {
+    const res = await sendImage(env, {image: PHOTO, mimeType: 'image/jpeg'});
+    assert.equal(res.status, 503);
+    assert.match((await res.json()).error, /아직 활성화되지 않았습니다/);
+    assert.equal(state.batchCalls, 0);
+    assert.equal(calls.length, 0);
+  });
+});
+
+test('a photo over the size limit or of a wrong type is refused before quota and Gemini', async () => {
+  const {env, state} = imageEnv();
+  await withGemini(() => geminiImageJson('', []), async calls => {
+    const big = Buffer.alloc(SCAN_IMAGE_BYTES_LIMIT + 4096).toString('base64');
+    assert.equal((await sendImage(env, {image: big, mimeType: 'image/jpeg'})).status, 400);
+    assert.equal((await sendImage(env, {image: PHOTO, mimeType: 'application/pdf'})).status, 400);
+    assert.equal(state.batchCalls, 0);
+    assert.equal(calls.length, 0);
+  });
+});
+
+test('one photo: one analysis in the quota, the photo sent once, verified terms and text back', async () => {
+  const {env, state} = imageEnv();
+  await withGemini(() => geminiImageJson('Cloudflare Worker server\nCloud Run\nGemini', ['Cloud Run', 'Gemini', 'invented term']), async calls => {
+    const res = await sendImage(env, {image: PHOTO, mimeType: 'image/jpeg', mode: 'all'});
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.terms.map(term => term.term), ['cloud run', 'gemini']);
+    assert.match(body.text, /Cloudflare Worker server/);
+    assert.equal(body.model, 'gemini-4-hydrogen');
+    assert.equal(state.batchCalls, 1);
+    assert.equal(calls.length, 1);
+    const parts = calls[0].body.contents[0].parts;
+    assert.deepEqual(parts[0], {inlineData: {mimeType: 'image/jpeg', data: PHOTO}});
+    assert.deepEqual(JSON.parse(parts[1].text), {mode: 'all'});
+  });
+});
+
+test('a failed photo reading is refunded to the personal quota', async () => {
+  const {env, state} = imageEnv();
+  await withGemini(() => new Response('{}', {status: 500}), async () => {
+    assert.equal((await sendImage(env, {image: PHOTO, mimeType: 'image/jpeg'})).status, 502);
+    assert.equal(state.refunds, 1);
+  });
+});
