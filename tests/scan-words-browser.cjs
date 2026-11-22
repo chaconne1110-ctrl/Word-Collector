@@ -207,7 +207,21 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     // Input page: the picked words replace card 1; 전공 모름 is chosen; notebook as usual.
     await page.locator('#scan-selection-card').waitFor({state: 'visible'});
     assert.equal(await page.locator('#term-card').isVisible(), false);
-    assert.deepEqual(await page.locator('#scan-selection-list li p.font-semibold').allTextContents(), ['skin effect', 'resistance']);
+    const pickedTerms = () => page.locator('.scan-selection-term').evaluateAll(inputs => inputs.map(input => input.value));
+    assert.deepEqual(await pickedTerms(), ['skin effect', 'resistance']);
+    // A picked word can be corrected before analysis ("resistance" → "AC resistance");
+    // the correction is kept when the page is opened again.
+    await page.locator('.scan-selection-term').nth(1).fill('AC resistance');
+    await page.reload();
+    await page.locator('#scan-selection-card').waitFor({state: 'visible'});
+    assert.deepEqual(await pickedTerms(), ['skin effect', 'AC resistance']);
+    // An emptied word is refused with a message; nothing is analysed.
+    await page.locator('.scan-selection-term').nth(1).fill('  ');
+    await page.locator('#submit-action-btn').click();
+    assert.match(await page.locator('#analysis-status').textContent(), /2번째 고른 단어를 확인해 주세요/);
+    assert.equal(await page.locator('.scan-selection-term').nth(1).evaluate(input => input === document.activeElement), true);
+    assert.equal(requests.length, 0);
+    await page.locator('.scan-selection-term').nth(1).fill('AC resistance');
     assert.equal(await page.locator('#btn-meaning-context').getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('#context-sentence-input').isVisible(), false);
     assert.match(await page.locator('#submit-btn-text').textContent(), /2개/);
@@ -235,13 +249,13 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.waitForFunction(() => /\(2\/2\)/.test(document.querySelector('#analysis-review h2')?.textContent || '') &&
       document.getElementById('analysis-review')?.hidden === false);
     assert.equal(requests.length, 2);
-    assert.equal(requests[1].word, 'resistance');
+    assert.equal(requests[1].word, 'AC resistance', 'the corrected word is analysed');
     assert.match(requests[1].referenceText, /resistance of the conductor/);
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
 
     const words = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms));
-    assert.deepEqual(words.map(word => word.en).sort(), ['resistance', 'skin effect']);
+    assert.deepEqual(words.map(word => word.en).sort(), ['AC resistance', 'skin effect']);
     assert.ok(words.every(word => word.course === 'test' && /conductor/.test(word.referenceSentence)));
     assert.equal(await page.evaluate(() => sessionStorage.getItem('word-collector-scan-selection-v1')), null);
 

@@ -76,8 +76,9 @@ function readScanSelection() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(SCAN_SELECTION_KEY) || 'null');
     if (!saved || typeof saved.id !== 'string' || !Array.isArray(saved.words)) return null;
-    const words = saved.words.filter(word => word && typeof word.term === 'string' && word.term.trim())
-      .map(word => ({term: word.term.trim().slice(0, 120), sentence: String(word.sentence ?? '').trim().slice(0, 600)}));
+    // A word the user is still correcting may be empty for a moment; it is checked on 분석하기.
+    const words = saved.words.filter(word => word && typeof word.term === 'string')
+      .map(word => ({term: word.term.slice(0, 120), sentence: String(word.sentence ?? '').trim().slice(0, 600)}));
     return words.length ? {...saved, words} : null;
   } catch {
     return null;
@@ -97,14 +98,25 @@ function showScanSelection() {
   $('#submit-btn-text').textContent = on ? `고른 단어 ${scanSelection.words.length}개 분석하기` : '단어 분석하기';
   if (!on) return;
   $('#scan-selection-count').textContent = scanSelection.words.length + '개';
-  $('#scan-selection-list').replaceChildren(...scanSelection.words.map(word => {
+  $('#scan-selection-list').replaceChildren(...scanSelection.words.map((word, index) => {
     const item = document.createElement('li');
     item.className = 'rounded-lg p-3 bg-surface-container-low';
     item.style.minWidth = '0';
-    const term = document.createElement('p');
-    term.className = 'font-semibold';
-    term.style.cssText = 'margin:0;overflow-wrap:anywhere';
-    term.textContent = word.term;
+    // The word can be corrected before analysis, e.g. "plasmonic" → "plasmonic effect".
+    const term = document.createElement('input');
+    term.type = 'text';
+    term.className = 'scan-selection-term w-full h-10 bg-surface-container-lowest text-on-surface font-semibold px-3 rounded-lg border border-outline-variant/30';
+    term.style.cssText = 'display:block;min-width:0;box-sizing:border-box;font-size:16px';
+    term.maxLength = 120;
+    term.value = word.term;
+    term.autocomplete = 'off';
+    term.spellcheck = false;
+    term.setAttribute('autocapitalize', 'off');
+    term.setAttribute('aria-label', `고른 단어 ${index + 1} 고치기`);
+    term.addEventListener('input', () => {
+      scanSelection.words[index].term = term.value;
+      try { sessionStorage.setItem(SCAN_SELECTION_KEY, JSON.stringify(scanSelection)); } catch {}
+    });
     const sentence = document.createElement('p');
     sentence.className = 'font-caption text-caption text-on-surface-variant';
     sentence.style.cssText = 'margin:2px 0 0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden';
@@ -145,7 +157,7 @@ function startScanQueue({meaningMode, majorField, selected, newCourseName}) {
   const queueId = crypto.randomUUID();
   const total = scanSelection.words.length;
   const requests = scanSelection.words.map((word, index) => ({
-    id: crypto.randomUUID(), term: word.term, autoCourse: false, selected,
+    id: crypto.randomUUID(), term: word.term.trim().replace(/\s+/g, ' '), autoCourse: false, selected,
     ...(newCourseName ? {newCourseName} : {}),
     // 일반 의미 analyses the word only, as on the normal input page.
     context: meaningMode === 'general' ? '' : word.sentence,
@@ -167,7 +179,16 @@ function startScanQueue({meaningMode, majorField, selected, newCourseName}) {
 analysisButton.addEventListener('click', () => {
   refreshNotebookChoices();
   scanSelection = readScanSelection();
-  const term = scanSelection ? scanSelection.words[0].term : termInput.value.trim();
+  // Picked words that were corrected: each must still be an English or Korean word.
+  if (scanSelection) {
+    const wrong = scanSelection.words.findIndex(word => !/[a-z\p{Script=Hangul}]/iu.test(word.term));
+    if (wrong >= 0) {
+      status.textContent = `${wrong + 1}번째 고른 단어를 확인해 주세요. 영어나 한국어 단어를 입력하거나 "다시 고르기"를 눌러 주세요.`;
+      document.querySelectorAll('.scan-selection-term')[wrong]?.focus();
+      return;
+    }
+  }
+  const term = scanSelection ? scanSelection.words[0].term.trim() : termInput.value.trim();
   const meaningMode = currentMeaningMode();
   // 일반 의미 analyses the word only: the reference card is hidden and not sent.
   const context = meaningMode === 'general' ? '' : contextInput.value.trim();

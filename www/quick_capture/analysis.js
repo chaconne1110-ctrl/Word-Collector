@@ -91,7 +91,8 @@ function nextInBatch(savedWord) {
     // A saved word leaves the picked list (going back to the input page shows the rest).
     const selection = JSON.parse(sessionStorage.getItem(SCAN_SELECTION_KEY) || 'null');
     if (savedWord && selection && Array.isArray(selection.words)) {
-      selection.words = selection.words.filter(word => word?.term !== request.term);
+      const same = term => String(term ?? '').trim().replace(/\s+/g, ' ') === request.term;
+      selection.words = selection.words.filter(word => !same(word?.term));
       sessionStorage.setItem(SCAN_SELECTION_KEY, JSON.stringify(selection));
     }
   } catch {}
