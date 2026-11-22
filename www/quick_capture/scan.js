@@ -114,12 +114,26 @@
     // Tests replace recognition with a fast stand-in.
     const override = window.WordCollectorScanOverrides?.recognize;
     if (typeof override === 'function') return override(canvas, onProgress);
-    ocrProgress = message => {
-      if (message?.status === 'recognizing text') onProgress(message.progress);
-    };
     const worker = await getOcr();
-    const {data} = await worker.recognize(canvas, {}, {blocks: true, text: true});
-    return confidentText(data);
+    // Two reads of the same picture, keeping the one with more sure words:
+    // - one black/white cut-off for the whole picture (Otsu): best for even, grainy pictures
+    // - a local cut-off around each spot (Sauvola): best when the light is uneven, e.g. the
+    //   lower part of a page photographed under a lamp, which the single cut-off turns into
+    //   a dark blur (a table photo went from 25 to 37 of 39 words).
+    // Layout: automatic page segmentation (PSM 3) finds the separate columns and lines of
+    // tables; the library default (one uniform block) read only 3 words of that table.
+    let best = {text: '', sure: -1};
+    for (const [index, method] of ['0', '2'].entries()) {
+      ocrProgress = message => {
+        if (message?.status === 'recognizing text') onProgress((index + message.progress) / 2);
+      };
+      await worker.setParameters({tessedit_pageseg_mode: '3', thresholding_method: method});
+      const {data} = await worker.recognize(canvas, {}, {blocks: true, text: true});
+      const text = confidentText(data);
+      const sure = (text.match(/[A-Za-z]{2,}/g) || []).length;
+      if (sure > best.sure) best = {text, sure};
+    }
+    return best.text;
   }
   // Keep only words the engine is sure of. English text reads at 90+; Korean letters,
   // symbols, reflections and smudges forced into the English model come out as

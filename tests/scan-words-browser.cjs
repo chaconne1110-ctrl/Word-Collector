@@ -160,6 +160,21 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
       assert.doesNotMatch(sentence, /·|…\s*…/, sentence);
     }
 
+    // 4c. Photo of a printed word table with handwriting, red circles and a shaded lower
+    // part (real OCR). Automatic layout + the better of two black/white cut-offs must find
+    // the English words in both tables, including the shaded rows.
+    const TABLE_WORDS = ['photodiode', 'semiconductor', 'bandgap', 'graphene', 'substrate', 'junction', 'electrode',
+      'photocurrent', 'capacitance', 'inductor', 'absorb', 'converted', 'apply', 'influence', 'modification',
+      'incoming', 'illumination', 'subtracting', 'suppresses', 'filtering'];
+    await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'table-photo.jpg'));
+    await page.locator('#read-photo').click();
+    await page.locator('#candidate-card').waitFor({state: 'visible', timeout: 180000});
+    terms = (await candidateTerms()).map(term => term.toLowerCase());
+    const tableFound = TABLE_WORDS.filter(word => terms.includes(word));
+    assert.ok(tableFound.length >= 14, `table photo: ${tableFound.length}/20 found: ${terms}`);
+    assert.ok(tableFound.includes('filtering') || tableFound.includes('suppresses'), 'shaded lower rows are read: ' + terms);
+    assert.deepEqual(terms.filter(term => !TABLE_WORDS.includes(term)), [], 'no made-up words: ' + terms);
+
     // 5. Photo: preview, rotate, read with OCR.
     await page.locator('#pick-photo').setInputFiles(path.join(FIXTURES, 'photo.jpg'));
     await page.locator('#photo-card').waitFor({state: 'visible'});
