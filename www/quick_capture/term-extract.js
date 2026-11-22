@@ -1,7 +1,8 @@
-// PDF·사진에서 단어 찾기: finds single-word candidates in English text read from a
-// PDF or a photo (OCR). Runs in the browser (scan.js) and in Node unit tests.
+// PDF·사진에서 단어 찾기: finds word candidates in English text read from a PDF or a
+// photo (OCR). Runs in the browser (scan.js) and in Node unit tests.
 //   - mode 'all' (모든 단어, the default): every English word except grammar words
 //   - mode 'major' (전공용어 위주): common everyday English is left out as well
+//   - 2–3 word terms ("skin effect", "power factor correction") that appear at least twice
 //   - joins words broken by a hyphen at a line end ("induc-\ntance" → "inductance")
 //   - plural/singular forms are merged; each candidate keeps its count and the first
 //     sentence it appears in
@@ -152,20 +153,38 @@
     return mode === 'major' ? !isEveryday(lower) : true;
   }
 
+  // Multi-word terms ("skin effect", "power factor correction"): 2–3 words in a row that
+  // appear at least MIN_PHRASE_COUNT times. A phrase never contains grammar words and
+  // never spans punctuation, digits or a "…" left by an unreadable word.
+  const MIN_PHRASE_COUNT = 2;
+
   function extractCandidates(text, {mode = 'all'} = {}) {
-    const found = new Map();   // key → {forms, count, sentence, lowerSeen, midCapital}
+    const found = new Map();   // key → {forms, count, sentence, size, lowerSeen, midCapital}
+    const add = (key, surface, sentence, size, first) => {
+      let entry = found.get(key);
+      if (!entry) found.set(key, entry = {key, forms: new Map(), count: 0, sentence, size, lowerSeen: false, midCapital: false});
+      entry.count++;
+      if (/^[a-z]/.test(surface)) entry.lowerSeen = true;
+      else if (!first) entry.midCapital = true;
+      entry.forms.set(surface, (entry.forms.get(surface) || 0) + 1);
+    };
     for (const sentence of splitSentences(text)) {
-      [...sentence.matchAll(WORD)].forEach((match, i) => {
+      const tokens = [...sentence.matchAll(WORD)].map(match => {
         const surface = match[0].replace(/['’]s$/i, '');
-        const lower = surface.toLowerCase();
-        if (!isCandidate(surface, lower, mode)) return;
-        const key = isAcronym(surface) ? surface.replace(/s$/, '') : lower;
-        let entry = found.get(key);
-        if (!entry) found.set(key, entry = {key, forms: new Map(), count: 0, sentence, lowerSeen: false, midCapital: false});
-        entry.count++;
-        if (/^[a-z]/.test(surface)) entry.lowerSeen = true;
-        else if (i > 0) entry.midCapital = true;
-        entry.forms.set(surface, (entry.forms.get(surface) || 0) + 1);
+        return {surface, lower: surface.toLowerCase(), index: match.index, end: match.index + match[0].length};
+      });
+      const joined = (a, b) => /^[\s-]*$/.test(sentence.slice(a.end, b.index));
+      tokens.forEach(({surface, lower}, i) => {
+        if (isCandidate(surface, lower, mode)) add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 1, i === 0);
+        for (let size = 2; size <= 3; size++) {
+          const words = tokens.slice(i, i + size);
+          if (words.length < size) break;
+          if (words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2 || /['’]/.test(word.lower))) break;
+          if (words.slice(1).some((word, k) => !joined(words[k], word))) break;
+          // Kept in both modes: a repeated phrase of everyday words can still be a term
+          // ("power factor", "dark current").
+          add(words.map(word => word.lower).join(' '), words.map(word => word.surface).join(' '), sentence, size, i === 0);
+        }
       });
     }
     // Merge plural forms into the singular form when both appear.
@@ -180,14 +199,21 @@
       for (const [form, n] of entry.forms) base.forms.set(form, (base.forms.get(form) || 0) + n);
       found.delete(key);
     }
-    return [...found.values()].map(entry => {
+    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT);
+    // "power factor" inside "power factor correction" with the same count is the same use.
+    const phrases = entries.filter(entry => entry.size > 1);
+    entries = entries.filter(entry => entry.size === 1 || !phrases.some(other =>
+      other.size > entry.size && other.count === entry.count && (' ' + other.key + ' ').includes(' ' + entry.key + ' ')));
+    return entries.map(entry => {
       // Keep capitals only for acronyms, or names written with a capital every time
       // (also in the middle of a sentence, e.g. "Faraday").
       const forms = [...entry.forms.keys()];
-      const name = !entry.lowerSeen && entry.midCapital;
-      const term = isAcronym(forms[0]) ? entry.key : name ? entry.key[0].toUpperCase() + entry.key.slice(1) : entry.key;
-      return {term, count: entry.count, sentence: sentenceAround(entry.sentence, forms[0])};
-    }).sort((a, b) => b.count - a.count || a.term.localeCompare(b.term));
+      const name = entry.size === 1 && !entry.lowerSeen && entry.midCapital;
+      const term = entry.size === 1 && isAcronym(forms[0]) ? entry.key :
+        name ? entry.key[0].toUpperCase() + entry.key.slice(1) : entry.key;
+      return {term, count: entry.count, kind: entry.size > 1 ? 'phrase' : 'word', sentence: sentenceAround(entry.sentence, forms[0])};
+    }).sort((a, b) => b.count - a.count || (a.kind === b.kind ? 0 : a.kind === 'phrase' ? -1 : 1) ||
+      a.term.localeCompare(b.term));
   }
 
   const api = {extractCandidates, splitSentences, normalizeText, FUNCTION_WORDS, COMMON_WORDS};

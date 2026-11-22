@@ -73,13 +73,15 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await readPage(1);
     await page.locator('#candidate-card').waitFor({state: 'visible'});
     let terms = await candidateTerms();
-    // 모든 단어 (default): every English word except grammar words, one word per candidate.
+    // 모든 단어 (default): every English word except grammar words, plus 2–3 word terms
+    // that appear at least twice ("skin effect" twice; "power factor correction" once: not a phrase).
     assert.equal(await page.locator('#mode-all').getAttribute('aria-pressed'), 'true');
-    for (const term of ['skin', 'effect', 'conductor', 'resistance', 'capacitors', 'high', 'increases', 'area', 'uses']) {
+    for (const term of ['skin effect', 'skin', 'effect', 'conductor', 'resistance', 'capacitors', 'high', 'increases', 'area', 'uses']) {
       assert.ok(terms.includes(term), `${term} in ${terms}`);
     }
     for (const grammar of ['the', 'of', 'at']) assert.ok(!terms.includes(grammar), grammar + ' is a grammar word');
-    assert.ok(terms.every(term => !/\s/.test(term)), 'no phrases: ' + terms);
+    assert.deepEqual(terms.filter(term => /\s/.test(term)), ['skin effect'], 'only repeated phrases: ' + terms);
+    assert.equal(terms[0], 'skin effect', 'a phrase comes first among equal counts');
     // 전공용어 위주: everyday words go; a word picked before switching stays picked.
     await pick('area');
     await page.locator('#mode-major').click();
@@ -193,8 +195,8 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
 
     // Filter and pick two words.
     await page.locator('#candidate-filter').fill('ski');
-    assert.deepEqual(await candidateTerms(), ['skin']);
-    await pick('skin');
+    assert.deepEqual(await candidateTerms(), ['skin effect', 'skin']);
+    await pick('skin effect');
     await page.locator('#candidate-filter').fill('');
     await pick('resistance');
     assert.match(await page.locator('#candidate-title').textContent(), /2개 선택/);
@@ -205,7 +207,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     // Input page: the picked words replace card 1; 전공 모름 is chosen; notebook as usual.
     await page.locator('#scan-selection-card').waitFor({state: 'visible'});
     assert.equal(await page.locator('#term-card').isVisible(), false);
-    assert.deepEqual(await page.locator('#scan-selection-list li p.font-semibold').allTextContents(), ['skin', 'resistance']);
+    assert.deepEqual(await page.locator('#scan-selection-list li p.font-semibold').allTextContents(), ['skin effect', 'resistance']);
     assert.equal(await page.locator('#btn-meaning-context').getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('#context-sentence-input').isVisible(), false);
     assert.match(await page.locator('#submit-btn-text').textContent(), /2개/);
@@ -222,7 +224,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.locator('#analysis-review').waitFor({state: 'visible'});
     assert.match(await page.locator('#analysis-review h2').textContent(), /\(1\/2\)/);
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].word, 'skin');
+    assert.equal(requests[0].word, 'skin effect');
     assert.equal(requests[0].meaningMode, 'context');
     assert.equal(requests[0].referenceText, 'The skin effect increases the resistance of the conductor.');
     assert.equal(await page.locator('#batch-skip').isVisible(), true);
@@ -239,7 +241,7 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await page.waitForURL('**/words.html?**');
 
     const words = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms));
-    assert.deepEqual(words.map(word => word.en).sort(), ['resistance', 'skin']);
+    assert.deepEqual(words.map(word => word.en).sort(), ['resistance', 'skin effect']);
     assert.ok(words.every(word => word.course === 'test' && /conductor/.test(word.referenceSentence)));
     assert.equal(await page.evaluate(() => sessionStorage.getItem('word-collector-scan-selection-v1')), null);
 

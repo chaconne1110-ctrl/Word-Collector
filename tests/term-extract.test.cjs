@@ -22,14 +22,39 @@ test('전공용어 위주: everyday words and their inflected forms are left out
   for (const word of ['causes', 'reduced', 'largest', 'area', 'high', 'impedance']) assert.ok(terms(text).includes(word), word);
 });
 
-test('only single words: no 2–3 word phrases', () => {
-  const text = 'The skin effect matters. The skin effect grows. Power factor correction is common.';
+test('2–3 word terms that appear at least twice are candidates, with their count', () => {
+  const text = 'The plasmonic effect matters. The plasmonic effect grows with light. ' +
+    'Power factor correction is common. We need power factor correction. The power factor is low.';
   for (const mode of ['all', 'major']) {
-    const found = extractCandidates(text, {mode});
-    assert.ok(found.every(candidate => !/\s/.test(candidate.term)), mode + ': ' + found.map(c => c.term));
+    assert.equal(find(text, 'plasmonic effect', mode).count, 2, mode);
+    assert.equal(find(text, 'plasmonic effect', mode).kind, 'phrase');
+    assert.equal(find(text, 'power factor correction', mode).count, 2, mode);
+    assert.equal(find(text, 'power factor', mode).count, 3, mode);
   }
-  assert.equal(find(text, 'skin').count, 2);
-  assert.equal(find(text, 'effect').count, 2);
+  // The single words stay too.
+  assert.equal(find(text, 'plasmonic').count, 2);
+  assert.equal(find(text, 'plasmonic').kind, 'word');
+  // Once only: not a phrase candidate.
+  assert.equal(find('The dark current is small.', 'dark current'), undefined);
+});
+
+test('a phrase inside a longer phrase with the same count is dropped', () => {
+  const found = terms('Power factor correction helps. Power factor correction is cheap.');
+  assert.ok(found.includes('power factor correction'));
+  assert.ok(!found.includes('power factor') && !found.includes('factor correction'));
+});
+
+test('phrases never cross punctuation, numbers, grammar words or an unreadable word (…)', () => {
+  const found = terms('Use copper, wire and copper; wire. The coil of wire. The coil of wire. ' +
+    'Ohm 5 resistor, Ohm 5 resistor. Dark … current here. Dark … current there.');
+  for (const phrase of ['copper wire', 'coil of wire', 'coil wire', 'ohm resistor', 'dark current']) {
+    assert.ok(!found.includes(phrase), phrase);
+  }
+});
+
+test('repeated phrases of everyday words stay in 전공용어 위주 (they can be terms)', () => {
+  const text = 'The dark current is small. The dark current grows. The power factor is low. The power factor rises.';
+  for (const phrase of ['dark current', 'power factor']) assert.ok(terms(text, 'major').includes(phrase), phrase);
 });
 
 test('contractions, short words and letter runs without a vowel are never candidates', () => {
@@ -84,7 +109,12 @@ test('links, e-mail addresses and Korean text give no candidates', () => {
   assert.deepEqual(extractCandidates(null), []);
 });
 
-test('candidates are sorted by count, then alphabetically', () => {
+test('candidates are sorted by count, phrases first on ties, then alphabetically', () => {
+  const list = extractCandidates('Skin effect and inductance. Skin effect again. Inductance here.');
+  assert.deepEqual(list.slice(0, 4).map(candidate => candidate.term), ['skin effect', 'effect', 'inductance', 'skin']);
+});
+
+test('single words are sorted by count, then alphabetically', () => {
   const list = extractCandidates('Rotor and stator. Stator again. Stator here. Rotor too.');
   assert.deepEqual(list.map(candidate => [candidate.term, candidate.count]),
     [['stator', 3], ['rotor', 2], ['again', 1]]);   // "here", "and", "too" are grammar words
