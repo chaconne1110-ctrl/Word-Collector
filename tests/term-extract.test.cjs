@@ -121,6 +121,15 @@ test('acronyms keep capitals; names keep a capital only when written with one mi
   assert.ok(found.includes('Faraday'));
 });
 
+test('English terms written in Title Case inside Korean text stay lower case (not names)', () => {
+  const text = '전력변환(Power Conversion)은 정류기(Rectifier)와 인버터(Inverter)를 씁니다. 저항(Resistance)과 MOSFET(Metal-Oxide-Semiconductor Field-Effect Transistor). ' +
+    '옴의 법칙(Ohm’s Law)과 Faraday 법칙.';
+  const found = terms(text);
+  for (const word of ['power', 'conversion', 'rectifier', 'inverter', 'resistance', 'transistor']) assert.ok(found.includes(word), word + ' in ' + found);
+  assert.ok(found.includes('MOSFET'));
+  assert.ok(found.includes('Faraday'), 'a lone capitalised word mid-sentence is still a name');
+});
+
 test('each candidate keeps the first sentence it appears in (≤ 600 characters, around the word)', () => {
   const text = 'Eddy currents heat the core. Eddy currents are reduced by laminations.';
   assert.equal(find(text, 'laminations').sentence, 'Eddy currents are reduced by laminations.');

@@ -193,8 +193,14 @@
         return {surface, lower: surface.toLowerCase(), index: match.index, end: match.index + match[0].length};
       });
       const joined = (a, b) => /^[\s-]*$/.test(sentence.slice(a.end, b.index));
+      // A capital that does not mark a name: sentence start, right after "(", or a Title
+      // Case run such as "(Power Conversion)" in Korean documents. Only other capitals
+      // (e.g. "cite Faraday here") keep a word capitalised.
+      const capitalOnly = token => /^[A-Z]/.test(token?.surface || '');
+      const notName = i => i === 0 || /\(\s*$/.test(sentence.slice(Math.max(0, tokens[i].index - 3), tokens[i].index)) ||
+        (capitalOnly(tokens[i - 1]) && joined(tokens[i - 1], tokens[i])) || (capitalOnly(tokens[i + 1]) && joined(tokens[i], tokens[i + 1]));
       tokens.forEach(({surface, lower}, i) => {
-        if (isCandidate(surface, lower, mode)) add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 1, i === 0);
+        if (isCandidate(surface, lower, mode)) add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 1, notName(i));
         for (let size = 2; size <= 3; size++) {
           const words = tokens.slice(i, i + size);
           if (words.length < size) break;

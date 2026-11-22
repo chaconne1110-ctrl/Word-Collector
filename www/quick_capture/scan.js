@@ -349,7 +349,14 @@
     progress(current, 'PDF를 여는 중…');
     const pdfjs = await getPdfjs();
     check(current);
-    const task = pdfjs.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false});
+    // Files PDF.js needs for some PDFs, shipped with the app (www/vendor/pdfjs):
+    // - cmaps: character maps for CJK fonts that are not embedded (e.g. Korean Word/HWP
+    //   exports). Without them the text layer of such a PDF is empty and its pages draw blank.
+    // - standard_fonts: the 14 standard PDF fonts (Foxit, BSD), when a PDF does not embed them.
+    // - wasm/iccs: decoders for JBIG2 / JPEG 2000 scans and colour profiles.
+    const task = pdfjs.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false,
+      cMapUrl: vendor('pdfjs/cmaps/'), cMapPacked: true, standardFontDataUrl: vendor('pdfjs/standard_fonts/'),
+      wasmUrl: vendor('pdfjs/wasm/'), iccUrl: vendor('pdfjs/iccs/'), useSystemFonts: true});
     const cleanup = () => { void task.destroy(); };
     current.cleanups.push(cleanup);
     let pdf;

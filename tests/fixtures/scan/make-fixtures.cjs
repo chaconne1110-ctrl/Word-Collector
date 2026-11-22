@@ -4,6 +4,7 @@
 //   photo.jpg    – a "photo" of an English sentence (for OCR)
 //   pages.pdf    – 3 pages with different text (only the chosen page is read)
 //   mixed-photo.jpg – phone-like photo of a Korean page with English sentences
+//   korean-cid.pdf  – Korean text in a font that is not embedded (needs PDF.js CMaps)
 // Run: CHROMIUM_PATH=<chromium or msedge> node tests/fixtures/scan/make-fixtures.cjs
 const fs = require('node:fs');
 const path = require('node:path');
@@ -69,6 +70,29 @@ function pagesPdf() {
   return pdf(objects);
 }
 
+// Korean document whose font is NOT embedded (like Word/HWP exports): the text uses the
+// Adobe-Korea1 character collection with the UniKS-UCS2-H CMap, so PDF.js can only read it
+// with its CMap files (www/vendor/pdfjs/cmaps). English terms sit in brackets in Title Case.
+const KOREAN_LINES = [
+  '전력변환(Power Conversion)은 정류기(Rectifier)와 인버터(Inverter)로 이루어집니다.',
+  '커패시터(Capacitor)와 인덕터(Inductor)는 필터(Filter)에 쓰입니다.',
+  '임피던스(Impedance)는 리액턴스(Reactance)와 저항(Resistance)으로 구성됩니다.'
+];
+function koreanCidPdf() {
+  const ucs2 = text => '<' + [...text].map(ch => ch.codePointAt(0).toString(16).padStart(4, '0')).join('') + '>';
+  // 9 pt: without width data every character counts 1 em wide; longer lines would run off the page.
+  const content = KOREAN_LINES.map((line, k) => `BT /K1 9 Tf 30 ${740 - k * 20} Td ${ucs2(line)} Tj ET`).join('\n');
+  return pdf([
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /K1 5 0 R >> >> /Contents 4 0 R >>',
+    stream('', Buffer.from(content)),
+    '<< /Type /Font /Subtype /Type0 /BaseFont /HYSMyeongJo-Medium /Encoding /UniKS-UCS2-H /DescendantFonts [6 0 R] >>',
+    '<< /Type /Font /Subtype /CIDFontType0 /BaseFont /HYSMyeongJo-Medium /CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> /FontDescriptor 7 0 R /DW 1000 >>',
+    '<< /Type /FontDescriptor /FontName /HYSMyeongJo-Medium /Flags 6 /FontBBox [0 -148 1001 880] /ItalicAngle 0 /Ascent 880 /Descent -148 /CapHeight 880 /StemV 60 >>'
+  ]);
+}
+
 function scannedPdf(jpeg, width, height) {
   const w = 612, h = Math.round(612 * height / width);
   return pdf([
@@ -91,6 +115,7 @@ function scannedPdf(jpeg, width, height) {
     fs.writeFileSync(path.join(out, 'scanned.pdf'), scannedPdf(jpeg, 1100, 260));
     fs.writeFileSync(path.join(out, 'text.pdf'), textPdf());
     fs.writeFileSync(path.join(out, 'pages.pdf'), pagesPdf());
+    fs.writeFileSync(path.join(out, 'korean-cid.pdf'), koreanCidPdf());
     // A phone-like photo of a Korean textbook page with English sentences: tilted,
     // shaded paper on a dark desk, slightly blurred. The English OCR model turns the
     // Korean lines into made-up words; only the English words may become candidates.
@@ -103,7 +128,7 @@ function scannedPdf(jpeg, width, height) {
 <p>${MIXED_ENGLISH[1]}</p>
 <p style="font-size:22px;color:#555">그림 3-4 직렬 RLC 회로의 페이저도 · 32쪽</p></div></body>`);
     fs.writeFileSync(path.join(out, 'mixed-photo.jpg'), await desk.screenshot({type: 'jpeg', quality: 80}));
-    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf', 'mixed-photo.jpg']) {
+    for (const name of ['text.pdf', 'scanned.pdf', 'photo.jpg', 'pages.pdf', 'mixed-photo.jpg', 'korean-cid.pdf']) {
       console.log(name, fs.statSync(path.join(out, name)).size, 'bytes');
     }
   } finally { await browser.close(); }

@@ -20,3 +20,6 @@
 *.otf binary
 *.wasm binary
 *.gz binary
+*.bcmap binary
+*.pfb binary
+*.icc binary

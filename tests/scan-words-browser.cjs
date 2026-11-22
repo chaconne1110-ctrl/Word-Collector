@@ -140,6 +140,20 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.equal(ocrCalls, 0);
     if (SHOTS) await page.screenshot({path: path.join(SHOTS, 'pdf-page-390.png')});
 
+    // 1c. Korean PDF whose font is not embedded (Word/HWP exports): its text layer is read
+    // with the bundled CMaps (without them it was empty and nothing was found).
+    await openPdf('korean-cid.pdf');
+    await previewSays('1 / 1쪽');
+    await readPage(1);
+    await page.locator('#candidate-card').waitFor({state: 'visible'});
+    terms = await candidateTerms();
+    for (const term of ['rectifier', 'capacitor', 'inductor', 'impedance', 'reactance', 'resistance']) {
+      assert.ok(terms.includes(term), `${term} in ${terms}`);
+    }
+    assert.ok(!terms.some(term => /^[A-Z][a-z]/.test(term)), 'Title Case terms in brackets are shown in lower case: ' + terms);
+    assert.doesNotMatch(await page.locator('#scan-status').textContent(), /스캔한 쪽/, 'read from the text layer, not by OCR');
+    assert.equal(ocrCalls, 0);
+
     // 2. Limits: a photo over 10MB is refused with a message.
     await page.locator('#pick-photo').setInputFiles({name: 'big.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(10 * 1024 * 1024 + 1)});
     await page.waitForFunction(() => document.getElementById('scan-status').textContent.includes('10MB'));
