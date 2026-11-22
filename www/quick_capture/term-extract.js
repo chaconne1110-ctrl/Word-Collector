@@ -101,8 +101,27 @@
     for (const form of [...forms]) if (/([b-df-hj-np-tv-z])\1$/.test(form)) forms.push(form.slice(0, -1));
     return forms;
   }
-  const isEveryday = lower => lower.split(/[-‐‑]/).every(part =>
-    baseForms(part).some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form)));
+  // The ~3,900 most common English words (SCOWL size 10, common-words.js) are everyday too:
+  // "background", "engineer", "measured"…
+  const SCOWL_COMMON = new Set(typeof module !== 'undefined' && module.exports ?
+    require('./common-words.js') : root.WordCollectorCommonWords || []);
+  // Everyday words that are also basic terms in electrical engineering and semiconductors:
+  // kept in 전공용어 위주 (with their inflected forms: "currents", "charged"…).
+  const MAJOR_KEEP = new Set(`current power voltage charge field circuit energy frequency phase load ground
+    source drain gate bias junction signal resistance resistor conductor insulator capacitance inductance
+    impedance wave cell battery magnet magnetic electric electrical electronic electron motor generator switch
+    transistor diode noise gain feedback filter bridge terminal potential capacity density flux induction
+    conduction emission absorption reflection band carrier layer film contact metal oxide crystal silicon
+    semiconductor substrate electrode wafer photon spectrum laser lens beam heat temperature pressure force
+    mass speed velocity acceleration torque rotor stator winding coil core transformer transmission
+    distribution grid network supply output input amplifier oscillator sensor detector light optical
+    loss efficiency`
+    .split(/\s+/).filter(Boolean));
+  const isEveryday = lower => lower.split(/[-‐‑]/).every(part => {
+    const forms = baseForms(part);
+    if (forms.some(form => MAJOR_KEEP.has(form))) return false;
+    return forms.some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form));
+  });
   const MAX_SENTENCE = 600;
 
   // Text from a PDF text layer or OCR → clean sentences.

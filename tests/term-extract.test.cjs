@@ -22,6 +22,33 @@ test('전공용어 위주: everyday words and their inflected forms are left out
   for (const word of ['causes', 'reduced', 'largest', 'area', 'high', 'impedance']) assert.ok(terms(text).includes(word), word);
 });
 
+test('전공용어 위주: the ~3,900 most common English words (SCOWL size 10) are everyday too', () => {
+  const text = 'The background noise in the measured signal was reduced by the engineer. ' +
+    'Current flows through the semiconductor junction when a forward bias voltage is applied. ' +
+    'Touch the electrode carefully. The plasmonic effect enhances absorption in graphene.';
+  const major = terms(text, 'major');
+  for (const word of ['background', 'measured', 'engineer', 'reduced', 'flows', 'forward', 'applied', 'touch', 'carefully']) {
+    assert.ok(!major.includes(word), word + ' is everyday');
+    assert.ok(terms(text).includes(word), word + ' is still in 모든 단어');
+  }
+  // Everyday words that are basic electrical/semiconductor terms stay.
+  for (const word of ['current', 'noise', 'signal', 'voltage', 'bias', 'junction', 'semiconductor', 'electrode',
+    'plasmonic', 'graphene', 'absorption']) {
+    assert.ok(major.includes(word), word + ' kept');
+  }
+  assert.ok(terms('Charges move. The charged plate. Currents flow.', 'major').includes('charges'), 'inflected forms of kept words stay');
+});
+
+test('the everyday list ships with the app and its licence notice', () => {
+  const words = require('../www/quick_capture/common-words.js');
+  assert.ok(words.length > 3500 && words.includes('background') && !words.includes('plasmonic'));
+  assert.match(fs.readFileSync('www/vendor/scowl/Copyright.txt', 'utf8'), /Kevin Atkinson/);
+  assert.match(fs.readFileSync('www/licenses.html', 'utf8'), /SCOWL[\s\S]*vendor\/scowl\/Copyright\.txt/);
+  const scan = fs.readFileSync('www/quick_capture/scan.html', 'utf8');
+  assert.ok(scan.indexOf('common-words.js') > 0 && scan.indexOf('common-words.js') < scan.indexOf('term-extract.js'));
+  assert.match(fs.readFileSync('www/sw.js', 'utf8'), /"quick_capture\/common-words\.js",/);
+});
+
 test('2–3 word terms that appear at least twice are candidates, with their count', () => {
   const text = 'The plasmonic effect matters. The plasmonic effect grows with light. ' +
     'Power factor correction is common. We need power factor correction. The power factor is low.';
