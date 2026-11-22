@@ -242,3 +242,42 @@ test('OCR repair: cut-off words are restored, stray short pieces dropped, real t
   // Without a dictionary the text is unchanged.
   assert.equal(repairOcrText('apacitance', []), 'apacitance');
 });
+
+test('papers: reference lists, running headers and acknowledgments are left out', () => {
+  const page = 'Journal of Applied Optoelectronics 12 (2026) 101–110\nThe responsivity of the photodetector rises.\n' +
+    'Acknowledgments\nThis work was supported by the National Research Foundation of Korea.\nReferences\n' +
+    '1. F. Xia, T. Mueller, Y. Lin, Ultrafast graphene photodetector, Nat. Nanotechnol. 4 (2009) 839–843.';
+  const found = terms(page);
+  for (const word of ['responsivity', 'photodetector']) assert.ok(found.includes(word), word);
+  for (const word of ['optoelectronics', 'foundation', 'korea', 'xia', 'mueller', 'nanotechnol', 'ultrafast']) assert.ok(!found.includes(word), word);
+  // Reference-looking lines on a page that continues the list (no heading) are left out too.
+  const continued = terms('M. W. Knight, H. Sobhani, P. Nordlander, Photodetection with optical antennas, Science 332 (2011) 702–704.\nThe dielectric layer is thin.');
+  assert.ok(!continued.includes('nordlander') && continued.includes('dielectric'));
+});
+
+test('papers: "full name (ABBREVIATION)" marks both as terms', () => {
+  const text = 'Graphene was grown by chemical vapor deposition (CVD). We measured the noise equivalent power (NEP) and used the finite-difference time-domain (FDTD) method. Results (see Fig. 2) agree.';
+  const found = extractCandidates(text, {mode: 'major'});
+  const cue = term => found.find(candidate => candidate.term === term)?.cue;
+  for (const term of ['chemical vapor deposition', 'CVD', 'noise equivalent power', 'NEP', 'finite-difference time-domain', 'FDTD']) {
+    assert.equal(cue(term), 'abbreviation', term);
+  }
+  assert.ok(!found.some(candidate => candidate.term === 'see'), 'brackets that are not abbreviations give nothing');
+});
+
+test('a hyphen at a line end: word breaks are joined, compounds keep the hyphen', () => {
+  assert.ok(terms('The finite-\ndifference method.').includes('finite-difference'));
+  assert.ok(terms('The near-\nfield enhancement.').includes('near-field'));
+  assert.ok(terms('The induc-\ntance rises.').includes('inductance'));
+  assert.ok(terms('A photo-\ndetector and another photodetector.').includes('photodetector'), 'joined form used elsewhere');
+});
+
+test('전공용어 위주 offers once-used technical two-word terms, ranked below repeated ones', () => {
+  const text = 'The flicker noise dominates. The carrier mobility is high. Raman spectroscopy confirmed it. We optimize detectivity. The graphene layer and the graphene layer again.';
+  const found = extractCandidates(text, {mode: 'major'});
+  const names = found.map(candidate => candidate.term);
+  for (const term of ['flicker noise', 'carrier mobility', 'raman spectroscopy']) assert.ok(names.includes(term), term + ' in ' + names);
+  assert.ok(!names.includes('optimize detectivity'), 'not a verb + noun');
+  assert.ok(names.indexOf('graphene layer') < names.indexOf('flicker noise'), 'a repeated phrase ranks higher');
+  assert.ok(!terms(text).includes('flicker noise'), '모든 단어 keeps the repeat rule');
+});

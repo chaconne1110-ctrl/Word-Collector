@@ -162,6 +162,37 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.equal(await page.evaluate(() => localStorage.getItem('word-collector-scan-field-v1')), 'chemistry');
     await page.locator('#field-select').selectOption('');
 
+    // 1d. English research paper (tests/fixtures/scan/make-paper.cjs): accuracy of 전공용어 위주.
+    // Measured: page 1 top 20 → 15 key terms, whole paper 45 of 50 key terms found; the
+    // reference list (author names, journal abbreviations) and running header are left out.
+    const {PAPER_TERMS} = require('./fixtures/scan/make-paper.cjs');
+    const keyTerm = term => {
+      const norm = word => word.toLowerCase().replace(/s$/, '');
+      return PAPER_TERMS.some(key => norm(key) === norm(term) || (!/\s/.test(term) && key.toLowerCase().split(/[\s-]+/).map(norm).includes(norm(term))));
+    };
+    await openPdf('paper.pdf');
+    const paperFound = new Set();
+    for (const number of [1, 2]) {
+      await readPage(number);
+      await page.waitForFunction(n => new RegExp(n + '쪽을 읽었어요').test(document.getElementById('scan-status').textContent), number);
+      await page.locator('#mode-major').click();
+      const list = await candidateTerms();
+      list.forEach(term => paperFound.add(term.toLowerCase()));
+      if (number === 1) {
+        assert.ok(list.slice(0, 20).filter(keyTerm).length >= 14, 'page 1 top 20: ' + list.slice(0, 20));
+        for (const term of ['chemical vapor deposition', 'noise equivalent power', 'finite-difference time-domain']) {
+          assert.equal(await row(term).locator('.cand-badge').first().textContent(), '약어 정의', term);
+        }
+      } else {
+        for (const name of ['nordlander', 'halas', 'novoselov', 'nanotechnol', 'commun', 'applied optoelectronics', 'foundation']) {
+          assert.ok(!list.includes(name), name + ' (reference list / header / acknowledgments) left out');
+        }
+      }
+    }
+    const paperRecall = PAPER_TERMS.filter(term => [...paperFound].some(found => found.replace(/s$/, '') === term.toLowerCase().replace(/s$/, ''))).length;
+    assert.ok(paperRecall >= 43, `paper recall ${paperRecall}/${PAPER_TERMS.length}`);
+    await page.locator('#mode-all').click();
+
     // 2. Limits: a photo over 10MB is refused with a message.
     await page.locator('#pick-photo').setInputFiles({name: 'big.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(10 * 1024 * 1024 + 1)});
     await page.waitForFunction(() => document.getElementById('scan-status').textContent.includes('10MB'));

@@ -166,12 +166,22 @@
   const MAX_SENTENCE = 600;
 
   // Text from a PDF text layer or OCR → clean sentences.
+  // A hyphen at a line end either breaks a word ("induc-\ntance" → "inductance") or belongs
+  // to a compound ("finite-\ndifference" stays "finite-difference"): the joined form is used
+  // when it appears elsewhere in the text or a part is not a word; when both parts are
+  // words the hyphen stays, unless only the joined form is known elsewhere.
+  const isWordPart = part => part.length >= 3 && (SCOWL_COMMON.has(part) || TIER20.has(part) || TIER35.has(part) || COMMON_WORDS.has(part));
   function normalizeText(text) {
-    return String(text ?? '').normalize('NFKC')
-      .replace(/­/g, '')                                  // soft hyphens
-      .replace(/\r\n?/g, '\n')
+    const source = String(text ?? '').normalize('NFKC').replace(/­/g, '').replace(/\r\n?/g, '\n');
+    const plain = source.toLowerCase();
+    return source
       .replace(/https?:\/\/\S+|www\.\S+|\S+@\S+\.\S+/g, ' ')   // links and e-mail addresses
-      .replace(/([A-Za-z])[-‐‑]\s*\n\s*([a-z])/g, '$1$2')      // "induc-\ntance" → "inductance"
+      .replace(/([A-Za-z]+)[-‐‑]\s*\n\s*([a-z]+)/g, (all, left, right) => {
+        const joined = (left + right).toLowerCase();
+        if (new RegExp('\\b' + joined + '\\b').test(plain.replace(all.toLowerCase(), ''))) return left + right;
+        if (new RegExp('\\b' + left.toLowerCase() + '-' + right + '\\b').test(plain)) return left + '-' + right;
+        return isWordPart(left.toLowerCase()) && isWordPart(right) ? left + '-' + right : left + right;
+      })
       .replace(/[ \t\f\v]+/g, ' ');
   }
 
@@ -248,6 +258,25 @@
     for (const match of flat.matchAll(/[가-힣ㄱ-ㆎ]\s?\(\s*([A-Za-z][^()가-힣]{0,90}?)\s*\)/g)) {
       for (const part of match[1].split(/\s*[,;/]\s*/)) note(part, 'bracket');
     }
+    // abbreviation: "chemical vapor deposition (CVD)" — the capitals in brackets are the
+    // initials of the words before them (hyphenated parts count: "finite-difference
+    // time-domain (FDTD)"; "of", "the"… may sit in between).
+    for (const match of flat.matchAll(/((?:[A-Za-z][A-Za-z-]*\s+){1,8})\(\s*([A-Z][A-Za-z]{1,7})\s*\)/g)) {
+      const letters = match[2].replace(/[a-z]/g, '').toLowerCase();
+      if (letters.length < 2) continue;
+      const words = match[1].trim().split(/\s+/);
+      for (let k = 1; k <= words.length; k++) {
+        const phrase = words.slice(-k);
+        const initials = phrase.filter(word => !FUNCTION_WORDS.has(word.toLowerCase()))
+          .flatMap(word => word.split('-').filter(Boolean).map(part => part[0].toLowerCase())).join('');
+        if (initials === letters && !FUNCTION_WORDS.has(phrase[0].toLowerCase())) {
+          note(phrase.join(' '), 'abbreviation');
+          note(match[2], 'abbreviation');
+          break;
+        }
+        if (initials.length > letters.length) break;
+      }
+    }
     for (const match of flat.matchAll(/\b(?:is|are|was|were)\s+(?:called|termed|named|known\s+as|referred\s+to\s+as|denoted\s+as)\s+(?:the\s+|an?\s+)?((?:[A-Za-z][A-Za-z-]*\s+){0,3}[A-Za-z][A-Za-z-]*)/gi)) {
       note(match[1].split(/\s+/).filter((word, i, all) => !all.slice(0, i + 1).some(part => FUNCTION_WORDS.has(part.toLowerCase()))).join(' '), 'definition');
     }
@@ -267,10 +296,27 @@
   // never spans punctuation, digits or a "…" left by an unreadable word.
   const MIN_PHRASE_COUNT = 2;
 
+  // ---- Reference lists and running headers (papers) ------------------------------------
+  // A paper's reference list is author names and journal abbreviations ("Nordlander",
+  // "Nat. Nanotechnol."), and its running header repeats the journal name on every page.
+  // - Everything after a "References" / "Bibliography" / "참고문헌" heading line is left out.
+  // - A line with 2 or more reference signs is left out: a year in brackets "(2014)", a page
+  //   range "780–793", "doi", "et al.", or 2 or more initials ("F. H. L. Koppens").
+  function withoutReferences(text) {
+    const lines = String(text ?? '').split('\n');
+    const heading = lines.findIndex((line, i) => i > 0 &&
+      /^\s*(?:\d+\.?\s*)?(?:references|bibliography|works cited|literature cited|acknowledge?ments?|funding|author contributions|conflicts? of interest|declaration of competing interest|data availability|참고\s*문헌|감사의\s*글|사사)\s*:?\s*$/i.test(line));
+    const kept = heading > 0 ? lines.slice(0, heading) : lines;
+    const signs = line => [/\((?:19|20)\d\d[a-z]?\)/, /\b\d{1,5}\s*[–-]\s*\d{1,5}\b/, /\bdoi\b|10\.\d{4,}\//i, /\bet al\./,
+      /(?:\b[A-Z]\.\s?){2,}|(?:\b[A-Z]\.\s?[A-Z][a-z]+,.*){2,}/].filter(pattern => pattern.test(line)).length;
+    return kept.filter(line => signs(line) < 2).join('\n');
+  }
+
   // Options: mode 'all' | 'major'; field (a FIELD_KEEP key, or none = all fields);
   // saved: words already in the user's notebooks (marked, shown a little lower);
   // learned: words the user picked from scans before (never left out, shown higher).
   function extractCandidates(text, {mode = 'all', field = '', saved = new Set(), learned = new Set()} = {}) {
+    text = withoutReferences(text);
     const keep = keepOf(field);
     const cues = findCues(text);
     const sure = lower => cues.has(lower) || learned.has(lower);
@@ -324,7 +370,18 @@
     }
     // A phrase counts when it repeats, or when the document marks it (cue) or the user
     // picked it before — then once is enough ("plasmonic effect" in "(Plasmonic Effect)").
-    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT || sure(entry.key));
+    // 전공용어 위주 also offers a two-word term used once when it looks like a technical noun
+    // phrase: one word is rare (beyond SCOWL size 20) or a field word, and the last word is
+    // noun-like ("flicker noise", "carrier mobility", "Raman spectroscopy"). Shown lower.
+    const nounLike = word => !/(?:ly|ed|ing|al|ive|ous|ic|ful|less|able|ible|ant|ent|ary)$/.test(word) || keep.has(word);
+    const once = entry => mode === 'major' && entry.size === 2 && entry.count === 1 && (() => {
+      const [first, last] = entry.key.toLowerCase().split(' ');
+      // Not a verb + noun ("optimize detectivity") or "given wavelength".
+      if (/(?:ize|ise|ify|ate)$/.test(first) || /^(?:given|using|based|used|shown|known|other|each|several)$/.test(first)) return false;
+      if (!nounLike(last) || isEveryday(first, new Set()) && isEveryday(last, new Set()) && !inKeep(last, keep)) return false;
+      return [first, last].some(part => rarity(part) >= 1.0 || inKeep(part, keep)) && [first, last].some(part => rarity(part) >= 0.6);
+    })();
+    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT || sure(entry.key) || once(entry));
     // "power factor" inside "power factor correction" with the same count is the same use.
     const phrases = entries.filter(entry => entry.size > 1);
     entries = entries.filter(entry => entry.size === 1 || sure(entry.key) || !phrases.some(other =>
@@ -346,7 +403,8 @@
       // before score higher; a word already in a notebook a little lower.
       const rare = acronym ? 1.3 : entry.size > 1 ?
         Math.max(...parts.map(part => rarity(part.toLowerCase()))) + 0.4 : rarity(lowerKey);
-      const score = rare * (1 + Math.log2(entry.count)) + (cues.has(entry.key) ? 2.5 : 0) +
+      const onceOnly = entry.size > 1 && entry.count < MIN_PHRASE_COUNT && !sure(entry.key);
+      const score = rare * (1 + Math.log2(entry.count)) * (onceOnly ? 0.7 : 1) + (cues.has(entry.key) ? 2.5 : 0) +
         (learned.has(lowerKey) ? 1.5 : 0) + (fieldWord && mode === 'major' ? 0.8 : 0) - (isSaved ? 1 : 0);
       return {term, count: entry.count, kind: entry.size > 1 ? 'phrase' : 'word', sentence: sentenceAround(entry.sentence, forms[0]),
         score: Math.round(score * 100) / 100, ...(cue ? {cue} : {}), ...(isSaved ? {saved: true} : {})};
