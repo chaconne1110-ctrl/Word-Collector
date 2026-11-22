@@ -35,6 +35,11 @@
   #scan-progress-bar { width: 100%; height: 10px; accent-color: #00236f; }
   #scan-progress-text { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
   .cand-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 10px; background: #e2e7ff; }
+  .cand-mode:has(#mode-ai:not([hidden])) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cand-mode:has(#mode-ai:not([hidden])) button { font-size: 12px; padding: 0 2px; }
+  .ai-pick { margin: 0 0 10px; }
+  .ai-pick button { width: 100%; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .ai-pick button:disabled { opacity: .6; }
   .cand-mode button { min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #44464f; white-space: nowrap; }
   .cand-mode button[aria-pressed=true] { background: #00236f; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
   .cand-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -109,6 +114,11 @@
   <div class="cand-mode" role="group" aria-label="후보 기준">
     <button type="button" id="mode-all" aria-pressed="true">모든 단어</button>
     <button type="button" id="mode-major" aria-pressed="false">전공용어 위주</button>
+    <button type="button" id="mode-ai" aria-pressed="false" hidden>AI 추천</button>
+  </div>
+  <div class="ai-pick" id="ai-pick">
+    <button type="button" class="btn-tonal" id="ai-pick-btn"><span class="material-symbols-outlined text-[18px]" aria-hidden="true" style="vertical-align:middle">auto_awesome</span> AI로 더 정확하게 고르기</button>
+    <p class="scan-note" id="ai-pick-note" style="margin:6px 0 0">읽은 영어 글만 분석 서버(Gemini)로 보내 전공 용어와 여러 단어로 된 용어(예: plasmonic effect)를 골라요. 사진·파일은 보내지 않아요. 하루 분석 1회가 쓰여요.</p>
   </div>
   <div class="cand-tools">
     <input type="search" id="candidate-filter" placeholder="후보에서 찾기" aria-label="후보에서 찾기" autocomplete="off">
@@ -126,4 +136,4 @@
 
 <nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-on-surface-variant hover:text-on-surface" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-primary-container font-semibold transition-colors" data-path="quick-capture" href="code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
 
-<script src="common-words.js"></script><script src="term-extract.js"></script><script src="scan.js"></script><script defer src="../pwa-register.js"></script></body></html>
+<script src="../analysis-api.js"></script><script src="common-words.js"></script><script src="term-extract.js"></script><script src="scan.js"></script><script defer src="../pwa-register.js"></script></body></html>

@@ -178,6 +178,41 @@
         throw new Error('사진 생성 결과가 올바르지 않습니다.');
       }
       return result;
+    }, async requestScanTerms(payload, {signal} = {}) {
+      // PDF·사진에서 단어 찾기 → "AI로 더 정확하게 고르기": only the text read on the
+      // device is sent (payload.text), never the picture or the file.
+      let status, result;
+      if (native) {
+        if (typeof nativeHttp?.request !== 'function') throw new Error('AI 연결 기능이 포함된 최신 APK로 업데이트해 주세요.');
+        let response;
+        try {
+          response = await nativeHttp.request({
+            url:(baseUrl || 'http://127.0.0.1:8787') + '/api/scan-terms', method:'POST', headers, data:payload,
+            connectTimeout:10000, readTimeout:35000, disableRedirects:true
+          });
+        } catch {
+          throw new Error('분석 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
+        }
+        status = response.status;
+        try { result = typeof response.data === 'string' ? JSON.parse(response.data) : response.data; } catch { result = null; }
+      } else {
+        const response = await fetchImpl(baseUrl + '/api/scan-terms', {
+          method:'POST', headers, body:JSON.stringify(payload),
+          signal: signal && typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, AbortSignal.timeout(35000)])
+            : signal || AbortSignal.timeout(35000),
+          redirect:'error'
+        });
+        status = response.status;
+        try { result = await response.json(); } catch { result = null; }
+      }
+      if (!(status >= 200 && status < 300)) {
+        throw Object.assign(new Error(result?.error || 'AI 단어 고르기 요청이 실패했습니다.'), {status});
+      }
+      if (!Array.isArray(result?.terms)) throw new Error('AI 단어 목록을 받지 못했습니다. 다시 시도해 주세요.');
+      return result.terms.filter(item => typeof item?.term === 'string' && item.term.trim() && item.term.length <= 120)
+        .map(item => ({term:item.term.trim(), count:Number.isInteger(item.count) && item.count > 0 ? item.count : 1,
+          sentence:typeof item.sentence === 'string' ? item.sentence.slice(0, 600) : ''}));
     }};
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = {createClient};
@@ -320,6 +355,14 @@
           baseUrl:CLOUD_URL, token, deviceId:getDeviceId(), native:isNative(),
           nativeHttp:root.Capacitor?.Plugins?.CapacitorHttp,
         }).requestImage(payload, options));
+      },
+      async scanTerms(payload, options = {}) {
+        if (!local && !token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);
+        return withoutRejectedToken(() => createClient({
+          baseUrl: local ? (isAndroid() ? 'http://127.0.0.1:8787' : '') : CLOUD_URL,
+          token, deviceId: local ? '' : getDeviceId(), native: isNative(),
+          nativeHttp: root.Capacitor?.Plugins?.CapacitorHttp,
+        }).requestScanTerms(payload, options));
       },
       async request(payload, options = {}) {
         if (!local && !token) await root.WordCollectorAI.restoreTesterToken().catch(() => false);

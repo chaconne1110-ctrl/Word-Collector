@@ -290,6 +290,62 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.ok(newBook, 'new notebook created');
     assert.deepEqual(Object.values(after.terms).filter(word => word.course === newBook[0]).map(word => word.en), ['capacitors']);
 
+    // "AI로 더 정확하게 고르기" (mock server: no paid call). Only the read text is sent.
+    await page.goto(base + '/quick_capture/scan.html');
+    await fastOcr();
+    await page.evaluate(() => WordCollectorAI.setLocalServer(true));
+    const aiBodies = [];
+    let aiReply = {status: 503, body: {error: 'AI 단어 고르기 기능이 아직 활성화되지 않았습니다.'}};
+    await page.route('**/api/scan-terms', async route => {
+      aiBodies.push(JSON.parse(route.request().postData()));
+      await route.fulfill({status: aiReply.status, contentType: 'application/json', body: JSON.stringify(aiReply.body)});
+    });
+    const answerConfirm = accept => page.once('dialog', dialog => {
+      assert.equal(dialog.type(), 'confirm');
+      assert.match(dialog.message(), /사진이나 파일은 보내지 않아요[\s\S]*하루 분석 횟수 1회/);
+      return accept ? dialog.accept() : dialog.dismiss();
+    });
+    await openPdf('text.pdf');
+    await readPage(1);
+    await page.locator('#candidate-card').waitFor({state: 'visible'});
+    assert.equal(await page.locator('#mode-ai').isVisible(), false);
+    // Cancelled: nothing is sent.
+    answerConfirm(false);
+    await page.locator('#ai-pick-btn').click();
+    assert.equal(aiBodies.length, 0);
+    // Server not ready yet (feature off): a clear message, the normal lists keep working.
+    answerConfirm(true);
+    await page.locator('#ai-pick-btn').click();
+    await page.waitForFunction(() => /아직 사용할 수 없어요/.test(document.getElementById('scan-status').textContent));
+    assert.equal(await page.locator('#mode-ai').isVisible(), false);
+    assert.equal(await page.locator('#ai-pick-btn').isDisabled(), false);
+    // Ready: the AI list appears as its own tab.
+    aiReply = {status: 200, body: {model: 'gemini-4-hydrogen', terms: [
+      {term: 'skin effect', count: 2, sentence: 'The skin effect increases the resistance of the conductor.'},
+      {term: 'power factor correction', count: 1, sentence: 'Power factor correction uses capacitors.'}]}};
+    answerConfirm(true);
+    await page.locator('#ai-pick-btn').click();
+    await page.locator('#mode-ai').waitFor({state: 'visible'});
+    assert.equal(await page.locator('#mode-ai').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('#ai-pick').isVisible(), false);
+    assert.deepEqual(await candidateTerms(), ['skin effect', 'power factor correction']);
+    assert.equal(aiBodies.length, 2);
+    assert.deepEqual(Object.keys(aiBodies[1]).sort(), ['mode', 'text']);
+    assert.equal(aiBodies[1].mode, 'all');
+    assert.match(aiBodies[1].text, /Power factor correction uses capacitors/);
+    await noSideScroll('scan AI 390');
+    if (SHOTS) await page.screenshot({path: path.join(SHOTS, 'scan-ai-390.png')});
+    // A multi-word term picked from the AI list stays picked in the other lists and goes on as one word.
+    await pick('power factor correction');
+    await page.locator('#mode-all').click();
+    assert.match(await page.locator('#candidate-title').textContent(), /1개 선택/);
+    await page.locator('#scan-continue').click();
+    await page.waitForURL('**/quick_capture/code.html');
+    assert.deepEqual(await page.locator('.scan-selection-term').evaluateAll(inputs => inputs.map(input => input.value)),
+      ['power factor correction']);
+    await page.locator('#scan-selection-clear').click();
+    await page.unroute('**/api/scan-terms');
+
     // 320px: no overlap or horizontal scroll on the scan and input pages.
     await page.setViewportSize({width: 320, height: 640});
     await page.goto(base + '/quick_capture/scan.html');

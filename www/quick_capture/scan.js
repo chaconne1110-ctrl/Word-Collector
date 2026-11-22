@@ -371,28 +371,91 @@
   let candidates = [];
   let readText = '';
   let candidateMode = 'all';
+  let aiCandidates = null;      // "AI 추천": terms picked by Gemini from readText (null = not asked yet)
   const selected = new Map();   // term → {term, sentence}; kept when the mode switches
+  function resetAi() {
+    aiCandidates = null;
+    aiRequest?.abort();
+    aiRequest = null;
+    $('#mode-ai').hidden = true;
+    $('#ai-pick').hidden = false;
+    $('#ai-pick-btn').disabled = false;
+    if (candidateMode === 'ai') candidateMode = 'all';
+  }
   function hideCandidates() {
     candidates = [];
     readText = '';
     selected.clear();
+    resetAi();
     candidateList.replaceChildren();
     candidateCard.hidden = true;
     actionBar.hidden = true;
   }
   function setCandidateMode(mode) {
+    if (mode === 'ai' && !aiCandidates) mode = 'all';
     candidateMode = mode;
-    for (const [id, value] of [['mode-all', 'all'], ['mode-major', 'major']]) {
+    for (const [id, value] of [['mode-all', 'all'], ['mode-major', 'major'], ['mode-ai', 'ai']]) {
       $('#' + id).setAttribute('aria-pressed', String(value === mode));
     }
-    candidates = WordCollectorTermExtract.extractCandidates(readText, {mode});
+    candidates = mode === 'ai' ? aiCandidates : WordCollectorTermExtract.extractCandidates(readText, {mode});
     renderCandidates();
   }
   $('#mode-all').addEventListener('click', () => setCandidateMode('all'));
   $('#mode-major').addEventListener('click', () => setCandidateMode('major'));
+  $('#mode-ai').addEventListener('click', () => setCandidateMode('ai'));
+
+  // "AI로 더 정확하게 고르기": the text read on this device (not the picture or file) is sent
+  // to the analysis server, where Gemini picks major terms and multi-word terms; the server
+  // keeps only terms that are really in the text. Costs one analysis of the daily quota.
+  const AI_TEXT_LIMIT = 12000;
+  let aiRequest = null;
+  $('#ai-pick-btn').addEventListener('click', async () => {
+    if (!readText || aiRequest) return;
+    const text = readText.slice(0, AI_TEXT_LIMIT);
+    const ask = '읽은 영어 글을 분석 서버(Gemini)로 보내 단어를 고를까요?\n' +
+      '· 사진이나 파일은 보내지 않아요.\n· 하루 분석 횟수 1회가 쓰여요.' +
+      (readText.length > AI_TEXT_LIMIT ? `\n· 글이 길어 앞 ${AI_TEXT_LIMIT.toLocaleString('ko-KR')}자만 보내요.` : '');
+    if (!confirm(ask)) return;
+    const button = $('#ai-pick-btn');
+    const controller = new AbortController();
+    aiRequest = controller;
+    button.disabled = true;
+    setStatus('AI가 단어를 고르는 중이에요… (몇 초 걸려요)');
+    try {
+      const terms = await window.WordCollectorAI.scanTerms({text, mode: candidateMode === 'all' ? 'all' : 'major'},
+        {signal: controller.signal});
+      if (aiRequest !== controller) return;
+      if (!terms.length) {
+        setStatus('AI가 고른 단어가 없어요. 다른 쪽이나 사진으로 시도해 주세요.', 'error');
+        button.disabled = false;
+        return;
+      }
+      aiCandidates = terms.map(term => ({...term, kind: /\s/.test(term.term) ? 'phrase' : 'word'}));
+      $('#mode-ai').hidden = false;
+      $('#ai-pick').hidden = true;
+      setStatus(`AI가 단어 ${terms.length}개를 골랐어요. 고른 단어는 다른 목록으로 바꿔도 그대로 남아요.`);
+      setCandidateMode('ai');
+    } catch (error) {
+      if (aiRequest !== controller) return;
+      button.disabled = false;
+      const status = error?.status;
+      setStatus(status === 404 || status === 503 ?
+        'AI 단어 고르기는 아직 사용할 수 없어요. (서버 준비 중) 지금 목록에서 골라 주세요.' :
+        status === 429 ? '오늘의 분석 횟수를 모두 썼어요. 내일 다시 시도하거나 지금 목록에서 골라 주세요.' :
+        error instanceof TypeError || ['TimeoutError', 'AbortError'].includes(error?.name) ?
+          'AI 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.' :
+        (typeof error?.message === 'string' && /[가-힣]/.test(error.message) ? error.message : 'AI 단어 고르기에 실패했어요.'),
+        'error');
+    } finally {
+      if (aiRequest === controller) aiRequest = null;
+    }
+  });
+  window.addEventListener('pagehide', () => { aiRequest?.abort(); });
+
   function showResult(text, notes) {
     readText = text;
     selected.clear();
+    resetAi();
     filterInput.value = '';
     candidates = WordCollectorTermExtract.extractCandidates(text, {mode: 'all'});
     if (!candidates.length) {
