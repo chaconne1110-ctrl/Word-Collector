@@ -825,12 +825,31 @@
     for (const [id, value] of [['mode-all', 'all'], ['mode-major', 'major'], ['mode-ai', 'ai']]) {
       $('#' + id).setAttribute('aria-pressed', String(value === mode));
     }
-    candidates = mode === 'ai' ? aiCandidates : WordCollectorTermExtract.extractCandidates(readText, {mode});
+    candidates = mode === 'ai' ? aiCandidates : WordCollectorTermExtract.extractCandidates(readText, extractOptions(mode));
     renderCandidates();
   }
   $('#mode-all').addEventListener('click', () => setCandidateMode('all'));
   $('#mode-major').addEventListener('click', () => setCandidateMode('major'));
   $('#mode-ai').addEventListener('click', () => setCandidateMode('ai'));
+
+  // What this device knows (scan-context.js): notebook words (marked "저장됨"), words picked
+  // before (kept, shown higher), and the field — chosen here, or guessed from notebook names.
+  const FIELD_NAMES = {electrical: '전기·전자', semiconductor: '반도체', chemistry: '화학·재료', mechanical: '기계',
+    bio: '생명·의학', computer: '컴퓨터', economics: '경제·경영'};
+  let context = {saved: new Set(), learned: new Set(), field: '', guessed: ''};
+  const fieldSelect = $('#field-select');
+  function loadContext() {
+    context = window.WordCollectorScanContext?.load() || context;
+    fieldSelect.value = context.field in FIELD_NAMES ? context.field : '';
+    // "자동" shows the field guessed from the notebook names (or the default fields).
+    fieldSelect.options[0].textContent = context.guessed ? `자동 (${FIELD_NAMES[context.guessed]})` : '자동 (전기·전자, 반도체)';
+  }
+  const extractOptions = mode => ({mode, field: fieldSelect.value || context.guessed, saved: context.saved, learned: context.learned});
+  fieldSelect.addEventListener('change', () => {
+    window.WordCollectorScanContext?.rememberField(fieldSelect.value);
+    if (readText) setCandidateMode(candidateMode);
+  });
+  const CUE_LABELS = {bracket: '괄호 용어', definition: '정의된 용어', list: '목록', learned: '전에 고름'};
 
   // "AI로 더 정확하게 고르기": the text read on this device (not the picture or file) is sent
   // to the analysis server, where Gemini picks major terms and multi-word terms; the server
@@ -891,7 +910,8 @@
     selected.clear();
     resetAi();
     filterInput.value = '';
-    candidates = WordCollectorTermExtract.extractCandidates(text, {mode: 'all'});
+    loadContext();
+    candidates = WordCollectorTermExtract.extractCandidates(text, extractOptions('all'));
     if (!candidates.length) {
       hideCandidates();
       setStatus([...notes, letterCount(text) ?
@@ -930,6 +950,15 @@
       count.className = 'cand-count';
       count.textContent = candidate.count + '회';
       head.append(term, count);
+      // Why it is likely a term, and whether it is already in a notebook.
+      for (const [kind, text] of [[candidate.cue, CUE_LABELS[candidate.cue]], [candidate.saved && 'saved', candidate.saved && '저장됨']]) {
+        if (!text) continue;
+        const badge = document.createElement('span');
+        badge.className = 'cand-badge';
+        badge.dataset.kind = kind;
+        badge.textContent = text;
+        head.append(badge);
+      }
       const sentence = document.createElement('span');
       sentence.className = 'cand-sentence';
       sentence.textContent = candidate.sentence;
@@ -977,6 +1006,8 @@
       setStatus('브라우저 저장소를 사용할 수 없어 단어 입력 화면으로 넘기지 못했어요.', 'error');
       return;
     }
+    // Picked words are remembered on this device so they stay in 전공용어 위주 next time.
+    window.WordCollectorScanContext?.rememberPicks(words.map(word => word.term));
     backToInput();
   });
   // Back to the input page; history.back() keeps what was typed there.

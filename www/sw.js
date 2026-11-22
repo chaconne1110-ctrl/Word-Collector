@@ -67,6 +67,8 @@ const APP_SHELL = [
   "quick_capture/scan.js",
   "quick_capture/term-extract.js",
   "quick_capture/common-words.js",
+  "quick_capture/word-tiers.js",
+  "quick_capture/scan-context.js",
   "request-gate.js",
   "word-export.js",
   "words.html"

@@ -48,6 +48,11 @@
   .ai-pick button:disabled { opacity: .6; }
   .cand-mode button { min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #44464f; white-space: nowrap; }
   .cand-mode button[aria-pressed=true] { background: #00236f; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .cand-field { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; min-width: 0; }
+  .cand-field label { flex: 0 0 auto; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .cand-field select { flex: 1 1 auto; min-width: 0; width: 0; height: 38px; border-radius: 8px; background: #f2f3ff; border: 1px solid rgba(197,197,211,.3); padding: 0 8px; font-size: 14px; }
+  .cand-badge { flex: 0 0 auto; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 999px; background: #e2e7ff; color: #00236f; white-space: nowrap; }
+  .cand-badge[data-kind=saved] { background: #eceef3; color: #44464f; }
   .cand-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
   .cand-tools input[type=search] { flex: 1 1 auto; min-width: 0; height: 40px; border-radius: 8px; background: #f2f3ff; padding: 0 10px; border: 1px solid rgba(197,197,211,.3); font-size: 14px; }
   .cand-tools button { flex: 0 0 auto; height: 40px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
@@ -56,7 +61,7 @@
   #candidate-list label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 2px; cursor: pointer; min-width: 0; }
   #candidate-list input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 2px; accent-color: #00236f; }
   .cand-body { flex: 1 1 auto; min-width: 0; }
-  .cand-head { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+  .cand-head { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; min-width: 0; }
   .cand-term { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; min-width: 0; }
   .cand-count { flex: 0 0 auto; font-size: 12px; color: #44464f; white-space: nowrap; }
   .cand-sentence { margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: #44464f; overflow-wrap: anywhere;
@@ -125,6 +130,19 @@
 
 <section class="scan-card" id="candidate-card" hidden>
   <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">checklist</span><span id="candidate-title">찾은 단어</span></h2>
+  <div class="cand-field">
+    <label for="field-select">전공 분야</label>
+    <select id="field-select">
+      <option value="">자동</option>
+      <option value="electrical">전기·전자</option>
+      <option value="semiconductor">반도체</option>
+      <option value="chemistry">화학·재료</option>
+      <option value="mechanical">기계</option>
+      <option value="bio">생명·의학</option>
+      <option value="computer">컴퓨터</option>
+      <option value="economics">경제·경영</option>
+    </select>
+  </div>
   <div class="cand-mode" role="group" aria-label="후보 기준">
     <button type="button" id="mode-all" aria-pressed="true">모든 단어</button>
     <button type="button" id="mode-major" aria-pressed="false">전공용어 위주</button>
@@ -139,7 +157,7 @@
     <button type="button" class="btn-tonal" id="select-visible">모두 선택</button>
     <button type="button" class="btn-tonal" id="clear-selection">해제</button>
   </div>
-  <p class="scan-note" style="margin:0 0 6px">숫자는 파일에서 나온 횟수예요. 단어를 누르면 고를 수 있어요.</p>
+  <p class="scan-note" style="margin:0 0 6px">전공용어일 가능성이 높은 순서예요. 숫자는 나온 횟수이고, 단어를 누르면 고를 수 있어요.</p>
   <ul id="candidate-list"></ul>
 </section>
 </div></main>
@@ -150,4 +168,4 @@
 
 <nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-on-surface-variant hover:text-on-surface" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-primary-container font-semibold transition-colors" data-path="quick-capture" href="code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
 
-<script src="../analysis-api.js"></script><script src="common-words.js"></script><script src="term-extract.js"></script><script src="scan.js"></script><script defer src="../pwa-register.js"></script></body></html>
+<script src="../analysis-api.js"></script><script src="common-words.js"></script><script src="word-tiers.js"></script><script src="term-extract.js"></script><script src="scan-context.js"></script><script src="scan.js"></script><script defer src="../pwa-register.js"></script></body></html>

@@ -105,23 +105,64 @@
   // "background", "engineer", "measured"…
   const SCOWL_COMMON = new Set(typeof module !== 'undefined' && module.exports ?
     require('./common-words.js') : root.WordCollectorCommonWords || []);
-  // Everyday words that are also basic terms in electrical engineering and semiconductors:
-  // kept in 전공용어 위주 (with their inflected forms: "currents", "charged"…).
-  const MAJOR_KEEP = new Set(`current power voltage charge field circuit energy frequency phase load ground
-    source drain gate bias junction signal resistance resistor conductor insulator capacitance inductance
-    impedance wave cell battery magnet magnetic electric electrical electronic electron motor generator switch
-    transistor diode noise gain feedback filter bridge terminal potential capacity density flux induction
-    conduction emission absorption reflection band carrier layer film contact metal oxide crystal silicon
-    semiconductor substrate electrode wafer photon spectrum laser lens beam heat temperature pressure force
-    mass speed velocity acceleration torque rotor stator winding coil core transformer transmission
-    distribution grid network supply output input amplifier oscillator sensor detector light optical
-    loss efficiency`
-    .split(/\s+/).filter(Boolean));
-  const isEveryday = lower => lower.split(/[-‐‑]/).every(part => {
+  // How common a word is beyond size 10 (word-tiers.js): SCOWL size 20, size 35; else rare.
+  const TIERS = typeof module !== 'undefined' && module.exports ? require('./word-tiers.js') : root.WordCollectorWordTiers || {};
+  const TIER20 = new Set(TIERS[20] || []);
+  const TIER35 = new Set(TIERS[35] || []);
+
+  // Everyday words that are also basic terms of a field: kept in 전공용어 위주 (with their
+  // inflected forms: "currents", "charged"…). The field is chosen on the scan page or guessed
+  // from the notebook names.
+  const words = list => new Set(list.split(/\s+/).filter(Boolean));
+  const FIELD_KEEP = {
+    electrical: words(`current power voltage charge field circuit energy frequency phase load ground source
+      signal resistance resistor conductor insulator capacitance inductance impedance wave cell battery magnet
+      magnetic electric electrical electronic electron motor generator switch transistor diode noise gain feedback
+      filter bridge terminal potential capacity flux induction conduction torque rotor stator winding coil core
+      transformer transmission distribution grid network supply output input amplifier oscillator sensor detector
+      loss efficiency harmonic relay breaker fault arc spark short open series parallel peak average rating`),
+    semiconductor: words(`semiconductor substrate electrode wafer gate drain source bias junction band carrier
+      layer film contact metal oxide crystal silicon doping dope mobility diffusion drift emission absorption
+      reflection photon spectrum laser lens beam light optical deposition etch etching mask exposure trap defect
+      interface barrier well channel threshold leakage dark current device cell grain bulk surface`),
+    chemistry: words(`solution reaction bond acid base salt element compound mixture concentration phase state
+      catalyst rate equilibrium energy heat temperature pressure volume mass mole charge ion atom molecule
+      bond solid liquid gas vapor organic yield product agent medium solvent oxidation reduction balance
+      precipitate filter culture table group period series`),
+    mechanical: words(`force mass speed velocity acceleration torque moment stress strain load fatigue failure
+      bearing shaft gear spring beam frame joint fluid flow pressure heat temperature energy power work friction
+      wear vibration damping stiffness tension compression shear bending cycle engine pump valve pipe tank
+      cast forge weld machine tool design model`),
+    bio: words(`cell tissue organ gene protein culture strain host growth expression receptor signal pathway
+      membrane blood heart brain nerve bone muscle skin immune response dose drug treatment therapy trial
+      sample patient disease infection virus control marker agent factor`),
+    computer: words(`memory process thread program code function class object stack queue tree graph node
+      network server client host file system data base key value table index query cache bit byte word
+      instruction branch loop object model layer train test label feature input output link address port`),
+    economics: words(`interest rate market price cost demand supply capital labor return risk share stock
+      bond credit debt tax income growth inflation trade balance policy value budget profit loss margin
+      equity asset fund firm industry sector cycle`)
+  };
+  // No field chosen or guessed: electrical + semiconductor (this app's main majors), as before.
+  const ALL_FIELDS = new Set([...FIELD_KEEP.electrical, ...FIELD_KEEP.semiconductor]);
+  const keepOf = field => FIELD_KEEP[field] || ALL_FIELDS;
+  // Field words match with plural / -ed / -ing forms only ("engineer" is not "engine").
+  const keepForms = word => [word, word.replace(/s$/, ''), word.replace(/es$/, ''), word.replace(/ies$/, 'y'),
+    word.replace(/ed$/, ''), word.replace(/ed$/, 'e'), word.replace(/ing$/, ''), word.replace(/ing$/, 'e')];
+  const inKeep = (word, keep) => keepForms(word).some(form => keep.has(form));
+  const isEveryday = (lower, keep = ALL_FIELDS) => lower.split(/[-‐‑]/).every(part => {
     const forms = baseForms(part);
-    if (forms.some(form => MAJOR_KEEP.has(form))) return false;
+    if (inKeep(part, keep)) return false;
     return forms.some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form));
   });
+  // 0.3 very common … 1.6 rare (not in SCOWL size 35): rarer words are likelier terms.
+  function rarity(lower) {
+    const forms = baseForms(lower);
+    if (forms.some(form => FUNCTION_WORDS.has(form) || COMMON_WORDS.has(form) || SCOWL_COMMON.has(form))) return 0.3;
+    if (forms.some(form => TIER20.has(form))) return 0.6;
+    if (forms.some(form => TIER35.has(form))) return 1.0;
+    return 1.6;
+  }
   const MAX_SENTENCE = 600;
 
   // Text from a PDF text layer or OCR → clean sentences.
@@ -137,7 +178,13 @@
   function splitSentences(text) {
     return normalizeText(text)
       .split(/\n\s*\n/)                                        // blank line = paragraph end
-      .map(block => block.replace(/\s*\n\s*/g, ' ').trim())
+      // Stacked short lines (a word list, a table column) are separate items; other line
+      // breaks are just wrapping inside a sentence.
+      .flatMap(block => {
+        const lines = block.split(/\s*\n\s*/).map(line => line.trim()).filter(Boolean);
+        const short = line => line.split(/\s+/).length <= 6 && !/[.!?,;:]$/.test(line);
+        return lines.length >= 2 && lines.every(short) ? lines : [lines.join(' ')];
+      })
       .flatMap(block => block.split(/(?<=[.!?])\s+(?=["'(\[]?[A-Z0-9])/))
       .map(sentence => sentence.trim())
       .filter(sentence => /[A-Za-z]{2}/.test(sentence));
@@ -165,11 +212,54 @@
   // Which words can be candidates. Both modes leave out grammar words, contractions
   // ("don't"), words shorter than 3 letters and letter runs without a vowel (OCR noise);
   // acronyms ("RLC", "MOSFETs") are kept. 'major' also leaves out everyday English.
-  function isCandidate(surface, lower, mode) {
+  function isCandidate(surface, lower, mode, keep, sure) {
     if (isAcronym(surface)) return !FUNCTION_WORDS.has(lower);
     if (lower.length < 3 || !hasVowel(lower) || /['’]/.test(lower)) return false;
     if (lower.split(/[-‐‑]/).every(part => FUNCTION_WORDS.has(part))) return false;
-    return mode === 'major' ? !isEveryday(lower) : true;
+    // A word the document marks as a term (cue) or the user picked before stays.
+    return mode === 'major' && !sure(lower) ? !isEveryday(lower, keep) : true;
+  }
+
+  // ---- Document cues: places where a document itself marks a term -----------------------
+  // - bracket: English in brackets right after Korean, e.g. "정류기(Rectifier)",
+  //   "펄스 폭 변조(Pulse Width Modulation, PWM)" — almost always a term, even if it is
+  //   used only once or is made of everyday words.
+  // - definition: "is called X", "known as X", "referred to as X", "X is defined as".
+  // - list: short lines of 2–4 words (a word list, a table column), when there are 2 or more.
+  const cueWords = phrase => phrase.replace(/['’]s\b/gi, '').split(/\s+/).filter(Boolean);
+  const cleanCue = phrase => {
+    const parts = cueWords(phrase);
+    while (parts.length && FUNCTION_WORDS.has(parts[0].toLowerCase())) parts.shift();
+    while (parts.length && FUNCTION_WORDS.has(parts[parts.length - 1].toLowerCase())) parts.pop();
+    if (!parts.length || parts.length > 5) return '';
+    if (!parts.every(part => /^[A-Za-z][A-Za-z-]*$/.test(part))) return '';
+    if (parts.length === 1 && !isAcronym(parts[0]) && parts[0].length < 3) return '';
+    return parts.join(' ');
+  };
+  function findCues(text) {
+    const cues = new Map();   // phrase key → cue type
+    const note = (phrase, type) => {
+      const clean = cleanCue(phrase);
+      if (!clean) return;
+      const key = clean.split(' ').map(word => isAcronym(word) ? word.replace(/s$/, '') : word.toLowerCase()).join(' ');
+      if (!cues.has(key)) cues.set(key, type);
+    };
+    const flat = normalizeText(text).replace(/\s*\n\s*/g, ' ');
+    for (const match of flat.matchAll(/[가-힣ㄱ-ㆎ]\s?\(\s*([A-Za-z][^()가-힣]{0,90}?)\s*\)/g)) {
+      for (const part of match[1].split(/\s*[,;/]\s*/)) note(part, 'bracket');
+    }
+    for (const match of flat.matchAll(/\b(?:is|are|was|were)\s+(?:called|termed|named|known\s+as|referred\s+to\s+as|denoted\s+as)\s+(?:the\s+|an?\s+)?((?:[A-Za-z][A-Za-z-]*\s+){0,3}[A-Za-z][A-Za-z-]*)/gi)) {
+      note(match[1].split(/\s+/).filter((word, i, all) => !all.slice(0, i + 1).some(part => FUNCTION_WORDS.has(part.toLowerCase()))).join(' '), 'definition');
+    }
+    for (const match of flat.matchAll(/((?:[A-Za-z][A-Za-z-]*\s+){0,2}[A-Za-z][A-Za-z-]*)\s+(?:is|are)\s+defined\s+as\b/gi)) {
+      const lead = match[1].split(/\s+/);
+      const start = lead.map(word => FUNCTION_WORDS.has(word.toLowerCase())).lastIndexOf(true) + 1;
+      note(lead.slice(start).join(' '), 'definition');
+    }
+    const lines = normalizeText(text).split('\n').map(line => line.replace(/^\s*(?:[-•·*▪◦]|\d+[.)])\s*/, '').trim())
+      .filter(line => /^[A-Za-z][A-Za-z-]*(?: [A-Za-z][A-Za-z-]*){1,3}$/.test(line));
+    if (lines.length >= 2) for (const line of lines) note(line, 'list');
+    return cues;
   }
 
   // Multi-word terms ("skin effect", "power factor correction"): 2–3 words in a row that
@@ -177,7 +267,13 @@
   // never spans punctuation, digits or a "…" left by an unreadable word.
   const MIN_PHRASE_COUNT = 2;
 
-  function extractCandidates(text, {mode = 'all'} = {}) {
+  // Options: mode 'all' | 'major'; field (a FIELD_KEEP key, or none = all fields);
+  // saved: words already in the user's notebooks (marked, shown a little lower);
+  // learned: words the user picked from scans before (never left out, shown higher).
+  function extractCandidates(text, {mode = 'all', field = '', saved = new Set(), learned = new Set()} = {}) {
+    const keep = keepOf(field);
+    const cues = findCues(text);
+    const sure = lower => cues.has(lower) || learned.has(lower);
     const found = new Map();   // key → {forms, count, sentence, size, lowerSeen, midCapital}
     const add = (key, surface, sentence, size, first) => {
       let entry = found.get(key);
@@ -200,15 +296,17 @@
       const notName = i => i === 0 || /\(\s*$/.test(sentence.slice(Math.max(0, tokens[i].index - 3), tokens[i].index)) ||
         (capitalOnly(tokens[i - 1]) && joined(tokens[i - 1], tokens[i])) || (capitalOnly(tokens[i + 1]) && joined(tokens[i], tokens[i + 1]));
       tokens.forEach(({surface, lower}, i) => {
-        if (isCandidate(surface, lower, mode)) add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 1, notName(i));
-        for (let size = 2; size <= 3; size++) {
+        if (isCandidate(surface, lower, mode, keep, sure)) add(isAcronym(surface) ? surface.replace(/s$/, '') : lower, surface, sentence, 1, notName(i));
+        for (let size = 2; size <= 5; size++) {
           const words = tokens.slice(i, i + size);
           if (words.length < size) break;
           if (words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2 || /['’]/.test(word.lower))) break;
           if (words.slice(1).some((word, k) => !joined(words[k], word))) break;
           // Kept in both modes: a repeated phrase of everyday words can still be a term
-          // ("power factor", "dark current").
-          add(words.map(word => word.lower).join(' '), words.map(word => word.surface).join(' '), sentence, size, i === 0);
+          // ("power factor", "dark current"). 4–5 word runs only count as a document cue.
+          const key = words.map(word => isAcronym(word.surface) ? word.surface.replace(/s$/, '') : word.lower).join(' ');
+          if (size > 3 && !cues.has(key)) continue;
+          add(key, words.map(word => word.surface).join(' '), sentence, size, i === 0);
         }
       });
     }
@@ -224,10 +322,12 @@
       for (const [form, n] of entry.forms) base.forms.set(form, (base.forms.get(form) || 0) + n);
       found.delete(key);
     }
-    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT);
+    // A phrase counts when it repeats, or when the document marks it (cue) or the user
+    // picked it before — then once is enough ("plasmonic effect" in "(Plasmonic Effect)").
+    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT || sure(entry.key));
     // "power factor" inside "power factor correction" with the same count is the same use.
     const phrases = entries.filter(entry => entry.size > 1);
-    entries = entries.filter(entry => entry.size === 1 || !phrases.some(other =>
+    entries = entries.filter(entry => entry.size === 1 || sure(entry.key) || !phrases.some(other =>
       other.size > entry.size && other.count === entry.count && (' ' + other.key + ' ').includes(' ' + entry.key + ' ')));
     return entries.map(entry => {
       // Keep capitals only for acronyms, or names written with a capital every time
@@ -236,8 +336,21 @@
       const name = entry.size === 1 && !entry.lowerSeen && entry.midCapital;
       const term = entry.size === 1 && isAcronym(forms[0]) ? entry.key :
         name ? entry.key[0].toUpperCase() + entry.key.slice(1) : entry.key;
-      return {term, count: entry.count, kind: entry.size > 1 ? 'phrase' : 'word', sentence: sentenceAround(entry.sentence, forms[0])};
-    }).sort((a, b) => b.count - a.count || (a.kind === b.kind ? 0 : a.kind === 'phrase' ? -1 : 1) ||
+      const parts = entry.key.split(' ');
+      const acronym = parts.every(part => isAcronym(part));
+      const fieldWord = Boolean(FIELD_KEEP[field]) && parts.some(part => inKeep(part.toLowerCase(), keep));
+      const lowerKey = entry.key.toLowerCase();
+      const isSaved = saved.has(lowerKey);
+      const cue = cues.get(entry.key) || (learned.has(lowerKey) ? 'learned' : '');
+      // Likely-term score: rarer words, more uses, a document cue, a field word, a word picked
+      // before score higher; a word already in a notebook a little lower.
+      const rare = acronym ? 1.3 : entry.size > 1 ?
+        Math.max(...parts.map(part => rarity(part.toLowerCase()))) + 0.4 : rarity(lowerKey);
+      const score = rare * (1 + Math.log2(entry.count)) + (cues.has(entry.key) ? 2.5 : 0) +
+        (learned.has(lowerKey) ? 1.5 : 0) + (fieldWord && mode === 'major' ? 0.8 : 0) - (isSaved ? 1 : 0);
+      return {term, count: entry.count, kind: entry.size > 1 ? 'phrase' : 'word', sentence: sentenceAround(entry.sentence, forms[0]),
+        score: Math.round(score * 100) / 100, ...(cue ? {cue} : {}), ...(isSaved ? {saved: true} : {})};
+    }).sort((a, b) => b.score - a.score || b.count - a.count || (a.kind === b.kind ? 0 : a.kind === 'phrase' ? -1 : 1) ||
       a.term.localeCompare(b.term));
   }
 
@@ -304,7 +417,28 @@
     }).replace(/[ \t]{2,}/g, ' ');
   }
 
-  const api = {extractCandidates, splitSentences, normalizeText, repairOcrText, FUNCTION_WORDS, COMMON_WORDS};
+  // A field guessed from notebook names or majors ("전력공학", "반도체 공정", "유기화학"…).
+  const FIELD_NAMES = [
+    ['semiconductor', /반도체|소자|공정|semiconductor|device/i],
+    ['electrical', /전기|전력|전자|회로|제어|통신|신호|electr|circuit|power/i],
+    ['chemistry', /화학|화공|재료|chem|material/i],
+    ['mechanical', /기계|역학|열|유체|자동차|항공|mechan|thermo|fluid/i],
+    ['bio', /생명|생물|의학|의대|간호|약학|bio|medic|nurs|pharm/i],
+    ['computer', /컴퓨터|소프트웨어|정보|인공지능|데이터|comput|software|data|ai\b/i],
+    ['economics', /경제|경영|회계|금융|무역|econom|business|financ|account/i]
+  ];
+  function guessField(names) {
+    const counts = new Map();
+    for (const name of names || []) {
+      const match = FIELD_NAMES.find(([, pattern]) => pattern.test(String(name)));
+      if (match) counts.set(match[0], (counts.get(match[0]) || 0) + 1);
+    }
+    return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  }
+  const FIELDS = Object.keys(FIELD_KEEP);
+
+  const api = {extractCandidates, splitSentences, normalizeText, repairOcrText, findCues, guessField, FIELDS,
+    FUNCTION_WORDS, COMMON_WORDS};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.WordCollectorTermExtract = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

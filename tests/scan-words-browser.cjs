@@ -153,6 +153,14 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     assert.ok(!terms.some(term => /^[A-Z][a-z]/.test(term)), 'Title Case terms in brackets are shown in lower case: ' + terms);
     assert.doesNotMatch(await page.locator('#scan-status').textContent(), /스캔한 쪽/, 'read from the text layer, not by OCR');
     assert.equal(ocrCalls, 0);
+    // Bracket terms are marked and ranked first; the field is guessed from the notebook
+    // name "전기" and can be changed (remembered on this device).
+    assert.equal(await row('rectifier').locator('.cand-badge').first().textContent(), '괄호 용어');
+    assert.ok(await page.locator('#candidate-list li').first().locator('.cand-badge', {hasText: '괄호 용어'}).count(), 'a bracket term first');
+    assert.equal(await page.locator('#field-select option').first().textContent(), '자동 (전기·전자)');
+    await page.locator('#field-select').selectOption('chemistry');
+    assert.equal(await page.evaluate(() => localStorage.getItem('word-collector-scan-field-v1')), 'chemistry');
+    await page.locator('#field-select').selectOption('');
 
     // 2. Limits: a photo over 10MB is refused with a message.
     await page.locator('#pick-photo').setInputFiles({name: 'big.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(10 * 1024 * 1024 + 1)});
@@ -342,6 +350,11 @@ const SHOTS = process.env.SCAN_SCREENSHOT_DIR || '';
     await openPdf('text.pdf');
     await readPage(1);
     await page.locator('#candidate-card').waitFor({state: 'visible'});
+    // Words picked last time are remembered on this device; saved words are marked.
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('word-collector-scan-learned-v1'))).sort(),
+      ['resistance', 'skin effect']);   // as picked on the scan page (before the edit to "AC resistance")
+    assert.equal(await row('skin effect').locator('.cand-badge[data-kind=saved]').textContent(), '저장됨');
+    assert.equal(await row('skin effect').locator('.cand-badge[data-kind=learned]').textContent(), '전에 고름');
     await pick('conductor');
     await pick('capacitors');
     await page.locator('#scan-continue').click();

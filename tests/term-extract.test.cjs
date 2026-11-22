@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const {extractCandidates, splitSentences} = require('../www/quick_capture/term-extract.js');
+const {extractCandidates, splitSentences, guessField} = require('../www/quick_capture/term-extract.js');
 
 const terms = (text, mode) => extractCandidates(text, mode ? {mode} : undefined).map(candidate => candidate.term);
 const find = (text, term, mode) => extractCandidates(text, mode ? {mode} : undefined).find(candidate => candidate.term === term);
@@ -145,15 +145,55 @@ test('links, e-mail addresses and Korean text give no candidates', () => {
   assert.deepEqual(extractCandidates(null), []);
 });
 
-test('candidates are sorted by count, phrases first on ties, then alphabetically', () => {
-  const list = extractCandidates('Skin effect and inductance. Skin effect again. Inductance here.');
-  assert.deepEqual(list.slice(0, 4).map(candidate => candidate.term), ['skin effect', 'effect', 'inductance', 'skin']);
+test('candidates are sorted by how likely they are terms: rarer words and more uses first', () => {
+  const list = extractCandidates('Rotor and stator. Stator again. Stator here. Rotor too. The background again.');
+  const order = list.map(candidate => candidate.term);
+  assert.ok(order.indexOf('stator') < order.indexOf('rotor'), 'more uses first: ' + order);
+  assert.ok(order.indexOf('rotor') < order.indexOf('again') && order.indexOf('rotor') < order.indexOf('background'),
+    'a rare word before everyday words: ' + order);
+  assert.ok(list.every((candidate, i) => i === 0 || list[i - 1].score >= candidate.score), 'sorted by score');
 });
 
-test('single words are sorted by count, then alphabetically', () => {
-  const list = extractCandidates('Rotor and stator. Stator again. Stator here. Rotor too.');
-  assert.deepEqual(list.map(candidate => [candidate.term, candidate.count]),
-    [['stator', 3], ['rotor', 2], ['again', 1]]);   // "here", "and", "too" are grammar words
+test('document cues: bracket terms after Korean, definitions and word lists count even once', () => {
+  const korean = '펄스 폭 변조(Pulse Width Modulation, PWM)는 기법이고, 역률(Power Factor)과 저항(Resistance)을 봅니다.';
+  const found = extractCandidates(korean, {mode: 'major'});
+  const cueOf = term => found.find(candidate => candidate.term === term)?.cue;
+  assert.equal(cueOf('pulse width modulation'), 'bracket');
+  assert.equal(cueOf('PWM'), 'bracket');
+  assert.equal(cueOf('power factor'), 'bracket', 'a once-used bracket phrase of everyday words');
+  assert.equal(cueOf('resistance'), 'bracket');
+  assert.equal(found[0].cue, 'bracket', 'cue terms come first');
+  const english = extractCandidates('This loss is called the skin effect. A device is known as a rectifier. Hysteresis loss is defined as the lost energy.');
+  for (const term of ['skin effect', 'rectifier', 'hysteresis loss']) {
+    assert.equal(english.find(candidate => candidate.term === term)?.cue, 'definition', term);
+  }
+  const list = extractCandidates('Plasmonic effect\nDark current\nReverse bias', {mode: 'major'});
+  assert.deepEqual(list.slice(0, 3).map(candidate => candidate.term).sort(), ['dark current', 'plasmonic effect', 'reverse bias']);
+  assert.ok(list.every(candidate => !/^[A-Z][a-z]/.test(candidate.term)), 'line starts are not names');
+});
+
+test('field: everyday words of the chosen field stay in 전공용어 위주; guessed from notebook names', () => {
+  const text = 'The solution reached equilibrium. The current in the circuit.';
+  assert.ok(terms(text, 'major').includes('current'), 'electrical + semiconductor by default');
+  assert.ok(!terms(text, 'major').includes('solution'));
+  const chemistry = extractCandidates(text, {mode: 'major', field: 'chemistry'}).map(candidate => candidate.term);
+  assert.ok(chemistry.includes('solution'), 'chemistry keeps solution');
+  assert.ok(!extractCandidates('The engineer measured it.', {mode: 'major', field: 'mechanical'}).some(c => c.term === 'engineer'),
+    '"engineer" is not the mechanical word "engine"');
+  assert.equal(guessField(['전력공학', '회로이론', '전기기기']), 'electrical');
+  assert.equal(guessField(['반도체 공정']), 'semiconductor');
+  assert.equal(guessField(['유기화학']), 'chemistry');
+  assert.equal(guessField(['일반 단어장']), '');
+});
+
+test('saved words are marked and shown lower; words picked before are kept and shown higher', () => {
+  const text = 'The rotor and the stator. The table and the probe.';
+  const list = extractCandidates(text, {mode: 'major', saved: new Set(['rotor']), learned: new Set(['table'])});
+  const of = term => list.find(candidate => candidate.term === term);
+  assert.equal(of('rotor').saved, true);
+  assert.ok(of('rotor').score < of('stator').score);
+  assert.equal(of('table').cue, 'learned', 'an everyday word picked before stays in 전공용어 위주');
+  assert.ok(!terms(text, 'major').includes('table'), 'without learning it is everyday');
 });
 
 test('the scan page keeps the file local: no upload, no storage of the full text', () => {

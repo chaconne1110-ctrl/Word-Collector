@@ -97,3 +97,11 @@ Capacitor 8 (`npx cap sync android` → `android/`에서 Gradle 빌드). 앱 ID�
 
 - 작업 스케줄러 `USB-Claude-Backup`(30분마다 USB 백업), `WordCollector-Glossary-Review`(매일 사전 검토): `C:\scripts\`의 PowerShell 스크립트.
 - USB(볼륨 이름 DEVUSB): `Word Collector\`(대화 기록, Git 번들, 기술 보고서), `General\`(일반 설정·스크립트), `start.bat`.
+
+## 8. PDF·사진에서 단어 찾기 (V11.22) — 배포할 때 확인
+
+- 웹 배포 워크플로가 주소마다 저장 공간 이름을 바꾸는 목록(`sed -e 's/…-v1/…-<주소>-standalone/g'`)에 아래 이름도 넣어야 주소끼리 섞이지 않습니다.
+  - sessionStorage: `word-collector-scan-selection-v1`(고른 단어), `word-collector-capture-queue-v1`(분석 대기열)
+  - localStorage: `word-collector-scan-field-v1`(고른 전공 분야), `word-collector-scan-learned-v1`(예전에 고른 단어, 최대 500개)
+- AI 기능 두 가지(`/api/scan-terms`, `/api/scan-image`)는 서버에 배포해도 꺼져 있습니다. 켜는 방법과 확인할 점은 `docs/SCAN_TERMS_ROLLOUT.md`.
+- 단어 목록 파일(`www/quick_capture/common-words.js`, `english-words.js`, `word-tiers.js`)은 `scripts/build-common-words.cjs`로 다시 만들 수 있습니다(SCOWL, 고지 `www/vendor/scowl/Copyright.txt`).
