@@ -31,7 +31,13 @@
   .scan-page-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
   .scan-page-row label { flex: 0 0 auto; font-size: 14px; font-weight: 600; white-space: nowrap; }
   .scan-page-row input { flex: 1 1 auto; min-width: 0; width: 0; height: 44px; border-radius: 8px; background: #f2f3ff; border: 1px solid rgba(197,197,211,.3); padding: 0 10px; font-size: 16px; }
-  .scan-page-row button { flex: 0 0 auto; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; padding: 0 14px; white-space: nowrap; }
+  .scan-page-row button { flex: 0 0 auto; min-height: 44px; min-width: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; padding: 0 10px; white-space: nowrap; }
+  .scan-page-row button:disabled { opacity: .4; }
+  .pdf-preview-box { position: relative; border-radius: 8px; background: #eef0f8; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+  .pdf-preview-box { padding: 8px; }
+  #pdf-preview { display: block; max-width: 100%; background: #fff; border: 1px solid #c5c5d3; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  #pdf-preview-status { margin: 0; padding: 6px 8px; text-align: center; }
+  #pdf-preview-status:empty { display: none; }
   #scan-progress-bar { width: 100%; height: 10px; accent-color: #00236f; }
   #scan-progress-text { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
   .cand-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 10px; background: #e2e7ff; }
@@ -82,11 +88,17 @@
   <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">find_in_page</span>읽을 쪽 고르기</h2>
   <p class="scan-note" id="pdf-page-total" style="margin:0 0 10px"></p>
   <div class="scan-page-row">
+    <button type="button" class="btn-tonal" id="pdf-prev" aria-label="이전 쪽"><span class="material-symbols-outlined text-[20px]" aria-hidden="true" style="vertical-align:middle">chevron_left</span></button>
     <label for="pdf-page-input">쪽 번호</label>
     <input id="pdf-page-input" type="number" inputmode="numeric" min="1" step="1" value="1" autocomplete="off">
-    <button type="button" class="btn-primary" id="pdf-read-page">이 쪽 읽기</button>
+    <button type="button" class="btn-tonal" id="pdf-next" aria-label="다음 쪽"><span class="material-symbols-outlined text-[20px]" aria-hidden="true" style="vertical-align:middle">chevron_right</span></button>
   </div>
-  <p class="scan-note">한 번에 입력한 한 쪽만 읽어요. 다른 쪽을 보려면 번호를 바꿔 다시 읽어 주세요. (새로 읽으면 후보 목록이 바뀌어요)</p>
+  <div class="scan-row" style="margin-bottom:10px"><button type="button" class="btn-primary" id="pdf-read-page">이 쪽 읽기</button></div>
+  <div class="pdf-preview-box">
+    <canvas id="pdf-preview" aria-label="고른 쪽 미리보기"></canvas>
+    <p id="pdf-preview-status" class="scan-note" aria-live="polite"></p>
+  </div>
+  <p class="scan-note">미리보기로 쪽을 확인한 뒤 읽어 주세요. 한 번에 한 쪽만 읽고, 새로 읽으면 후보 목록이 바뀌어요.</p>
 </section>
 
 <section class="scan-card" id="photo-card" hidden>

@@ -62,6 +62,7 @@
     progressCard.hidden = true;
     pickCard.querySelectorAll('input').forEach(input => { input.disabled = false; });
     for (const control of [...photoCard.querySelectorAll('button'), ...pdfCard.querySelectorAll('button, input')]) control.disabled = false;
+    updatePdfNav();   // 이전/다음 stay off at the first/last page
   }
   function cancelRun() {
     if (!run) return;
@@ -172,6 +173,9 @@
   function closePdf() {
     const open = openPdfDoc;
     openPdfDoc = null;
+    previewNumber = 0;
+    previewCanvas.hidden = true;
+    previewStatus.textContent = '';
     if (open) void open.task.destroy();
   }
   async function openPdf(file, current) {
@@ -306,15 +310,98 @@
       const pdf = await openPdf(file, current);
       check(current);
       // Only the page count is read here; the user then enters one page to read.
-      $('#pdf-page-total').textContent = `이 PDF는 ${pdf.numPages}쪽이에요. 읽을 쪽 번호를 하나 입력해 주세요.`;
+      $('#pdf-page-total').textContent = `이 PDF는 ${pdf.numPages}쪽이에요. 미리보기로 확인하고 읽을 쪽을 골라 주세요.`;
       pageInput.max = String(pdf.numPages);
       pageInput.value = '1';
       pdfCard.hidden = false;
     } catch (error) {
       if (!current.cancelled) handleError(error);
     } finally { endRun(current); }
-    if (!pdfCard.hidden) pdfCard.scrollIntoView({block: 'start'});
+    if (!pdfCard.hidden) {
+      pdfCard.scrollIntoView({block: 'start'});
+      void showPreview(1);
+    }
   }
+
+  // ---- PDF 쪽 미리보기 -------------------------------------------------------------
+  // Like the photo preview: the chosen page is drawn (no text reading, no OCR) so the
+  // user can check it before "이 쪽 읽기". Switching pages quickly cancels the old drawing.
+  const previewCanvas = $('#pdf-preview');
+  const previewStatus = $('#pdf-preview-status');
+  let previewNumber = 0;
+  let previewTask = null;
+  let previewTimer = 0;
+  function updatePdfNav() {
+    const total = openPdfDoc?.pdf.numPages || 0;
+    $('#pdf-prev').disabled = Boolean(run) || !total || previewNumber <= 1;
+    $('#pdf-next').disabled = Boolean(run) || !total || previewNumber >= total;
+  }
+  async function showPreview(number) {
+    const open = openPdfDoc;
+    if (!open) return;
+    const total = open.pdf.numPages;
+    clearTimeout(previewTimer);
+    try { previewTask?.cancel(); } catch {}
+    previewTask = null;
+    if (!Number.isInteger(number) || number < 1 || number > total) {
+      previewNumber = 0;
+      previewCanvas.hidden = true;
+      previewStatus.textContent = `1부터 ${total} 사이의 쪽 번호를 넣으면 미리 보여 드려요.`;
+      updatePdfNav();
+      return;
+    }
+    previewNumber = number;
+    updatePdfNav();
+    previewStatus.textContent = `${number}쪽 불러오는 중…`;
+    const stale = () => openPdfDoc !== open || previewNumber !== number;
+    try {
+      const page = await open.pdf.getPage(number);
+      if (stale()) return;
+      const base = page.getViewport({scale: 1});
+      // Fits the box width and at most ~45% of the screen height, keeping the page's shape.
+      const boxWidth = Math.max(160, Math.min((previewCanvas.parentElement.clientWidth || 320) - 18, 600));
+      const maxHeight = Math.max(220, window.innerHeight * 0.45);
+      const cssWidth = Math.min(boxWidth, maxHeight * base.width / base.height);
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      const viewport = page.getViewport({scale: cssWidth * ratio / base.width});
+      // Drawn off screen first so the old page stays visible until the new one is ready.
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      const task = page.render({canvasContext: context, canvas, viewport});
+      previewTask = task;
+      await task.promise;
+      if (stale()) return;
+      previewCanvas.width = canvas.width;
+      previewCanvas.height = canvas.height;
+      previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+      previewCanvas.style.width = Math.round(cssWidth) + 'px';
+      previewCanvas.hidden = false;
+      previewCanvas.setAttribute('aria-label', `${number}쪽 미리보기`);
+      previewStatus.textContent = `${number} / ${total}쪽`;
+      canvas.width = canvas.height = 0;
+    } catch (error) {
+      if (error?.name === 'RenderingCancelledException' || stale()) return;
+      previewStatus.textContent = `${number}쪽을 미리 보지 못했어요. 그래도 읽을 수는 있어요.`;
+    } finally {
+      if (previewTask && stale()) previewTask = null;
+    }
+  }
+  function goToPage(number) {
+    if (run || !openPdfDoc) return;
+    pageInput.value = String(number);
+    void showPreview(number);
+  }
+  $('#pdf-prev').addEventListener('click', () => goToPage(previewNumber - 1));
+  $('#pdf-next').addEventListener('click', () => goToPage(previewNumber + 1));
+  pageInput.addEventListener('input', () => {
+    clearTimeout(previewTimer);
+    const raw = pageInput.value.trim();
+    previewTimer = setTimeout(() => void showPreview(/^\d+$/.test(raw) ? Number(raw) : NaN), 300);
+  });
   async function readChosenPage() {
     const open = openPdfDoc;
     if (!open || run) return;
