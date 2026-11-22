@@ -743,6 +743,39 @@
     const raw = pageInput.value.trim();
     previewTimer = setTimeout(() => void showPreview(/^\d+$/.test(raw) ? Number(raw) : NaN), 300);
   });
+  // The other pages of the PDF help rank the chosen page's words: a phrase repeated across
+  // the paper ("effective mass") is likely a term even if this page uses it once. Only text
+  // layers are read (about 0.1 s a page; no character recognition), up to 30 pages nearest
+  // the chosen one. The texts stay in memory while this PDF is open and are never stored.
+  const MAX_CONTEXT_PAGES = 30;
+  async function otherPagesText(open, number, current) {
+    open.pageTexts ??= new Map();
+    const total = open.pdf.numPages;
+    const order = [];
+    for (let step = 1; order.length < MAX_CONTEXT_PAGES && (number - step >= 1 || number + step <= total); step++) {
+      for (const candidate of [number + step, number - step]) {
+        if (candidate >= 1 && candidate <= total && order.length < MAX_CONTEXT_PAGES) order.push(candidate);
+      }
+    }
+    const texts = [];
+    for (const [index, other] of order.entries()) {
+      if (!open.pageTexts.has(other)) {
+        progress(current, `논문 전체에서 반복되는 용어 확인 중… (${index + 1}/${order.length})`, index / order.length);
+        let text = '';
+        try {
+          const page = await open.pdf.getPage(other);
+          const content = await page.getTextContent();
+          text = content.items.map(item => (item.str || '') + (item.hasEOL ? '\n' : '')).join('');
+          page.cleanup();
+        } catch { text = ''; }
+        check(current);
+        // A scanned or garbled page is skipped (reading it would need character recognition).
+        open.pageTexts.set(other, letterCount(text) < MIN_TEXT_LETTERS || looksGarbled(text) ? '' : text);
+      }
+      if (open.pageTexts.get(other)) texts.push(open.pageTexts.get(other));
+    }
+    return texts;
+  }
   async function readChosenPage() {
     const open = openPdfDoc;
     if (!open || run) return;
@@ -760,6 +793,10 @@
     try {
       const {text, notes} = await readPdfPage(open.pdf, number, current);
       check(current);
+      const others = await otherPagesText(open, number, current);
+      check(current);
+      readElsewhere = others.length ? WordCollectorTermExtract.documentCounts(others) : null;
+      if (others.length) notes.push(`순위를 정할 때 다른 ${others.length}쪽의 글도 참고했어요. (단어는 ${number}쪽 것만 보여줘요)`);
       showResult(text, notes);
     } catch (error) {
       if (!current.cancelled) handleError(error);
@@ -798,6 +835,7 @@
   // page is open so the list can switch without reading the file again.
   let candidates = [];
   let readText = '';
+  let readElsewhere = null;     // counts from the PDF's other pages (documentCounts), or null
   let candidateMode = 'all';
   let aiCandidates = null;      // "AI 추천": terms picked by Gemini from readText (null = not asked yet)
   const selected = new Map();   // term → {term, sentence}; kept when the mode switches
@@ -813,6 +851,7 @@
   function hideCandidates() {
     candidates = [];
     readText = '';
+    readElsewhere = null;
     selected.clear();
     resetAi();
     candidateList.replaceChildren();
@@ -844,7 +883,8 @@
     // "자동" shows the field guessed from the notebook names (or the default fields).
     fieldSelect.options[0].textContent = context.guessed ? `자동 (${FIELD_NAMES[context.guessed]})` : '자동 (전기·전자, 반도체)';
   }
-  const extractOptions = mode => ({mode, field: fieldSelect.value || context.guessed, saved: context.saved, learned: context.learned});
+  const extractOptions = mode => ({mode, field: fieldSelect.value || context.guessed, saved: context.saved, learned: context.learned,
+    elsewhere: readElsewhere});
   fieldSelect.addEventListener('change', () => {
     window.WordCollectorScanContext?.rememberField(fieldSelect.value);
     if (readText) setCandidateMode(candidateMode);

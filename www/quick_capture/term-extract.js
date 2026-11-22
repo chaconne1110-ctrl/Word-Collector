@@ -393,8 +393,17 @@
 
   // Options: mode 'all' | 'major'; field (a FIELD_KEEP key, or none = all fields);
   // saved: words already in the user's notebooks (marked, shown a little lower);
-  // learned: words the user picked from scans before (never left out, shown higher).
-  function extractCandidates(text, {mode = 'all', field = '', saved = new Set(), learned = new Set()} = {}) {
+  // learned: words the user picked from scans before (never left out, shown higher);
+  // elsewhere: counts from the document's other pages (documentCounts) — only used to rank
+  // and to keep a phrase used once on this page but repeated in the document.
+  function extractCandidates(text, {mode = 'all', field = '', saved = new Set(), learned = new Set(), elsewhere = null} = {}) {
+    const other = key => {
+      if (!elsewhere) return 0;
+      const variants = new Set([key, key + 's', key + 'es', key.replace(/y$/, 'ies'), key.replace(/s$/, ''), key.replace(/es$/, '')]);
+      let sum = 0;
+      for (const variant of variants) sum += elsewhere.get(variant) || 0;
+      return sum;
+    };
     const raw = text;
     text = withoutReferences(text);
     const keep = keepOf(field);
@@ -476,11 +485,20 @@
       if (!nounLike(last) || isEveryday(first, new Set()) && isEveryday(last, new Set()) && !inKeep(last, keep)) return false;
       return [first, last].some(part => rarity(part) >= 1.0 || inKeep(part, keep)) && [first, last].some(part => rarity(part) >= 0.6);
     })();
-    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT || sure(entry.key) || once(entry));
+    // A phrase used once here but repeated on other pages: offered when its first word can
+    // start a term (not "based photodetectors", "given wavelength", "measured current").
+    const goodStart = entry => {
+      const first = entry.key.toLowerCase().split(' ')[0];
+      return !/(?:ize|ise|ify|ate|ed|ly)$/.test(first) && !/^(?:given|using|based|used|shown|known|other|each|several)$/.test(first) &&
+        !isSymbol(first) || inKeep(first, keep);
+    };
+    let entries = [...found.values()].filter(entry => entry.size === 1 || entry.count >= MIN_PHRASE_COUNT ||
+      entry.count + other(entry.key) >= MIN_PHRASE_COUNT && goodStart(entry) || sure(entry.key) || once(entry));
     // "power factor" inside "power factor correction" with the same count is the same use.
     const phrases = entries.filter(entry => entry.size > 1);
     entries = entries.filter(entry => entry.size === 1 || sure(entry.key) || !phrases.some(other =>
-      other.size > entry.size && other.count === entry.count && (' ' + other.key + ' ').includes(' ' + entry.key + ' ')));
+      other.size > entry.size && other.count === entry.count &&
+      (other.count >= MIN_PHRASE_COUNT || sure(other.key)) && (' ' + other.key + ' ').includes(' ' + entry.key + ' ')));
     return entries.map(entry => {
       // Keep capitals only for acronyms, or names written with a capital every time
       // (also in the middle of a sentence, e.g. "Faraday").
@@ -498,6 +516,9 @@
       // before score higher; a word already in a notebook a little lower.
       const rare = acronym ? 1.3 : entry.size > 1 ?
         Math.max(...parts.map(part => rarity(part.toLowerCase()))) + 0.4 : rarity(lowerKey);
+      // The other pages only decide whether a phrase used once here is offered at all; its
+      // rank stays that of a phrase used once (ranking by the whole paper pushed broad
+      // combinations such as "graphene photodetectors" up — measured on real papers).
       const onceOnly = entry.size > 1 && entry.count < MIN_PHRASE_COUNT && !sure(entry.key);
       const score = rare * (1 + Math.log2(entry.count)) * (onceOnly ? 0.7 : 1) + (cues.has(entry.key) ? 2.5 : 0) +
         (learned.has(lowerKey) ? 1.5 : 0) + (fieldWord && mode === 'major' ? 0.8 : 0) - (isSaved ? 1 : 0);
@@ -590,7 +611,35 @@
   }
   const FIELDS = Object.keys(FIELD_KEEP);
 
-  const api = {extractCandidates, splitSentences, normalizeText, repairOcrText, findCues, guessField, FIELDS,
+  // ---- The document's other pages ---------------------------------------------------
+  // Counts of words and 2–3 word phrases on the other pages of the same PDF (their text
+  // layers), with the same rules as extractCandidates (references, cover page left out).
+  // Only the counts are kept; the text itself is not.
+  const keyOf = token => isAcronym(token.surface) ? token.surface.replace(/s$/, '') : token.lower;
+  function documentCounts(texts) {
+    const counts = new Map();
+    const bump = key => counts.set(key, (counts.get(key) || 0) + 1);
+    for (const text of texts || []) {
+      for (const sentence of splitSentences(withoutReferences(text))) {
+        const tokens = [...sentence.matchAll(WORD)].map(match => {
+          const surface = match[0].replace(/['’]s$/i, '');
+          return {surface, lower: surface.toLowerCase(), index: match.index, end: match.index + match[0].length};
+        });
+        tokens.forEach((token, i) => {
+          bump(keyOf(token));
+          for (let size = 2; size <= 3; size++) {
+            const words = tokens.slice(i, i + size);
+            if (words.length < size || words.some(word => FUNCTION_WORDS.has(word.lower) || word.lower.length < 2)) break;
+            if (words.slice(1).some((word, k) => !/^[\s-]*$/.test(sentence.slice(words[k].end, word.index)))) break;
+            bump(words.map(keyOf).join(' '));
+          }
+        });
+      }
+    }
+    return counts;
+  }
+
+  const api = {extractCandidates, documentCounts, splitSentences, normalizeText, repairOcrText, findCues, guessField, FIELDS,
     FUNCTION_WORDS, COMMON_WORDS};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.WordCollectorTermExtract = api;

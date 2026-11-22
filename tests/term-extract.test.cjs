@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const {extractCandidates, splitSentences, guessField} = require('../www/quick_capture/term-extract.js');
+const {extractCandidates, documentCounts, splitSentences, guessField} = require('../www/quick_capture/term-extract.js');
 
 const terms = (text, mode) => extractCandidates(text, mode ? {mode} : undefined).map(candidate => candidate.term);
 const find = (text, term, mode) => extractCandidates(text, mode ? {mode} : undefined).find(candidate => candidate.term === term);
@@ -312,4 +312,15 @@ test('formula symbols and adverb starts are not terms', () => {
     .map(c => c.term.toLowerCase());
   assert.ok(names.includes('transconductance'));
   for (const term of ['kop', 'vsat', 'strongly dependent']) assert.ok(!names.includes(term), term);
+});
+
+test('other pages of the PDF: a phrase used once here but repeated elsewhere is offered, not ranked up', () => {
+  const page = 'The effective mass sets the mobility of the carriers. The mobility is high.';
+  const elsewhere = documentCounts(['The effective mass of GaN is small.', 'A small effective mass helps. Based results improve.']);
+  const names = text => extractCandidates(page, {mode: 'all', elsewhere}).map(c => c.term);
+  assert.ok(!extractCandidates(page, {mode: 'all'}).some(c => c.term === 'effective mass'), 'once on the page alone');
+  assert.ok(names().includes('effective mass'), names());
+  assert.ok(!names().includes('gan'), 'words only on other pages are not offered');
+  const list = extractCandidates(page, {mode: 'all', elsewhere});
+  assert.ok(list.find(c => c.term === 'effective mass').score <= list.find(c => c.term === 'mobility').score + 5);
 });
