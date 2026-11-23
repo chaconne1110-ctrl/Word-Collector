@@ -113,3 +113,14 @@ test('review: related words are filled as "word(뜻)" lines and saved one per li
   assert.deepEqual(parts('capacitance, inductance'), ['capacitance', 'inductance']);
   assert.deepEqual(parts('a(뜻1), b(뜻2)'), ['a(뜻1)', 'b(뜻2)']);
 });
+
+test('first-run words: every related word comes with its meaning, "word(뜻)"', () => {
+  const seed = new Function(fs.readFileSync('www/data.js', 'utf8') + ';return seed;')();
+  const words = Object.values(seed.terms);
+  assert.equal(words.length, 72);
+  for (const word of words) {
+    const lines = word.related.split('\n');
+    assert.equal(lines.length, 2, word.en);
+    for (const line of lines) assert.match(line, /^[^()]+\([^()]+\)$/, word.en + ': ' + line);
+  }
+});

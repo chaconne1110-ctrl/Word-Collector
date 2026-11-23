@@ -57,6 +57,26 @@ if (state.courses?.[RETIRED_DEFAULT_COURSE] &&
     state = next;
   } catch { /* storage blocked: harmless, it is just an empty notebook */ }
 }
+// The first-run words (data.js) now carry each related word's meaning: "word(뜻)".
+// Installs made before that hold the English-only list; it is filled in once, only
+// while it is still exactly the original list (a list the user edited stays as is).
+{
+  const englishOnly = text => String(text || '').split('\n').map(line => line.replace(/\(.*\)$/, '').trim()).filter(Boolean).join('\n');
+  let filled = 0;
+  const terms = {...(state.terms || {})};
+  for (const [id, word] of Object.entries(terms)) {
+    const original = seed.terms?.[id]?.related;
+    if (!word || !original || word.related === original || /[()]/.test(word.related || '')) continue;
+    if (String(word.related || '').trim() === englishOnly(original)) { terms[id] = {...word, related: original}; filled++; }
+  }
+  if (filled) {
+    try {
+      const next = {...state, terms};
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      state = next;
+    } catch { /* storage blocked: the words keep their English-only list */ }
+  }
+}
 
 // A user's reference sentence is translated into the other language: mostly
 // Korean -> English translation, otherwise -> Korean translation. One Hangul
