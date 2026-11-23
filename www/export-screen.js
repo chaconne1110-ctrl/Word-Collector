@@ -47,8 +47,11 @@
     checked ? selected.add(id) : selected.delete(id);
     for (const input of groups.querySelectorAll('.word-checkbox')) if (input.dataset.termId === id) input.checked = checked;
   }
+  // Notebooks start folded (only their names show); a tap on the arrow opens one, and it stays open across redraws.
+  const openGroups = new Set();
   function group(name, members, extraClass, allLabel = '이 단어장 전체 선택') {
-    const details = document.createElement('details'); details.open = true;
+    const details = document.createElement('details'); details.open = openGroups.has(name);
+    details.addEventListener('toggle', () => { if (details.open) openGroups.add(name); else openGroups.delete(name); });
     details.className = 'subject-card rounded-xl bg-surface-container-lowest p-4' + (extraClass ? ' ' + extraClass : '');
     const summary = document.createElement('summary'); summary.textContent = name;
     const parent = checkbox(allLabel, 'subject-checkbox', false, checked => {
