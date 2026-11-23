@@ -24,7 +24,7 @@ const {createServer} = require('../server/server.cjs');
       for (safeBottom of [0, 34]) {
         await page.setViewportSize({width, height});
         await page.goto(`http://127.0.0.1:${server.address().port}/_6/code.html`);
-        await page.waitForSelector('.word-checkbox');
+        await page.waitForSelector('.word-checkbox', {state: 'attached'}); // notebooks start folded
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         const geometry = await page.evaluate(() => {
           const nav = document.querySelector('nav').getBoundingClientRect();

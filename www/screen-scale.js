@@ -25,8 +25,10 @@
   var userScalable = /user-scalable=no/.test(meta.getAttribute('content') || '');
   var root = document.documentElement;
   var ua = navigator.userAgent || '';
-  // iPadOS reports a Mac user agent, but it has a touch screen.
-  var desktop = !/Android|iPhone|iPad|iPod|Mobi/i.test(ua) &&
+  // iPadOS reports a Mac user agent, but it has a touch screen. A device whose
+  // main input is a finger (coarse pointer) is a phone or tablet whatever its name.
+  var touchFirst = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  var desktop = !/Android|iPhone|iPad|iPod|Mobi/i.test(ua) && !touchFirst &&
     !(/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 
   function apply() {

@@ -23,7 +23,17 @@ const {createServer} = require('../server/server.cjs');
       await page.waitForFunction(() => window.__file !== null);
       return page.evaluate(() => window.__file.replace(/^\uFEFF/, '').trim().split('\r\n').map(line => JSON.parse('[' + line + ']')));
     }
-    const pick = async (group, id, checked) => page.locator(`${group} .word-checkbox[data-term-id="${id}"]`).setChecked(checked);
+    // Notebooks start folded: open one by tapping its name (summary) before ticking its words.
+    const pick = async (group, id, checked) => {
+      const details = page.locator(group).first();
+      if (!await details.evaluate(d => d.open)) await details.locator('summary').click();
+      await page.locator(`${group} .word-checkbox[data-term-id="${id}"]`).setChecked(checked);
+    };
+    // "이 단어장 전체 선택" also shows only after the 북마크 group is opened.
+    const pickBookmarkGroup = async () => {
+      if (!await page.locator('#bookmarkGroup').evaluate(d => d.open)) await page.locator('#bookmarkGroup summary').click();
+      await page.locator('#bookmarkGroup .subject-checkbox').setChecked(true);
+    };
     await page.goto(base + '/_6/code.html');
     assert.equal(await page.locator('#bookmarkGroup summary').textContent(), '북마크');
     assert.deepEqual(await page.locator('#bookmarkGroup .word-checkbox').evaluateAll(list => list.map(i => i.dataset.termId)), ['D']);
@@ -32,7 +42,7 @@ const {createServer} = require('../server/server.cjs');
     await page.locator('#selectAllMaster').setChecked(false, {force: true});
     const machine = 'details:has(summary:text-is("전기기기"))';
     await pick(machine, 'A', true); await pick(machine, 'C', true);
-    await page.locator('#bookmarkGroup .subject-checkbox').setChecked(true);
+    await pickBookmarkGroup();
     assert.ok(await page.locator('details:has(summary:text-is("회로이론")) .word-checkbox[data-term-id="D"]').isChecked(), 'one selection per word');
     let rows = await exportCsv();
     assert.deepEqual(rows.map(r => [r[1], r[2], r.at(-1)]), [['단어장 이름', '표제어', '북마크'], ['전기기기', 'A', ''], ['전기기기', 'C', ''], ['회로이론', 'D', '북마크']]);
@@ -41,7 +51,7 @@ const {createServer} = require('../server/server.cjs');
     await page.reload();
     await page.locator('#selectAllMaster').setChecked(false, {force: true});
     await pick(machine, 'A', true); await pick(machine, 'C', true);
-    await page.locator('#bookmarkGroup .subject-checkbox').setChecked(true);
+    await pickBookmarkGroup();
     assert.equal(await page.locator('#globalSelectedCount').textContent(), '3개 단어 선택됨');
     rows = await exportCsv();
     assert.deepEqual(rows.map(r => [r[1], r[2], r.at(-1)]), [['단어장 이름', '표제어', '북마크'], ['전기기기', 'A', '북마크'], ['전기기기', 'C', ''], ['회로이론', 'D', '북마크']]);

@@ -44,25 +44,28 @@ const LONG_KO = '명사: 흐름, 해류, 경향, 추세 / 형용사: 현재의, 
     assert.equal(await page.locator('#analysis-review .wc-evidence').count(), 0);
     // One line each for short text (same height as the one-line 단어 box).
     const oneLine = await height('en');
-    for (const name of ['discipline', 'ko', 'related']) assert.ok(Math.abs(await height(name) - oneLine) <= 2, name + ' is one line');
-    assert.equal(await page.locator('#analysis-review [name=related]').inputValue(), 'voltage, resistance');
+    for (const name of ['discipline', 'ko']) assert.ok(Math.abs(await height(name) - oneLine) <= 2, name + ' is one line');
+    // 관련 단어: two lines, one "word(뜻)" each.
+    assert.equal(await page.locator('#analysis-review [name=related]').inputValue(), 'voltage(전압)\nresistance(저항)');
+    assert.ok(await height('related') > oneLine + 10, 'related shows two lines');
     // Typing a longer 전공 grows its box; deleting it shrinks back to one line.
     const major = page.locator('#analysis-review [name=discipline]');
     await major.fill('전기공학 및 전자공학, 반도체 공정, 전력 시스템과 제어 공학을 함께 다루는 융합 전공');
     assert.ok(await height('discipline') > oneLine + 10, 'longer 전공 grows');
     await major.fill('전기공학');
     assert.ok(Math.abs(await height('discipline') - oneLine) <= 2, 'back to one line');
-    // Saved one word per line, as before (word list and flashcards read it that way).
-    await page.locator('#analysis-review [name=related]').fill('voltage,  resistance , ohm');
+    // Saved one word per line (word list and flashcards read it that way); a line typed
+    // with commas is split, but not at a comma inside a meaning's parentheses.
+    await page.locator('#analysis-review [name=related]').fill('voltage(전압, 전위차),  resistance , ohm');
     await page.locator('#save-action-btn').click();
     await page.waitForURL('**/words.html?**');
     const saved = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('lexicon-word-collector-v1')).terms)[0]);
-    assert.equal(saved.related, 'voltage\nresistance\nohm');
+    assert.equal(saved.related, 'voltage(전압, 전위차)\nresistance\nohm');
     // A long 한국어 뜻 (several parts of speech) is shown in full.
     await analyse('stream');
     assert.ok(await height('ko') > oneLine + 10, 'long 한국어 뜻 grows');
     assert.ok(await page.locator('#analysis-review [name=ko]').evaluate(box => box.scrollHeight <= box.clientHeight + 2), 'no hidden text');
     assert.deepEqual(errors, []);
-    console.log('PASS: no status line or 근거 보기 on review; 전공/한국어 뜻/관련 단어 one line and grow with text; related words comma-separated, saved one per line.');
+    console.log('PASS: no status line or 근거 보기 on review; 전공/한국어 뜻 one line and grow with text; 관련 단어 two lines as word(뜻), saved one per line.');
   } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

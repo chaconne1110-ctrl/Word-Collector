@@ -21,8 +21,11 @@ const assert = require('node:assert/strict');
     await page.addInitScript(()=>{Object.defineProperty(Navigator.prototype,'canShare',{value:undefined,configurable:true});});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto('http://127.0.0.1:'+server.address().port+'/_6/code.html');
-    await page.waitForSelector('.word-checkbox');
+    await page.waitForSelector('.word-checkbox',{state:'attached'});
     assert.equal(await page.locator('.word-checkbox').count(),2);
+    // Notebooks start folded; tapping 회로이론 opens it so its word can be unticked.
+    assert.equal(await page.locator('[data-term-id="b"]').isVisible(),false);
+    await page.locator('summary',{hasText:'회로이론'}).click();
     await page.locator('[data-term-id="b"]').uncheck();
     assert.equal(await page.locator('#selectAllMaster').evaluate(e=>e.indeterminate),true);
     for(const key of ['discipline','course','enDef','koDef'])await page.locator('[data-column="'+key+'"]').uncheck();
