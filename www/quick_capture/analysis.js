@@ -37,7 +37,8 @@ function setWaitingStep(step, state) {
 // Full-screen waiting screen while the word is analysed. No photo is generated
 // here; photos are created only from the flashcard back ("AI 사진 생성").
 function showWaiting(term) {
-  waitingTitle.textContent = 'AI가 단어를 분석하고 있어요';
+  waitingTitle.textContent = 'AI가 단어를 분석하고 있어요' + batchLabel;
+  setSkipVisible(false);
   waitingTerm.textContent = '“' + term + '”';
   setWaitingStep('analysis', 'active');
   setWaitingStep('evidence', 'active');
@@ -62,6 +63,62 @@ function readCaptureRequest() {
   }
 }
 const request = readCaptureRequest();
+// Words picked from a PDF or photo (scan.html → code.html) are analysed one after
+// another: the queue holds the requests still to come, and each save or skip moves on.
+const CAPTURE_QUEUE_KEY = 'word-collector-capture-queue-v1';
+const SCAN_SELECTION_KEY = 'word-collector-scan-selection-v1';
+function readCaptureQueue() {
+  try {
+    const queue = JSON.parse(sessionStorage.getItem(CAPTURE_QUEUE_KEY) || 'null');
+    return queue && request?.batch && queue.id === request.batch.id && Array.isArray(queue.items) ? queue : null;
+  } catch {
+    return null;
+  }
+}
+const batch = request?.batch && readCaptureQueue() ? request.batch : null;
+const batchLabel = batch ? ` (${batch.index}/${batch.total})` : '';
+const batchSkip = $('#batch-skip');
+if (batch) reviewForm.querySelector('h2').textContent += batchLabel;
+function setSkipVisible(on) {
+  batchSkip.hidden = !(batch && on);
+  $('#batch-skip-text').textContent = batch && batch.index >= batch.total ? '이 단어 건너뛰고 마치기' : '이 단어 건너뛰기';
+}
+function nextInBatch(savedWord) {
+  const queue = readCaptureQueue() || {items: [], saved: 0};
+  const saved = (queue.saved || 0) + (savedWord ? 1 : 0);
+  const lastCourse = savedWord ? savedWord.course : queue.lastCourse;
+  try {
+    // A saved word leaves the picked list (going back to the input page shows the rest).
+    const selection = JSON.parse(sessionStorage.getItem(SCAN_SELECTION_KEY) || 'null');
+    if (savedWord && selection && Array.isArray(selection.words)) {
+      const same = term => String(term ?? '').trim().replace(/\s+/g, ' ') === request.term;
+      selection.words = selection.words.filter(word => !same(word?.term));
+      sessionStorage.setItem(SCAN_SELECTION_KEY, JSON.stringify(selection));
+    }
+  } catch {}
+  // A new notebook is created by the first save; the next words go into that notebook.
+  const items = queue.items.map(item => savedWord && item.newCourseName ?
+    (({newCourseName, ...rest}) => ({...rest, selected: savedWord.course}))(item) : item);
+  try {
+    sessionStorage.removeItem(CAPTURE_STARTED_KEY);
+    if (!items.length) {
+      for (const key of [CAPTURE_QUEUE_KEY, SCAN_SELECTION_KEY, CAPTURE_REQUEST_KEY]) sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(CAPTURE_QUEUE_KEY, JSON.stringify({...queue, saved, lastCourse, items: items.slice(1)}));
+      sessionStorage.setItem(CAPTURE_REQUEST_KEY, JSON.stringify(items[0]));
+    }
+  } catch {}
+  // replace(): the back button must not return to a finished word.
+  if (items.length) location.replace('review.html');
+  else if (saved && lastCourse && hasCourse(lastCourse)) location.replace('../' + route('words.html', {course: lastCourse}));
+  else location.replace('code.html');
+}
+batchSkip.addEventListener('click', () => {
+  if (!batch || saving) return;
+  analysisRequestGate.cancel();
+  analyzing = false;
+  nextInBatch(null);
+});
 // Back to the input page; history.back() keeps the typed values when possible.
 function goBackToInput() {
   let fromInput = false;
@@ -76,6 +133,7 @@ function showError(message) {
   errorMessage.textContent = message;
   errorCard.hidden = false;
   status.textContent = '';
+  setSkipVisible(true);
 }
 $('#analysis-back-to-input').addEventListener('click', goBackToInput);
 const reviewCourse = $('#review-course');
@@ -177,7 +235,7 @@ function supportsEddyDiagram(en, selected) {
 }
 
 function updateReviewTarget() {
-  $('#review-target').textContent = draft.term +
+  $('#review-target').textContent = (batch ? `${batch.index}/${batch.total} · ` : '') + draft.term +
     (draft.recommended ? ' · AI 추천: ' + (draft.suggestedCourseName || courseNames(draft.recommended)[0]) : '') +
     ' · 저장: ' + (draft.newCourseName || courseNames(draft.selected)[0]);
 }
@@ -414,6 +472,7 @@ async function runAnalysis() {
     reviewForm.hidden = false;
     autoGrowAll(reviewForm);   // long analysis text: boxes fit their content
     setReviewMode(true);
+    setSkipVisible(true);
     reviewForm.scrollIntoView({block: 'start'});
     status.textContent = result.needsManualCompletion ?
       '서버 호환 모드에서 품사와 예문 번역이 비어 있습니다. 지금 그대로 저장하거나 나중에 채울 수 있습니다.' :
@@ -503,6 +562,7 @@ async function saveReview() {
     const deleted = state.deletedCourses ? {deletedCourses: state.deletedCourses.filter(courseId => courseId !== draft.selected)} : {};
     if (commit({...state, ...deleted, courses, terms: {...state.terms, [id]: word}})) {
       draft = null;
+      if (batch) { nextInBatch(word); return; }
       // Saved: the next visit to the input page starts empty.
       try { sessionStorage.removeItem(CAPTURE_REQUEST_KEY); sessionStorage.removeItem(CAPTURE_STARTED_KEY); } catch {}
       // replace(): the back button must not return to the finished analysis.

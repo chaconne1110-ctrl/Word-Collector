@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><script src="../screen-scale.js"></script><script src="../native-back.js"></script><meta content="mobile_stack" name="shell-type"><title>PDF·사진에서 단어 찾기 · Word Collector</title>
+<link rel="stylesheet" href="../assets/fonts/Inter/inter-local.css">
+<link rel="stylesheet" href="../assets/fonts/NotoSansKR/local.css">
+<link rel="stylesheet" href="../assets/fonts/MaterialSymbols/local.css">
+<link rel="stylesheet" href="../assets/styles/quick_capture_code_html.css"><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+  [hidden] { display: none !important; }
+  body > header { position: sticky; top: 0; flex-shrink: 0; }
+  body {
+    height: 100vh; height: 100dvh; min-height: 0; box-sizing: border-box;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); overflow: hidden;
+  }
+  body > main { min-height: 0; padding-top: 0; padding-bottom: 0; overflow-y: auto; overflow-x: hidden; }
+  #scan-action-bar { position: relative; flex-shrink: 0; }
+  .scan-card { background: #fff; border: 1px solid rgba(197,197,211,.3); border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.05); min-width: 0; }
+  .scan-card h2 { margin: 0 0 10px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .scan-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .scan-pick label {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 76px;
+    border-radius: 10px; background: #f2f3ff; color: #00236f; font-size: 13px; font-weight: 600; text-align: center;
+    cursor: pointer; padding: 8px 4px; word-break: keep-all;
+  }
+  .scan-pick label:focus-within { outline: 2px solid #00236f; outline-offset: 2px; }
+  .scan-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .scan-note { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: #44464f; word-break: keep-all; }
+  #photo-canvas { display: block; width: 100%; height: auto; max-height: 45vh; object-fit: contain; border-radius: 8px; background: #eef0f8; }
+  .scan-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .scan-row button { flex: 1 1 0; min-width: 0; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; padding: 0 8px; white-space: nowrap; }
+  .btn-primary { background: #00236f; color: #fff; }
+  .btn-tonal { background: #e2e7ff; color: #00236f; }
+  .scan-page-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .scan-page-row label { flex: 0 0 auto; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .scan-page-row input { flex: 1 1 auto; min-width: 0; width: 0; height: 44px; border-radius: 8px; background: #f2f3ff; border: 1px solid rgba(197,197,211,.3); padding: 0 10px; font-size: 16px; }
+  .scan-page-row button { flex: 0 0 auto; min-height: 44px; min-width: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; padding: 0 10px; white-space: nowrap; }
+  .scan-page-row button:disabled { opacity: .4; }
+  .pdf-preview-box { position: relative; border-radius: 8px; background: #eef0f8; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+  .pdf-preview-box { padding: 8px; }
+  #pdf-preview { display: block; max-width: 100%; background: #fff; border: 1px solid #c5c5d3; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  #pdf-preview-status { margin: 0; padding: 6px 8px; text-align: center; }
+  #pdf-preview-status:empty { display: none; }
+  #scan-progress-bar { width: 100%; height: 10px; accent-color: #00236f; }
+  #scan-progress-text { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+  .cand-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 10px; background: #e2e7ff; }
+  .cand-mode:has(#mode-ai:not([hidden])) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cand-mode:has(#mode-ai:not([hidden])) button { font-size: 12px; padding: 0 2px; }
+  .ai-pick { margin: 0 0 10px; }
+  .ai-pick button { width: 100%; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .ai-pick button:disabled { opacity: .6; }
+  .cand-mode button { min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #44464f; white-space: nowrap; }
+  .cand-mode button[aria-pressed=true] { background: #00236f; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .cand-field { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; min-width: 0; }
+  .cand-field label { flex: 0 0 auto; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .cand-field select { flex: 1 1 auto; min-width: 0; width: 0; height: 38px; border-radius: 8px; background: #f2f3ff; border: 1px solid rgba(197,197,211,.3); padding: 0 8px; font-size: 14px; }
+  .cand-badge { flex: 0 0 auto; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 999px; background: #e2e7ff; color: #00236f; white-space: nowrap; }
+  .cand-badge[data-kind=saved] { background: #eceef3; color: #44464f; }
+  .cand-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .cand-tools input[type=search] { flex: 1 1 auto; min-width: 0; height: 40px; border-radius: 8px; background: #f2f3ff; padding: 0 10px; border: 1px solid rgba(197,197,211,.3); font-size: 14px; }
+  .cand-tools button { flex: 0 0 auto; height: 40px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  #candidate-list { list-style: none; margin: 0; padding: 0; }
+  #candidate-list li { border-top: 1px solid rgba(197,197,211,.35); }
+  #candidate-list label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 2px; cursor: pointer; min-width: 0; }
+  #candidate-list input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 2px; accent-color: #00236f; }
+  .cand-body { flex: 1 1 auto; min-width: 0; }
+  .cand-head { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; min-width: 0; }
+  .cand-term { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; min-width: 0; }
+  .cand-count { flex: 0 0 auto; font-size: 12px; color: #44464f; white-space: nowrap; }
+  .cand-sentence { margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: #44464f; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #scan-status { margin: 0; font-size: 13px; color: #44464f; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #scan-status[data-kind=error] { color: #93000a; font-weight: 600; }
+</style>
+<link rel="stylesheet" href="../assets/styles/bottom-navigation.css">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/wordcollector-app-icon.webp" type="image/webp">
+<link rel="apple-touch-icon" sizes="192x192" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#00236f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Word Collector"><link rel="stylesheet" href="../assets/styles/mobile-layout.css"></head><body data-page="capture" data-capture-step="scan" class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="단어 입력으로 돌아가기" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface transition-colors" id="scan-back" type="button"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate">PDF·사진에서 단어 찾기</h1></div></div></header>
+<main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface overflow-y-auto"><div class="px-margin pt-space-md flex flex-col gap-space-md" style="padding-bottom: 1rem;">
+
+<section class="scan-card" id="scan-pick-card">
+  <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">upload_file</span>파일 고르기</h2>
+  <div class="scan-pick">
+    <label><span class="material-symbols-outlined text-[24px]" aria-hidden="true">picture_as_pdf</span>PDF 파일<input id="pick-pdf" type="file" accept="application/pdf,.pdf"></label>
+    <label><span class="material-symbols-outlined text-[24px]" aria-hidden="true">photo_camera</span>사진 찍기<input id="pick-camera" type="file" accept="image/*" capture="environment"></label>
+    <label><span class="material-symbols-outlined text-[24px]" aria-hidden="true">photo_library</span>앨범에서 고르기<input id="pick-photo" type="file" accept="image/*"></label>
+  </div>
+  <p class="scan-note">영어 글자만 읽어요. PDF는 고른 쪽 하나씩 읽고, 사진은 10MB까지 읽을 수 있어요. 파일은 이 기기 안에서만 읽고 저장하거나 서버로 보내지 않아요. 고른 단어와 그 문장만 분석에 사용합니다. <a href="../licenses.html" style="color:#00497d">오픈소스 라이선스</a></p>
+</section>
+
+<section class="scan-card" id="pdf-page-card" hidden>
+  <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">find_in_page</span>읽을 쪽 고르기</h2>
+  <p class="scan-note" id="pdf-page-total" style="margin:0 0 10px"></p>
+  <div class="scan-page-row">
+    <button type="button" class="btn-tonal" id="pdf-prev" aria-label="이전 쪽"><span class="material-symbols-outlined text-[20px]" aria-hidden="true" style="vertical-align:middle">chevron_left</span></button>
+    <label for="pdf-page-input">쪽 번호</label>
+    <input id="pdf-page-input" type="number" inputmode="numeric" min="1" step="1" value="1" autocomplete="off">
+    <button type="button" class="btn-tonal" id="pdf-next" aria-label="다음 쪽"><span class="material-symbols-outlined text-[20px]" aria-hidden="true" style="vertical-align:middle">chevron_right</span></button>
+  </div>
+  <div class="scan-row" style="margin-bottom:10px"><button type="button" class="btn-primary" id="pdf-read-page">이 쪽 읽기</button></div>
+  <div class="pdf-preview-box">
+    <canvas id="pdf-preview" aria-label="고른 쪽 미리보기"></canvas>
+    <p id="pdf-preview-status" class="scan-note" aria-live="polite"></p>
+  </div>
+  <p class="scan-note">미리보기로 쪽을 확인한 뒤 읽어 주세요. 한 번에 한 쪽만 읽고, 새로 읽으면 후보 목록이 바뀌어요.</p>
+</section>
+
+<section class="scan-card" id="photo-card" hidden>
+  <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">image</span>사진 확인</h2>
+  <canvas id="photo-canvas" aria-label="고른 사진 미리보기"></canvas>
+  <div class="scan-row">
+    <button type="button" class="btn-tonal" id="rotate-left" aria-label="왼쪽으로 돌리기"><span class="material-symbols-outlined text-[18px]" aria-hidden="true" style="vertical-align:middle">rotate_left</span> 왼쪽</button>
+    <button type="button" class="btn-tonal" id="rotate-right" aria-label="오른쪽으로 돌리기"><span class="material-symbols-outlined text-[18px]" aria-hidden="true" style="vertical-align:middle">rotate_right</span> 오른쪽</button>
+  </div>
+  <div class="scan-row"><button type="button" class="btn-primary" id="read-photo">글자 읽기</button></div>
+  <div class="scan-row"><button type="button" class="btn-tonal" id="read-photo-ai"><span class="material-symbols-outlined text-[18px]" aria-hidden="true" style="vertical-align:middle">auto_awesome</span> 손글씨·흐린 사진은 AI로 읽기</button></div>
+  <p class="scan-note" style="margin:4px 0 0">AI로 읽기는 사진을 분석 서버(Gemini)로 보내요. 사진은 저장하지 않고, 하루 분석 1회가 쓰여요.</p>
+  <p class="scan-note">글자가 똑바로 보이게 돌린 뒤 글자 읽기를 눌러 주세요. 빛 반사나 그림자가 글자를 가리지 않게 찍어 주세요. 모니터나 휴대폰 화면의 글은 사진으로 찍는 것보다 <b>화면 캡처</b>를 "앨범에서 고르기"로 넣으면 훨씬 잘 읽혀요.</p>
+</section>
+
+<section class="scan-card" id="progress-card" hidden aria-live="polite">
+  <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">document_scanner</span>읽는 중</h2>
+  <p id="scan-progress-text"></p>
+  <progress id="scan-progress-bar" max="1" value="0"></progress>
+  <div class="scan-row"><button type="button" class="btn-tonal" id="scan-cancel">취소</button></div>
+</section>
+
+<p id="scan-status" role="status" aria-live="polite"></p>
+
+<section class="scan-card" id="candidate-card" hidden>
+  <h2><span class="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">checklist</span><span id="candidate-title">찾은 단어</span></h2>
+  <div class="cand-field">
+    <label for="field-select">전공 분야</label>
+    <select id="field-select">
+      <option value="">자동</option>
+      <option value="electrical">전기·전자</option>
+      <option value="semiconductor">반도체</option>
+      <option value="chemistry">화학·재료</option>
+      <option value="mechanical">기계</option>
+      <option value="bio">생명·의학</option>
+      <option value="computer">컴퓨터</option>
+      <option value="economics">경제·경영</option>
+    </select>
+  </div>
+  <div class="cand-mode" role="group" aria-label="후보 기준">
+    <button type="button" id="mode-all" aria-pressed="true">모든 단어</button>
+    <button type="button" id="mode-major" aria-pressed="false">전공용어 위주</button>
+    <button type="button" id="mode-ai" aria-pressed="false" hidden>AI 추천</button>
+  </div>
+  <div class="ai-pick" id="ai-pick">
+    <button type="button" class="btn-tonal" id="ai-pick-btn"><span class="material-symbols-outlined text-[18px]" aria-hidden="true" style="vertical-align:middle">auto_awesome</span> AI로 더 정확하게 고르기</button>
+    <p class="scan-note" id="ai-pick-note" style="margin:6px 0 0">읽은 영어 글만 분석 서버(Gemini)로 보내 전공 용어와 여러 단어로 된 용어(예: plasmonic effect)를 골라요. 사진·파일은 보내지 않아요. 하루 분석 1회가 쓰여요.</p>
+  </div>
+  <div class="cand-tools">
+    <input type="search" id="candidate-filter" placeholder="후보에서 찾기" aria-label="후보에서 찾기" autocomplete="off">
+    <button type="button" class="btn-tonal" id="select-visible">모두 선택</button>
+    <button type="button" class="btn-tonal" id="clear-selection">해제</button>
+  </div>
+  <p class="scan-note" style="margin:0 0 6px">전공용어일 가능성이 높은 순서예요. 숫자는 나온 횟수이고, 단어를 누르면 고를 수 있어요.</p>
+  <ul id="candidate-list"></ul>
+</section>
+</div></main>
+
+<div class="p-margin bg-surface/90 backdrop-blur-xl shadow-lg flex flex-col items-center gap-2 z-40" id="scan-action-bar" hidden>
+<div class="w-full max-w-lg flex flex-col gap-2"><button class="w-full h-12 rounded-xl bg-primary text-on-primary font-label-ui text-label-ui flex items-center justify-center gap-2 shadow-md" id="scan-continue" type="button" disabled><span class="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_forward</span><span id="scan-continue-text">단어를 골라 주세요</span></button><p id="scan-quota-note" class="font-caption text-caption text-on-surface-variant" style="margin:0;text-align:center;word-break:keep-all"></p></div>
+</div>
+
+<nav class="bottom-navigation fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-semibold"><div class="bottom-navigation-row h-16 px-margin-lg flex items-center justify-between relative w-full"><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 transition-colors text-on-surface-variant hover:text-on-surface" data-path="home" href="../index.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-caption text-caption">홈</span></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-primary-container font-semibold transition-colors" data-path="quick-capture" href="code.html"><span class="material-symbols-outlined text-[24px]">add</span><span class="font-caption text-caption">단어 추가</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="bookmark" href="../bookmarks.html"><span class="material-symbols-outlined text-[24px]">bookmark</span><span class="font-caption text-caption">북마크</span></a><a class="flex-1 flex flex-col items-center justify-center min-h-[48px] gap-0.5 text-on-surface-variant hover:text-on-surface transition-colors" data-path="print" href="../_6/code.html"><span class="material-symbols-outlined text-[24px]">print</span><span class="font-caption text-caption">출력</span></a></div></nav>
+
+<script src="../analysis-api.js"></script><script src="common-words.js"></script><script src="word-tiers.js"></script><script src="term-extract.js"></script><script src="scan-context.js"></script><script src="scan.js"></script><script defer src="../pwa-register.js"></script></body></html>

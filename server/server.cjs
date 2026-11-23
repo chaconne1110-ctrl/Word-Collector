@@ -362,7 +362,11 @@ const WEB_ROOT = path.resolve(__dirname, '../www');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp',
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.woff2':'font/woff2','.woff':'font/woff',
-  '.ttf':'font/ttf','.otf':'font/otf','.json':'application/json; charset=utf-8'};
+  '.ttf':'font/ttf','.otf':'font/otf','.json':'application/json; charset=utf-8',
+  // PDF·사진 단어 찾기: the on-device OCR engine and its English data (www/vendor/).
+  '.wasm':'application/wasm','.gz':'application/gzip','.txt':'text/plain; charset=utf-8',
+  // PDF.js character maps, standard fonts and colour profiles (www/vendor/pdfjs/).
+  '.bcmap':'application/octet-stream','.pfb':'application/octet-stream','.icc':'application/vnd.iccprofile'};
 async function serveAsset(req,res,pathname) {
   if (!['GET','HEAD'].includes(req.method)) return json(res,405,{error:'지원하지 않는 요청입니다.'});
   const file = path.resolve(WEB_ROOT, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));

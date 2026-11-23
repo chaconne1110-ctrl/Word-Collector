@@ -1,5 +1,7 @@
 import {startEvidence, finishEvidence, contextEvidenceInput} from './rag.mjs';
 import {glossaryApplies, lookupGlossary, glossaryResponse} from './glossary.mjs';
+import {validateScanInput, verifyScanTerms, scanResponseSchema, SCAN_SYSTEM_INSTRUCTION, ScanInputError,
+  validateScanImageInput, verifyScanImage, scanImageSchema, SCAN_IMAGE_INSTRUCTION, SCAN_IMAGE_BODY_LIMIT} from './scan-terms.mjs';
 // Word Collector Cloudflare Worker. Derived from server/server.cjs on PR #7.
 // The original Gemini prompt, schema validation, and model are retained.
 // Deployment safety: AI requests stay disabled unless ENABLE_LIVE_ANALYSIS=true.
@@ -430,6 +432,82 @@ async function analyze(input, {apiKey, fetchImpl, timeoutMs, model = LEGACY_MODE
   finally { clearTimeout(timeout); }
 }
 
+// PDF·사진에서 단어 찾기 → "AI로 더 정확하게 고르기": one Gemini call on the text the
+// app read on the device (scan-terms.mjs). Same model, relay, location retry and
+// thinking level as the word analysis; only terms found in the text are returned.
+async function pickScanTerms(input, options) {
+  const output = await geminiJson({system: SCAN_SYSTEM_INSTRUCTION, parts: [{text: JSON.stringify(input)}],
+    schema: scanResponseSchema()}, options);
+  let terms;
+  try { terms = verifyScanTerms(output, input.text); }
+  catch { throw new ApiError(502, 'AI 단어 목록을 확인하지 못했습니다. 다시 시도해 주세요.'); }
+  return {terms, model: MODEL};
+}
+// "사진째 AI로 읽기" (손글씨·흐린 사진): the photo itself goes to Gemini, which writes down the
+// English text it sees and picks terms from it; only terms found in that written-down text
+// are returned (same check as above). The photo is not stored anywhere.
+async function pickScanImage(input, options) {
+  const output = await geminiJson({system: SCAN_IMAGE_INSTRUCTION,
+    parts: [{inlineData: {mimeType: input.mimeType, data: input.image}},
+      {text: JSON.stringify({mode: input.mode, ...(input.field ? {field: input.field} : {})})}],
+    schema: scanImageSchema()}, options);
+  let result;
+  try { result = verifyScanImage(output); }
+  catch { throw new ApiError(502, 'AI가 사진에서 읽은 글을 확인하지 못했습니다. 다시 시도해 주세요.'); }
+  return {...result, model: MODEL};
+}
+// One Gemini call that must answer JSON in the given schema (relay, location retry,
+// thinking level and error handling as in the word analysis).
+async function geminiJson({system, parts, schema}, {apiKey, fetchImpl, timeoutMs}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const body = {
+      systemInstruction: {parts: [{text: system}]},
+      contents: [{role: 'user', parts}],
+      generationConfig: {maxOutputTokens: 8192, responseMimeType: 'application/json',
+        responseSchema: schema, thinkingConfig: {thinkingLevel: THINKING_LEVEL}}
+    };
+    const send = () => fetchWithLocationRetry(fetchImpl, endpointFor(MODEL), {
+      method: 'POST', signal: controller.signal, redirect: 'manual',
+      headers: {'Content-Type': 'application/json', 'x-goog-api-key': apiKey},
+      body: JSON.stringify(body)
+    });
+    let response;
+    try {
+      response = await send();
+      if (await rejectsThinkingConfig(response)) {
+        try { await response.body?.cancel(); } catch {}
+        delete body.generationConfig.thinkingConfig;
+        response = await send();
+      }
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      if (error?.name === 'AbortError') throw new ApiError(504, 'AI 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
+      throw new ApiError(502, 'GEMINI_NETWORK: Gemini HTTPS 연결에 실패했습니다.');
+    }
+    if (response.status >= 300 && response.status < 400) {
+      throw new ApiError(502, 'GEMINI_REDIRECT: Gemini가 예상하지 않은 리디렉션을 반환했습니다.');
+    }
+    if (!response.ok) {
+      if (response.status === 429) throw new ApiError(429, 'Gemini 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.');
+      throw new ApiError(502, `GEMINI_UPSTREAM_HTTP_${response.status}: Gemini가 요청을 거부했습니다.`);
+    }
+    let payload;
+    try { payload = await response.json(); }
+    catch { throw new ApiError(502, 'GEMINI_UPSTREAM_JSON: Gemini 응답을 읽지 못했습니다.'); }
+    const finishReason = payload?.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== 'STOP') throw new ApiError(502, 'AI 응답이 정상적으로 완료되지 않았습니다. 다시 시도해 주세요.');
+    const text = payload?.candidates?.[0]?.content?.parts
+      ?.filter(part => part.thought !== true && typeof part.text === 'string').map(part => part.text).join('');
+    if (typeof text !== 'string' || !text || text.length > 100000) throw new ApiError(502, 'AI 응답이 비어 있거나 너무 큽니다. 다시 시도해 주세요.');
+    try { return JSON.parse(text); }
+    catch { throw new ApiError(502, 'AI가 올바른 JSON을 반환하지 않았습니다. 다시 시도해 주세요.'); }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const PERSONAL_LIMIT = 200;
 const GLOBAL_LIMIT = 1500;
 
@@ -835,7 +913,7 @@ async function generatePhoto(input, apiKey, fetchImpl = fetch) {
   return {model:IMAGE_MODEL, image:{mimeType,data}, generated:true};
 }
 
-async function readWorkerJson(request) {
+async function readWorkerJson(request, limit = BODY_LIMIT) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) {
     throw new ApiError(400, '분석 요청의 형식은 application/json이어야 합니다.');
   }
@@ -848,9 +926,9 @@ async function readWorkerJson(request) {
       const next = await reader.read();
       if (next.done) break;
       total += next.value.byteLength;
-      if (total > BODY_LIMIT) {
+      if (total > limit) {
         await reader.cancel();
-        throw new ApiError(400, '분석 요청이 너무 큽니다. 비교할 저장 단어 수를 줄여 주세요.');
+        throw new ApiError(400, limit === BODY_LIMIT ? '분석 요청이 너무 큽니다. 비교할 저장 단어 수를 줄여 주세요.' : '사진이 너무 큽니다.');
       }
       chunks.push(next.value);
     }
@@ -929,9 +1007,11 @@ const handler = {
     const isUsage = pathname === '/api/usage';
     const isImage = pathname === '/api/image';
     const isAnalyze = pathname === '/api/analyze';
+    const isScanTerms = pathname === '/api/scan-terms';
+    const isScanImage = pathname === '/api/scan-image';
     const requestStarted = Date.now();
     const isModelStatus = pathname === '/internal/model-status';
-    if (!(isEnroll || isUsage || isAnalyze || isImage || isModelStatus)) {
+    if (!(isEnroll || isUsage || isAnalyze || isImage || isScanTerms || isScanImage || isModelStatus)) {
       return workerJson({error:'요청한 경로가 없습니다.'}, 404);
     }
     const requiredMethod = (isUsage || isModelStatus) ? 'GET' : 'POST';
@@ -949,7 +1029,7 @@ const handler = {
       let tester = await authenticate(request, env);
       // A supplied but invalid/expired code is still an error; only requests
       // without any code fall back to public analysis access.
-      if (!tester && !hasBearer && (isAnalyze || isUsage || isImage)) {
+      if (!tester && !hasBearer && (isAnalyze || isUsage || isImage || isScanTerms || isScanImage)) {
         tester = await anonymousIdentity(request, env);
       }
       if (!tester) return workerJson({error:'유효한 테스터 인증이 필요합니다.'}, 401);
@@ -1022,6 +1102,50 @@ const handler = {
 
       if (env.ENABLE_LIVE_ANALYSIS !== 'true') {
         return workerJson({error:'AI 분석 기능은 아직 준비 중입니다.'}, 503);
+      }
+
+      // "AI로 더 정확하게 고르기": off until the owner sets ENABLE_SCAN_TERMS=true.
+      // Input is checked before any quota or Gemini use; one request = one analysis
+      // in the daily quota, refunded to the personal quota if it fails.
+      if (isScanTerms) {
+        if (env.ENABLE_SCAN_TERMS !== 'true') {
+          return workerJson({error:'AI 단어 고르기 기능이 아직 활성화되지 않았습니다.'}, 503);
+        }
+        phase = 'SCAN_INPUT';
+        let scanInput;
+        try { scanInput = validateScanInput(await readWorkerJson(request)); }
+        catch (error) { throw error instanceof ScanInputError ? new ApiError(400, error.message) : error; }
+        phase = 'SCAN_QUOTA';
+        const scanReservation = await reserveAnalysisOrUnrecorded(env, tester.tester_id);
+        phase = 'SCAN_GEMINI';
+        try {
+          return workerJson(await pickScanTerms(scanInput, {apiKey: env.GEMINI_API_KEY,
+            fetchImpl: geminiFetch(env), timeoutMs: ANALYZE_DEADLINE_MS}));
+        } catch (error) {
+          await refundPersonal(env, scanReservation);
+          throw error;
+        }
+      }
+      // "사진째 AI로 읽기" (손글씨·흐린 사진): off until the owner sets ENABLE_SCAN_IMAGE=true.
+      // The photo is checked before quota or Gemini use, sent to Gemini once and not stored.
+      if (isScanImage) {
+        if (env.ENABLE_SCAN_IMAGE !== 'true') {
+          return workerJson({error:'사진 AI 읽기 기능이 아직 활성화되지 않았습니다.'}, 503);
+        }
+        phase = 'SCAN_IMAGE_INPUT';
+        let imageInput;
+        try { imageInput = validateScanImageInput(await readWorkerJson(request, SCAN_IMAGE_BODY_LIMIT)); }
+        catch (error) { throw error instanceof ScanInputError ? new ApiError(400, error.message) : error; }
+        phase = 'SCAN_IMAGE_QUOTA';
+        const imageReservation = await reserveAnalysisOrUnrecorded(env, tester.tester_id);
+        phase = 'SCAN_IMAGE_GEMINI';
+        try {
+          return workerJson(await pickScanImage(imageInput, {apiKey: env.GEMINI_API_KEY,
+            fetchImpl: geminiFetch(env), timeoutMs: ANALYZE_DEADLINE_MS}));
+        } catch (error) {
+          await refundPersonal(env, imageReservation);
+          throw error;
+        }
       }
       phase = 'INPUT';
       const input = validateInput(await readWorkerJson(request));

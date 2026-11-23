@@ -85,6 +85,9 @@ Capacitor 8 (`npx cap sync android` → `android/`에서 Gradle 빌드). 앱 ID�
 | `docs/first-run-evidence-sources.md` | 첫 실행 단어 중 "근거 있음" 27개의 실제 출처 |
 | `android/` | Capacitor Android 프로젝트 (iOS 프로젝트는 macOS에서 `npx cap add ios`로 만들고, iOS 빌드 워크플로는 `.github/workflows/build-ios*`·`build-iphone*`) |
 | `assets/branding/`, `scripts/generate-launcher-icons.sh` | 로고 원본과 아이콘 생성 |
+| `www/quick_capture/scan.html`·`scan.js`·`term-extract.js` | PDF·사진에서 단어 찾기 (기기 안에서 읽기 → 후보 단어 → 고른 단어를 하나씩 분석·검토·저장) |
+| `www/vendor/` | 앱에 넣은 오픈소스 부품: PDF.js 6.5.438(legacy, `.mjs`→`.js`), Tesseract.js 7.0.0 + core 7.0.0(LSTM 빌드 2종), 영어 데이터 `eng.traineddata.gz`(tessdata_best int). 라이선스 고지 화면은 `www/licenses.html` |
+| `tests/fixtures/scan/` | 스캔 기능 테스트 파일과 생성 스크립트 `make-fixtures.cjs` |
 
 - 단어집 교정: `glossary/corrections.json`에 추가 → `python glossary/apply_corrections.py server` → `glossary/out/review/fix.sql`을 새 서버 D1(`word-collector-db-v3`)에 `wrangler d1 execute --remote --file`로 반영.
 - 사전 검토: `python glossary/review_dictionaries.py --patent <EK_TRANS_DIC.txt>` (키: `NIKL_KTERM_KEY`, `NIKL_OPENDICT_KEY`, `KRDICT_KEY` 환경 변수). 온용어는 하루 약 1,400건까지만 답한다. 특허 영한 용어사전(EK_TRANS_DIC.txt)은 공공데이터포털에서 받는다.
@@ -94,3 +97,11 @@ Capacitor 8 (`npx cap sync android` → `android/`에서 Gradle 빌드). 앱 ID�
 
 - 작업 스케줄러 `USB-Claude-Backup`(30분마다 USB 백업), `WordCollector-Glossary-Review`(매일 사전 검토): `C:\scripts\`의 PowerShell 스크립트.
 - USB(볼륨 이름 DEVUSB): `Word Collector\`(대화 기록, Git 번들, 기술 보고서), `General\`(일반 설정·스크립트), `start.bat`.
+
+## 8. PDF·사진에서 단어 찾기 (V11.22) — 배포할 때 확인
+
+- 웹 배포 워크플로가 주소마다 저장 공간 이름을 바꾸는 목록(`sed -e 's/…-v1/…-<주소>-standalone/g'`)에 아래 이름도 넣어야 주소끼리 섞이지 않습니다.
+  - sessionStorage: `word-collector-scan-selection-v1`(고른 단어), `word-collector-capture-queue-v1`(분석 대기열)
+  - localStorage: `word-collector-scan-field-v1`(고른 전공 분야), `word-collector-scan-learned-v1`(예전에 고른 단어, 최대 500개)
+- AI 기능 두 가지(`/api/scan-terms`, `/api/scan-image`)는 서버에 배포해도 꺼져 있습니다. 켜는 방법과 확인할 점은 `docs/SCAN_TERMS_ROLLOUT.md`.
+- 단어 목록 파일(`www/quick_capture/common-words.js`, `english-words.js`, `word-tiers.js`)은 `scripts/build-common-words.cjs`로 다시 만들 수 있습니다(SCOWL, 고지 `www/vendor/scowl/Copyright.txt`).
