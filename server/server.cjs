@@ -147,9 +147,8 @@ function exampleSentenceFrom(text, word) {
   if (at < 0 && term) {
     // Limited regular inflections, still matching whole words in phrase order.
     // Never remove arbitrary suffixes and match the remaining prefix.
-    const inflections = word => {
-      if (!/^[a-z]+$/.test(word)) return escape(word);
-      const forms = new Set([word]);
+    const inflect = (word, forms) => {
+      forms.add(word);
       if (/[^aeiou]y$/.test(word)) {
         forms.add(word.slice(0, -1) + 'ies');
         forms.add(word.slice(0, -1) + 'ied');
@@ -158,6 +157,37 @@ function exampleSentenceFrom(text, word) {
         forms.add(word + (word.endsWith('e') ? 'd' : 'ed'));
       }
       forms.add((/[^e]e$/.test(word) ? word.slice(0, -1) : word) + 'ing');
+      // Short words double the last letter: stop → stopped, run → running.
+      if (/(?:^|[^aeiou])[aeiou][bdgklmnprt]$/.test(word)) {
+        forms.add(word + word.slice(-1) + 'ed');
+        forms.add(word + word.slice(-1) + 'ing');
+      }
+    };
+    // The word itself may be the inflected form (transformers, batteries, generated):
+    // its base form is found by removing only these regular endings.
+    const bases = word => {
+      const found = [word];
+      const add = base => { if (base.length >= 3) found.push(base); };
+      if (/ies$/.test(word)) add(word.slice(0, -3) + 'y');
+      else if (/(s|x|z|ch|sh)es$/.test(word)) add(word.slice(0, -2));
+      else if (/[^su]s$/.test(word) && !/is$/.test(word)) add(word.slice(0, -1));
+      if (/ied$/.test(word)) add(word.slice(0, -3) + 'y');
+      else if (/ed$/.test(word)) {
+        const stem = word.slice(0, -2);
+        add(stem); add(stem + 'e');
+        if (/([^aeiou])\1$/.test(stem)) add(stem.slice(0, -1));   // stopped → stop
+      }
+      if (/ing$/.test(word)) {
+        const stem = word.slice(0, -3);
+        add(stem); add(stem + 'e');
+        if (/([^aeiou])\1$/.test(stem)) add(stem.slice(0, -1));   // running → run
+      }
+      return found;
+    };
+    const inflections = word => {
+      if (!/^[a-z]+$/.test(word)) return escape(word);
+      const forms = new Set();
+      for (const base of bases(word)) inflect(base, forms);
       return '(?:' + [...forms].map(escape).join('|') + ')';
     };
     at = words.length ? sentences.findIndex(sentence => pattern(words.map(inflections)).test(sentence)) : -1;

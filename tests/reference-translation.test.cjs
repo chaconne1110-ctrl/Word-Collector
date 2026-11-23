@@ -226,3 +226,24 @@ for (const target of ['server', 'worker']) {
     assert.equal(res.status,502);
   });
 }
+
+test('example sentence: the word may be typed in an inflected form; endings are matched both ways', async () => {
+  const {exampleSentenceFrom} = await import('../cloudflare/worker.mjs');
+  const cases = [
+    // typed plural / past / -ing → the base form in the material
+    ['The core is laminated. A transformer steps voltage up.', 'transformers', 'A transformer steps voltage up.'],
+    ['Power is lost. A battery stores energy.', 'batteries', 'A battery stores energy.'],
+    ['It is fine. The motor will generate power.', 'generated', 'The motor will generate power.'],
+    ['Cores heat up. Eddy current flows.', 'eddy currents', 'Eddy current flows.'],
+    ['Wait. A box is here.', 'boxes', 'A box is here.'],
+    ['Wait. The relay will stop it.', 'stopped', 'The relay will stop it.'],
+    // typed base form → an inflected form in the material, doubled last letter included
+    ['Losses rise. Two transformers hum.', 'transformer', 'Two transformers hum.'],
+    ['Wait. The relay stopped the flow.', 'stop', 'The relay stopped the flow.'],
+    ['Wait. The motor is running.', 'run', 'The motor is running.'],
+    // still whole words only, and a word ending in -is is not cut
+    ['It is currently off. The current flows in the coil.', 'current', 'The current flows in the coil.'],
+    ['Plain. The analysis is done.', 'analysis', 'The analysis is done.'],
+  ];
+  for (const [text, word, want] of cases) assert.equal(exampleSentenceFrom(text, word), want, word);
+});
