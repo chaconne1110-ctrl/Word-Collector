@@ -53,7 +53,10 @@ for (const target of ['server', 'worker']) {
     assert.equal(data.referenceTranslation,translation);
     // With a reference sentence no example is generated: the example slot holds
     // the English sentence (here the input) and the translation slot the Korean.
-    assert.equal(data.exampleEn,reference);
+    // Two sentences in the reference: only the one with the word is the example,
+    // and only that sentence is sent to be translated.
+    assert.ok(sent.contents[0].parts[0].text.includes('"exampleReference":"Current flows through the conductor."'));
+    assert.equal(data.exampleEn,'Current flows through the conductor.');
     assert.equal(data.exampleKo,translation);
     assert.equal(data.exampleSource,'reference');
     assert.ok(!sent.generationConfig.responseSchema.required.includes('exampleSentence'));
@@ -65,7 +68,7 @@ for (const target of ['server', 'worker']) {
       notebooks:[{name:'전기',terms:[]}],translateReference:true};
     res = await send(modern); data = await res.json();
     assert.equal(res.status,200); assert.equal(data.analysis.referenceTranslation,translation);
-    assert.equal(data.analysis.exampleSentence,reference);
+    assert.equal(data.analysis.exampleSentence,'Current flows through the conductor.');
     assert.equal(data.analysis.exampleTranslation,translation);
     for (const bad of [undefined, '', 17, '가'.repeat(1201)]) {
       generated = {...output,referenceTranslation:bad};
@@ -135,7 +138,8 @@ for (const target of ['server', 'worker']) {
     assert.equal(data.referenceTranslationLanguage,'en');
     // Korean input: English translation goes to the example slot, the input to the translation slot.
     assert.equal(data.exampleEn,englishTranslation);
-    assert.equal(data.exampleKo,koreanReference);
+    // Two Korean sentences: only the first (the word is not in Korean text) is the example.
+    assert.equal(data.exampleKo,'전류가 도체를 통해 흐릅니다.');
 
     // An English sentence is still translated into Korean.
     generated = {...output};

@@ -46,7 +46,8 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(await page.locator('[name=exampleKo]').inputValue(),translation);
     assert.equal(await page.locator('[name=referenceTranslation]').isVisible(),false);
     // The reference sentence sits in the 예문 fields, so it is not repeated at the end.
-    assert.equal(await page.locator('[name=exampleEn]').inputValue(),reference);
+    // Two lines in the reference: only the one with the word is the example.
+    assert.equal(await page.locator('[name=exampleEn]').inputValue(),'Current flows through the conductor.');
     assert.equal(await page.locator('#review-reference-sentence').isVisible(),false);
     // On-screen order: 단어|품사, 한국어 뜻, 영어/한국어 정의, 영어/한국어 예문, 관련 단어, 전공, 단어장, then the reference sentence.
     const order = await page.evaluate(() => {
@@ -70,7 +71,7 @@ const {createServer} = require('../server/server.cjs');
     await page.goto(base+'/flashcard.html?term='+id);
     await page.locator('.card-front [data-field=en]').click();
         await page.waitForFunction(() => !document.querySelector('#cardsScrollContainer').hasAttribute('aria-busy'));
-    assert.equal(await page.locator('.card-back [data-field=exampleEn]').textContent(),reference);
+    assert.equal(await page.locator('.card-back [data-field=exampleEn]').textContent(),'Current flows through the conductor.');
     assert.equal(await page.locator('.card-back [data-field=exampleKo]').textContent(),corrected);
     await page.reload();
     await page.locator('.card-front [data-field=en]').click();
