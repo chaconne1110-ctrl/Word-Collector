@@ -19,6 +19,74 @@ const requestBody = {
 const token = 'wc_' + 'a'.repeat(64);
 
 for (const target of ['server', 'worker']) {
+  test(target + ': select complete words and translate the selected sentence in mixed-language references', async t => {
+    const cases = [
+      {term:'current', context:'The machine is currently offline. Current flows through the conductor.',
+        example:'Current flows through the conductor.', language:'ko'},
+      {term:'current', context:'Currents can vary. The current is measured.',
+        example:'The current is measured.', language:'ko'},
+      {term:'transformer', context:'Transformation changes a system. Transformers change voltage.',
+        example:'Transformers change voltage.', language:'ko'},
+      {term:'induce', context:'Induction is a process. Voltage is induced in a coil.',
+        example:'Voltage is induced in a coil.', language:'ko'},
+      {term:'electric current', context:'Electric fields affect currents. Electric currents heat the conductor.',
+        example:'Electric currents heat the conductor.', language:'ko'},
+      {term:'quality factor (Q)', context:'This is an introduction. The quality factor (Q) is measured.',
+        example:'The quality factor (Q) is measured.', language:'ko'},
+      {term:'current', context:'이 절은 도체에서 전하가 어떻게 움직이는지 설명합니다. 전원과 도체를 연결했을 때 나타나는 현상을 살펴봅니다. Current flows through the conductor.',
+        example:'Current flows through the conductor.', language:'ko'},
+      {term:'전류', context:'This chapter describes how electrical circuits behave when connected to a source of electrical energy. The next sentence describes the movement of charge inside the wire. 전류가 도체를 통해 흐릅니다.',
+        example:'전류가 도체를 통해 흐릅니다.', language:'en'}
+    ];
+    let current, sent, calls = 0;
+    const translated = () => current.language === 'ko' ? '선택한 문장의 한국어 번역입니다.' : 'The selected sentence translated into English.';
+    const upstream = async (_, options) => {
+      calls++;
+      sent = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+      const result = {...output, referenceTranslation:translated()};
+      return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(result)}]}}]}));
+    };
+    let send;
+    if (target === 'server') {
+      const server = createServer({apiKey:'test-only',fetchImpl:upstream});
+      server.listen(0,'127.0.0.1'); await once(server,'listening');
+      t.after(() => new Promise(resolve => {server.closeAllConnections();server.close(resolve);}));
+      send = body => fetch('http://127.0.0.1:' + server.address().port + '/api/analyze', {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+      });
+    } else {
+      const worker = (await import('../cloudflare/worker.mjs')).default;
+      const original = globalThis.fetch;
+      globalThis.fetch = upstream; t.after(() => {globalThis.fetch = original;});
+      const env = {GEMINI_API_KEY:'test-only',ENABLE_LIVE_ANALYSIS:'true',DB:{
+        prepare(sql) {return {bind(){return this;},async first(){
+          return sql.includes('FROM testers') ? {tester_id:'test',is_active:1} : {request_count:0};
+        },async run(){return {success:true};}};},
+        async batch(){return [{success:true,meta:{changes:1}},{success:true,meta:{changes:1}}];}
+      }};
+      send = body => worker.fetch(new Request('https://test/api/analyze', {
+        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)
+      }),env);
+    }
+    for (current of cases) {
+      const before = calls;
+      const response = await send({...requestBody, term:current.term, context:current.context,
+        meaningMode:'major', majorField:'전기공학'});
+      const data = await response.json();
+      assert.equal(response.status,200,JSON.stringify(data));
+      assert.equal(calls,before+1,'no extra model call');
+      assert.equal(sent.referenceText,current.context,'keep full context for meaning');
+      assert.equal(sent.exampleReference,current.example);
+      assert.equal(sent.referenceTranslationLanguage,current.language);
+      assert.equal(data.referenceTranslationLanguage,current.language);
+      assert.equal(data.exampleSource,'reference');
+      assert.equal(data.exampleEn,current.language === 'ko' ? current.example : translated());
+      assert.equal(data.exampleKo,current.language === 'ko' ? translated() : current.example);
+    }
+  });
+}
+
+for (const target of ['server', 'worker']) {
   test(`${target}: translate the reference in the same call, validate it, preserve old clients`, async t => {
     let generated = {...output}, calls = 0, sent;
     const upstream = async (_, options) => {

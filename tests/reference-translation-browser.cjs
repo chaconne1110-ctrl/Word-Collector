@@ -5,13 +5,16 @@ const {setupAnalysisClient}=require('./browser-client-fixture.cjs');
 const {createServer} = require('../server/server.cjs');
 
 (async () => {
-  const reference = 'Current flows through the conductor.\nContextual notes: AI 생성 예문.';
-  const translation = '전류가 도체를 통해 흐릅니다.\n도체가 따뜻해집니다.';
+  const reference = '이 절은 도체에서 전하가 어떻게 움직이는지 설명합니다. 전원과 도체를 연결했을 때 나타나는 현상을 살펴봅니다. The machine is currently offline. Current flows through the conductor.';
+  const translation = '전류가 도체를 통해 흐릅니다.';
   let calls = 0;
   const server = createServer({apiKey:'test-only',fetchImpl:async (_, init) => {
     calls++;
     const payload = JSON.parse(init.body);
-    assert.equal(JSON.parse(payload.contents[0].parts[0].text).referenceText,reference);
+    const input = JSON.parse(payload.contents[0].parts[0].text);
+    assert.equal(input.referenceText,reference);
+    assert.equal(input.exampleReference,'Current flows through the conductor.');
+    assert.equal(input.referenceTranslationLanguage,'ko');
     assert.ok(payload.generationConfig.responseSchema.required.includes('referenceTranslation'));
     return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({
       englishTerm:'current',koreanMeaning:'전류',specialization:'전기공학',notebookName:'전기',
@@ -46,7 +49,7 @@ const {createServer} = require('../server/server.cjs');
     assert.equal(await page.locator('[name=exampleKo]').inputValue(),translation);
     assert.equal(await page.locator('[name=referenceTranslation]').isVisible(),false);
     // The reference sentence sits in the 예문 fields, so it is not repeated at the end.
-    // Two lines in the reference: only the one with the word is the example.
+    // Skip "currently" and the Korean context; translate only the current sentence.
     assert.equal(await page.locator('[name=exampleEn]').inputValue(),'Current flows through the conductor.');
     assert.equal(await page.locator('#review-reference-sentence').isVisible(),false);
     // On-screen order: 단어|품사, 한국어 뜻, 영어/한국어 정의, 영어/한국어 예문, 관련 단어, 전공, 단어장, then the reference sentence.

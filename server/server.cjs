@@ -138,13 +138,29 @@ function exampleSentenceFrom(text, word) {
     }
   }
   if (sentences.length < 2) return String(text || '').trim();
-  const lower = sentences.map(sentence => sentence.toLowerCase());
   const term = String(word || '').trim().toLowerCase();
-  let at = term ? lower.findIndex(sentence => sentence.includes(term)) : -1;
+  const escape = value => value.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
+  const words = term.split(/[\s-]+/).filter(Boolean);
+  const pattern = parts => new RegExp('(?<![A-Za-z0-9_])' + parts.join('[\\s-]+') + '(?![A-Za-z0-9_])', 'i');
+  // Search every sentence for the complete term first: current != currently.
+  let at = words.length ? sentences.findIndex(sentence => pattern(words.map(escape)).test(sentence)) : -1;
   if (at < 0 && term) {
-    // Another form of the word (transformers, induced): every word's stem appears.
-    const stems = term.split(/[\s-]+/).filter(Boolean).map(part => part.length > 5 ? part.slice(0, part.length - 2) : part);
-    at = lower.findIndex(sentence => stems.every(stem => sentence.includes(stem)));
+    // Limited regular inflections, still matching whole words in phrase order.
+    // Never remove arbitrary suffixes and match the remaining prefix.
+    const inflections = word => {
+      if (!/^[a-z]+$/.test(word)) return escape(word);
+      const forms = new Set([word]);
+      if (/[^aeiou]y$/.test(word)) {
+        forms.add(word.slice(0, -1) + 'ies');
+        forms.add(word.slice(0, -1) + 'ied');
+      } else {
+        forms.add(word + (/(s|x|z|ch|sh)$/.test(word) ? 'es' : 's'));
+        forms.add(word + (word.endsWith('e') ? 'd' : 'ed'));
+      }
+      forms.add((/[^e]e$/.test(word) ? word.slice(0, -1) : word) + 'ing');
+      return '(?:' + [...forms].map(escape).join('|') + ')';
+    };
+    at = words.length ? sentences.findIndex(sentence => pattern(words.map(inflections)).test(sentence)) : -1;
   }
   return sentences[Math.max(0, at)];
 }
@@ -153,7 +169,9 @@ function exampleSentenceFrom(text, word) {
 function withExampleReference(input) {
   if (!referenceIsExample(input)) return input;
   const exampleReference = exampleSentenceFrom(input.referenceText, input.word);
-  return exampleReference && exampleReference !== input.referenceText.trim() ? {...input, exampleReference} : input;
+  return exampleReference && exampleReference !== input.referenceText.trim()
+    ? {...input, exampleReference, referenceTranslationLanguage: referenceTranslationLanguage(exampleReference)}
+    : input;
 }
 // noExample: 일반 의미 for apps that show words without an example sentence.
 const withoutGeneratedExample = input => referenceIsExample(input) || Boolean(input.noExample);
