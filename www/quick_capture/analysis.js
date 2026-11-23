@@ -290,8 +290,8 @@ for (const [key, title] of Object.entries(resultFields)) {
   input.required = false; // Optional review fields are saved as empty strings.
   input.maxLength = key === 'en' ? 120 : 1200;
   // One line to start; the box grows with longer text (전공, 한국어 뜻 and 관련 단어 included).
-  input.rows = ['en', 'pos', 'discipline', 'ko', 'related'].includes(key) ? 1 : 2;
-  if (key === 'related') input.placeholder = '예: capacitance, inductance';
+  input.rows = ['en', 'pos', 'discipline', 'ko'].includes(key) ? 1 : 2;
+  if (key === 'related') input.placeholder = '예: capacitance(정전 용량)\ninductance(인덕턴스)';
   if (key === 'referenceTranslation') {
     label.hidden = true;
     input.placeholder = '해석이 없으면 직접 입력하거나 다시 분석해 주세요.';
@@ -405,9 +405,12 @@ async function runAnalysis() {
       ...(request.meaningMode === 'major' && request.majorField ? {majorField: String(request.majorField).trim().slice(0, 60)} : {}),
       notebooks: autoCourse ? currentNotebooks() : withNotebook(currentNotebooks(), destinationName)}, {signal:ticket.signal});
     if (!analysisRequestGate.isCurrent(ticket.id)) return;
-    // Two related English words on one line, separated by commas (no meanings), editable before saving.
+    // Two related words, one per line as "word(뜻)", editable before saving.
     result.related = Array.isArray(result.relatedWords) ? result.relatedWords
-      .map(word => String(word?.en ?? '').trim()).filter(Boolean).slice(0, 2).join(', ') : '';
+      .map(word => {
+        const en = String(word?.en ?? '').trim(), ko = String(word?.ko ?? '').trim();
+        return en && ko ? `${en}(${ko})` : en;
+      }).filter(Boolean).slice(0, 2).join('\n') : '';
     result.pos = koreanPartOfSpeech(result.pos);
     for (const key of Object.keys(resultFields)) reviewForm.elements[key].value = result[key] ?? '';
     const translationLabel = reviewForm.elements.referenceTranslation.parentElement;
@@ -516,8 +519,10 @@ async function saveReview() {
   if (!draft || saving) return;
   const result = Object.fromEntries(Object.keys(resultFields).map(key =>
     [key, reviewForm.elements[key].value.trim()]));
-  // 관련 단어 is edited as one comma-separated line; it is saved one word per line as before.
-  result.related = result.related.split(/\s*[,\n]\s*/).filter(Boolean).join('\n');
+  // 관련 단어 is edited one "word(뜻)" per line and saved the same way. A single line
+  // typed on one line ("capacitance, inductance(인덕턴스)") is split at commas outside
+  // the parentheses, so a meaning such as "(정전 용량, 커패시턴스)" stays whole.
+  result.related = result.related.split(/\n|,(?![^()]*\))/).map(part => part.trim()).filter(Boolean).join('\n');
   const validation = WordCollectorPartialTerm.validate(result);
   if (!validation.ok) {
     status.textContent = validation.message;

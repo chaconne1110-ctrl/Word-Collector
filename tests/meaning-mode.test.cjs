@@ -40,8 +40,9 @@ test('일반 의미 shows every commonly used part of speech with its meanings',
     assert.match(src, /"\(명사\) \.\.\.; \(형용사\) \.\.\." 형식으로 충실하게 번역/, file);
     assert.doesNotMatch(src, /대표적인 일반 뜻을 1~3개 쉼표로 나열/, file);
   }
-  // 한국어 뜻 starts at one line and grows with the text (several parts of speech fit).
-  assert.match(fs.readFileSync('www/quick_capture/analysis.js', 'utf8'), /input\.rows = \['en', 'pos', 'discipline', 'ko', 'related'\]\.includes\(key\) \? 1 : 2;/);
+  // 한국어 뜻 starts at one line and grows with the text (several parts of speech fit);
+  // 관련 단어 starts at two lines, one "word(뜻)" each.
+  assert.match(fs.readFileSync('www/quick_capture/analysis.js', 'utf8'), /input\.rows = \['en', 'pos', 'discipline', 'ko'\]\.includes\(key\) \? 1 : 2;/);
 });
 
 test('modern request fallback carries the meaning choice', () => {

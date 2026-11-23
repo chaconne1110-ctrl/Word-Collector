@@ -114,10 +114,12 @@ function idsFor(bookmark, subject, filter, q) {
 }
 
 // Related words (from the analysis) replace the old formula field everywhere.
-// Only the English words are shown; any "word · 뜻" text keeps the word part.
-function relatedEnglishWords(term) {
-  return String(term?.related ?? '').split(/\n+/)
-    .map(line => line.split(' · ')[0].trim()).filter(Boolean).slice(0, 2);
+// One word per line, shown as "word(뜻)"; older "word · 뜻" lines become "word(뜻)".
+function relatedLines(term) {
+  return String(term?.related ?? '').split(/\n+/).map(line => {
+    const [word = '', meaning = ''] = line.split(' · ').map(part => part.trim());
+    return word && meaning ? `${word}(${meaning})` : word;
+  }).filter(Boolean).slice(0, 2);
 }
 
 // Part of speech in Korean. Words saved before this change hold English
@@ -514,17 +516,19 @@ function renderDeck() {
       exampleKo: legacyReference ? (term.referenceTranslation || '참고 문장 해석이 없습니다. 단어를 다시 분석해 주세요.') : term.exampleKo,
       // The word stands next to the ⚡ icon on both faces; the position ("01 / 05")
       // is shown once, in the top bar above the card.
-      related: relatedEnglishWords(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
+      related: relatedLines(term).join('\n'), pron: koreanPartOfSpeech(term.pron)});
     $$('[data-field="exampleEn"]', card).forEach(node => { node.parentElement.hidden = noExample; });
-    // "관련 단어" (two related words from the analysis) replaces the old formula box.
+    // "관련 단어" (two related words from the analysis) replaces the old formula box:
+    // the label on one line, then one "word(뜻)" per line below it.
     $$('[data-field="related"]', card).forEach(node => {
       const box = node.parentElement;
-      const related = relatedEnglishWords(term).join('\n');
+      const related = relatedLines(term).join('\n');
       box.hidden = !related;
-      box.style.alignItems = 'flex-start';
-      box.style.gap = '10px';
+      box.style.flexDirection = 'column';
+      box.style.alignItems = 'stretch';
+      box.style.gap = '4px';
       node.style.whiteSpace = 'pre-line';
-      node.style.textAlign = 'right';
+      node.style.textAlign = 'left';
       node.style.overflowWrap = 'anywhere';
       node.style.minWidth = '0';
     });

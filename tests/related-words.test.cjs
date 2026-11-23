@@ -73,15 +73,17 @@ test('flashcard shows "관련 단어" instead of the formula box; review lets th
   assert.equal((card.match(/data-field="related"/g) || []).length, 6);
   assert.match(card, />관련 단어</);
   const app = fs.readFileSync('www/app.js', 'utf8');
-  assert.match(app, /function relatedEnglishWords\(term\)/);
-  assert.match(app, /related: relatedEnglishWords\(term\)\.join/);
+  assert.match(app, /function relatedLines\(term\)/);
+  assert.match(app, /related: relatedLines\(term\)\.join/);
+  // The label on its own line, then one word per line below it.
+  assert.match(app, /box\.style\.flexDirection = 'column'/);
   assert.match(app, /box\.hidden = !related/);
   assert.doesNotMatch(app, /term\.formula/);
   const review = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
   assert.match(review, /related: '관련 단어'/);
   assert.match(review, /result\.related = Array\.isArray\(result\.relatedWords\)/);
-  // English words only: the Korean meaning is not put into the field.
-  assert.doesNotMatch(review, /word\?\.ko/);
+  // Each related word comes with its Korean meaning: "word(뜻)", one per line.
+  assert.match(review, /`\$\{en\}\(\$\{ko\}\)`/);
   // The word lists show the related-words chip where the formula chip was.
   for (const page of ['www/words.html', 'www/bookmarks.html']) {
     const html = fs.readFileSync(page, 'utf8');
@@ -90,12 +92,24 @@ test('flashcard shows "관련 단어" instead of the formula box; review lets th
   }
 });
 
-test('related words show only the English word, at most two', () => {
+test('related words show as "word(뜻)", one per line, at most two', () => {
   const app = fs.readFileSync('www/app.js', 'utf8').replace(/\r\n/g, '\n');
-  const start = app.indexOf('function relatedEnglishWords');
+  const start = app.indexOf('function relatedLines');
   const end = app.indexOf('\n}\n', start) + 2;
-  const relatedEnglishWords = new Function(app.slice(start, end) + '\nreturn relatedEnglishWords;')();
-  assert.deepEqual(relatedEnglishWords({related: 'capacitance\ndielectric'}), ['capacitance', 'dielectric']);
-  assert.deepEqual(relatedEnglishWords({related: 'capacitance · 정전용량\ndielectric · 유전체\nextra'}), ['capacitance', 'dielectric']);
-  assert.deepEqual(relatedEnglishWords({}), []);
+  const relatedLines = new Function(app.slice(start, end) + '\nreturn relatedLines;')();
+  assert.deepEqual(relatedLines({related: 'capacitance(정전용량)\ndielectric(유전체)'}), ['capacitance(정전용량)', 'dielectric(유전체)']);
+  // Words saved before the meanings were added stay as they are.
+  assert.deepEqual(relatedLines({related: 'capacitance\ndielectric'}), ['capacitance', 'dielectric']);
+  // The older "word · 뜻" form is shown as "word(뜻)".
+  assert.deepEqual(relatedLines({related: 'capacitance · 정전용량\ndielectric · 유전체\nextra'}), ['capacitance(정전용량)', 'dielectric(유전체)']);
+  assert.deepEqual(relatedLines({}), []);
+});
+
+test('review: related words are filled as "word(뜻)" lines and saved one per line', () => {
+  const review = fs.readFileSync('www/quick_capture/analysis.js', 'utf8');
+  const split = review.match(/result\.related = result\.related\.split\((\/.*?\/)\)/)[1];
+  const parts = text => text.split(eval(split)).map(part => part.trim()).filter(Boolean);
+  assert.deepEqual(parts('capacitance(정전 용량, 커패시턴스)\ninductance(인덕턴스)'), ['capacitance(정전 용량, 커패시턴스)', 'inductance(인덕턴스)']);
+  assert.deepEqual(parts('capacitance, inductance'), ['capacitance', 'inductance']);
+  assert.deepEqual(parts('a(뜻1), b(뜻2)'), ['a(뜻1)', 'b(뜻2)']);
 });
