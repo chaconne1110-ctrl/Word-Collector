@@ -4,23 +4,30 @@
 // words that already have one are skipped, so the script can be re-run safely.
 // Needs GEMINI_API_KEY and GEMINI_RELAY_SECRET in the environment (never printed).
 // Usage: node tools/generate-seed-photos.mjs <outDir> [limit]
+//   limit: at most this many new photos (paid calls); 0 makes none and only counts what is missing.
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {generatePhoto, geminiFetch} from '../cloudflare/worker.mjs';
 
 const [outDir, limitArg] = process.argv.slice(2);
 if (!outDir) throw new Error('usage: node tools/generate-seed-photos.mjs <outDir> [limit]');
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+// The project folder, decoded: it may contain spaces or Korean (e.g. "D:\Word Collector").
+const root = fileURLToPath(new URL('..', import.meta.url));
+const limit = limitArg === undefined ? Infinity : Number(limitArg);
+if (limitArg !== undefined && (!/^\d+$/.test(limitArg) || !Number.isSafeInteger(limit))) {
+  throw new Error('limit must be a whole number of 0 or more');
+}
 const seed = new Function(fs.readFileSync(path.join(root, 'www/data.js'), 'utf8') + ';return seed;')();
 const config = fs.readFileSync(path.join(root, 'cloudflare/deploy/wrangler.v3.jsonc'), 'utf8');
 const relay = config.match(/"GEMINI_RELAY_URL":\s*"([^"]+)"/)[1];
 const fetchImpl = geminiFetch({GEMINI_RELAY_URL: relay, GEMINI_RELAY_SECRET: process.env.GEMINI_RELAY_SECRET});
 fs.mkdirSync(outDir, {recursive: true});
-const limit = Number(limitArg) || Infinity;
-let made = 0, skipped = 0, failed = 0;
+let made = 0, skipped = 0, failed = 0, notMade = 0;
 for (const [id, term] of Object.entries(seed.terms)) {
-  if (made >= limit) break;
   if (fs.readdirSync(outDir).some(name => name.startsWith(id + '.'))) { skipped++; continue; }
+  // The limit counts every word tried, failed ones included (a failed call may still be billed).
+  if (made + failed >= limit) { notMade++; continue; }
   // Same input as the flashcard button (www/app.js).
   const input = {
     word: (term.en || term.ko).slice(0, 120), koreanMeaning: (term.ko || term.en).slice(0, 200),
@@ -41,4 +48,4 @@ for (const [id, term] of Object.entries(seed.terms)) {
     }
   }
 }
-console.log(`made ${made}, already there ${skipped}, failed ${failed}`);
+console.log(`made ${made}, already there ${skipped}, failed ${failed}` + (notMade ? `, not made (limit ${limit}) ${notMade}` : ''));
