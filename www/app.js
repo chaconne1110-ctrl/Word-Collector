@@ -133,6 +133,16 @@ function idsFor(bookmark, subject, filter, q) {
   });
 }
 
+// The first-run words (data.js) ship with an AI photo in assets/seed-photos/. It is shown
+// while the device has no photo of its own for the word, and only while the word is still
+// the same word (a photo of another word would be wrong after the user renames it).
+function builtInPhotoUrl(id, term) {
+  const original = seed.terms?.[id];
+  if (!original || !/^term_[a-f0-9-]{36}$/.test(id)) return '';
+  const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  return same(term?.en, original.en) ? `./assets/seed-photos/${id}.jpg` : '';
+}
+
 // Related words (from the analysis) replace the old formula field everywhere.
 // One word per line, shown as "word(뜻)"; older "word · 뜻" lines become "word(뜻)".
 function relatedLines(term) {
@@ -608,7 +618,21 @@ function renderDeck() {
     cancelActivePhoto = () => photoGate.cancel();
     async function refreshPhoto() {
       const blob = await WordCollectorPhoto.get(photoTermId);
-      if (!blob || !card.isConnected) return;
+      if (!card.isConnected) return;
+      if (!blob) {
+        // First-run words come with their AI photo (made once with the same prompt).
+        const builtIn = builtInPhotoUrl(photoTermId, term);
+        if (!builtIn) return;
+        photoImage.onload = () => {
+          photoImage.hidden = false;
+          hasPhoto = true;
+          photoButton.textContent = '사진 다시 생성 (추가 과금)';
+          photoStatus.textContent = '기본 단어장에 함께 들어 있는 AI 사진입니다. 인터넷 없이 표시됩니다.';
+        };
+        photoImage.onerror = () => { photoImage.hidden = true; };
+        photoImage.src = builtIn;
+        return;
+      }
       const url = URL.createObjectURL(blob);
       photoImage.onload = () => URL.revokeObjectURL(url);
       photoImage.onerror = () => URL.revokeObjectURL(url);
@@ -792,6 +816,14 @@ function renderEditor() {
   const photo = $('#edit-analysis-photo');
   const photoStatus = $('#edit-photo-status');
   void WordCollectorPhoto.get(termId).then(blob => {
+    const builtIn = blob ? '' : builtInPhotoUrl(termId, term);
+    if (builtIn) {
+      photo.onload = () => { photo.hidden = false; photoStatus.textContent = '기본 단어장에 함께 들어 있는 AI 사진입니다.'; };
+      photo.onerror = () => { photoStatus.textContent = '이 단어에 저장된 분석 이미지가 없습니다.'; };
+      photo.alt = term.en + ' 분석 이미지';
+      photo.src = builtIn;
+      return;
+    }
     if (!blob) { photoStatus.textContent = '이 단어에 저장된 분석 이미지가 없습니다.'; return; }
     const url = URL.createObjectURL(blob);
     photo.onload = () => { photo.hidden = false; photoStatus.textContent = '이 단어에 저장된 분석 이미지입니다.'; URL.revokeObjectURL(url); };

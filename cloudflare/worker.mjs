@@ -935,7 +935,7 @@ async function reserveImage(env, testerId) {
   return {table, testerId, date};
 }
 
-async function generatePhoto(input, apiKey, fetchImpl = fetch) {
+export async function generatePhoto(input, apiKey, fetchImpl = fetch) {
   const prompt = [
     'Create exactly ONE original, square (1:1), educational visual for a vocabulary flashcard.',
     'Vocabulary: ' + input.word,
