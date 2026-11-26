@@ -32,7 +32,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
           grep -q '"webDir":  *"www"' capacitor.config.json
-          test "$(git rev-parse HEAD:www/analysis-api.js)" = "52a1ab89729703135bf2ecbe26ea3fa959dfba75"
+          test "$(git rev-parse HEAD:www/analysis-api.js)" = "2ed5bbcf56e6550ff06970503b6b277eae144dc4"
           grep -Fq "https://word-collector-api-v3.yechan-lim-elec.workers.dev" www/analysis-api.js
           grep -Fq "https://word-collector-api-v3.yechan-lim-elec.workers.dev" www/anonymous-auth.js
 
