@@ -1,4 +1,4 @@
-name: Build and publish Word Collector V11.21 Android debug APK
+name: Build and publish Word Collector v6.2 Android debug APK
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "V11.21"
+          test "$GITHUB_REF_NAME" = "v6.2"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -q '"appId":  *"com.yechan.wordcollector"' capacitor.config.json
           grep -q '"webDir":  *"www"' capacitor.config.json
@@ -84,17 +84,17 @@ jobs:
           grep -q 'id="analysis-action-bar"' android/app/src/main/assets/public/quick_capture/code.html
           ! grep -q 'id="tester-token"' android/app/src/main/assets/public/quick_capture/code.html
 
-      - name: Isolate V11.21 Android installation and validate bundled v3 API
+      - name: Isolate v6.2 Android installation and validate bundled v3 API
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' android/app/src/main/assets/public/analysis-api.js
           grep -Fq 'word-collector-api-v3.yechan-lim-elec.workers.dev' android/app/src/main/assets/public/anonymous-auth.js
-          sed -i 's/applicationId "com.yechan.wordcollector"/applicationId "com.yechan.wordcollector.v1121"/' android/app/build.gradle
-          sed -i 's/<string name="app_name">Word Collector</<string name="app_name">Word Collector V11.21</' android/app/src/main/res/values/strings.xml
-          sed -i 's/<string name="title_activity_main">Word Collector</<string name="title_activity_main">Word Collector V11.21</' android/app/src/main/res/values/strings.xml
-          grep -q 'applicationId "com.yechan.wordcollector.v1121"' android/app/build.gradle
-          grep -q 'Word Collector V11.21' android/app/src/main/res/values/strings.xml
+          sed -i 's/applicationId "com.yechan.wordcollector"/applicationId "com.yechan.wordcollector.v62"/' android/app/build.gradle
+          sed -i 's/<string name="app_name">Word Collector</<string name="app_name">Word Collector v6.2</' android/app/src/main/res/values/strings.xml
+          sed -i 's/<string name="title_activity_main">Word Collector</<string name="title_activity_main">Word Collector v6.2</' android/app/src/main/res/values/strings.xml
+          grep -q 'applicationId "com.yechan.wordcollector.v62"' android/app/build.gradle
+          grep -q 'Word Collector v6.2' android/app/src/main/res/values/strings.xml
 
       - name: Build Android debug APK
         run: bash android/gradlew -p android assembleDebug --max-workers=2 --console=plain
@@ -106,8 +106,8 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           SHORT_SHA="${GITHUB_SHA:0:9}"
-          NAME="WordCollector_V11.21_${SHORT_SHA}_Debug.apk"
-          TAG="word-collector-v11.21-debug-${SHORT_SHA}"
+          NAME="WordCollector_v6.2_${SHORT_SHA}_Debug.apk"
+          TAG="word-collector-v6.2-debug-${SHORT_SHA}"
           mkdir -p release
           cp "$APK" "release/$NAME"
           (cd release && sha256sum "$NAME" > SHA256.txt)
@@ -116,8 +116,8 @@ jobs:
           {
             echo "Branch: $GITHUB_REF_NAME"
             echo "Commit: $GITHUB_SHA"
-            echo "Android App ID: com.yechan.wordcollector.v1121"
-            echo "Underlying V11.21 application source: 157eee1d97128432b8d40a9e340d1ac24c640965"
+            echo "Android App ID: com.yechan.wordcollector.v62"
+            echo "Underlying v6.2 application source: 20cd349a043a61d4be96769b999f6419c7e7737d"
             echo "Analysis API: word-collector-api-v3.yechan-lim-elec.workers.dev"
             echo "Variant: debug test build, not production signed"
             echo "No Cloudflare Worker or GitHub Pages deployment was performed"
@@ -127,7 +127,7 @@ jobs:
       - name: Upload downloadable APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: wordcollector-v11.21-debug-apk
+          name: wordcollector-v6.2-debug-apk
           path: |
             release/*.apk
             release/SHA256.txt
@@ -135,7 +135,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish public V11.21 Android APK release
+      - name: Publish public v6.2 Android APK release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -144,6 +144,6 @@ jobs:
           gh release create "$RELEASE_TAG" \
             "release/$RELEASE_NAME" release/SHA256.txt release/BUILD_INFO.txt \
             --target "$GITHUB_SHA" \
-            --title "Word Collector V11.21 Android APK ($RELEASE_TAG)" \
-            --notes "Word Collector V11.21 snapshot (157eee1d app source; workflow-only build commit). New logo, three notebooks and 72 terms, v3 AI server. Debug test APK with separate Android package com.yechan.wordcollector.v1121 to preserve previous installations. On-device install and live AI calls not verified." \
+            --title "Word Collector v6.2 Android APK ($RELEASE_TAG)" \
+            --notes "Word Collector v6.2 snapshot (20cd349a app source; workflow-only build commit). Three seeded notebooks, 72 terms, v3 AI server. Debug test APK with isolated Android package com.yechan.wordcollector.v62 to protect previous installations. On-device install and live AI calls not verified." \
             --prerelease
